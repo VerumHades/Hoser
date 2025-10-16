@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 
+	"server/internal/configuration"
 	"server/internal/database"
 
 	"github.com/gorilla/sessions"
@@ -11,7 +15,8 @@ import (
 )
 
 var store = sessions.NewCookieStore([]byte("super-secret-key"))
-var database_interactor database.Interactor = &database.DummyInteractor{}
+var databaseInteractor database.Interactor = &database.DummyInteractor{}
+var runningConfiguration = configuration.Load()
 
 func sendIvalidCredentialsError(w http.ResponseWriter) {
 	http.Error(w, "Invalid credentials", http.StatusUnauthorized)
@@ -25,7 +30,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
-	user, user_error := database_interactor.GetUserByName(username)
+	user, user_error := databaseInteractor.GetUserByName(username)
 
 	if user_error != nil {
 		sendIvalidCredentialsError(w)
@@ -44,8 +49,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	session.Values["authenticated"] = true
 	session.Values["user"] = user
 	session.Save(r, w)
-
-	fmt.Fprintln(w, "Logged in")
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -59,42 +62,97 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	session.Options.MaxAge = -1
 	session.Save(r, w)
 
-	fmt.Fprintln(w, "Logged out")
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+func publicRentalQueryHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
 		return
 	}
 
-	session, _ := store.Get(r, "user-session")
+	options := database.RentalQueryOptions{}
 
-	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+	query := r.URL.Query() // returns url.Values (map[string][]string)
+
+	if q := query.Get("q"); q != "" {
+		options.Text = q
+	}
+
+	response, err := databaseInteractor.QueryPublicRentals(&options)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	user := session.Values["user"]
-	fmt.Fprintf(w, "Welcome, %s!", user)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(response)
 }
 
-var clientBuildDirectory = "../client/dist"
+func withCORS(next http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
 
-func main() {
-	// API endpoints
-	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/logout", logoutHandler)
-	http.HandleFunc("/home", homeHandler)
+		for _, o := range runningConfiguration.AllowedOrigins {
+			if origin == o {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
 
-	fs := http.FileServer(http.Dir(clientBuildDirectory))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if _, err := http.Dir(clientBuildDirectory).Open(r.URL.Path); err != nil {
-			http.ServeFile(w, r, clientBuildDirectory+"/index.html")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		fs.ServeHTTP(w, r)
-	})
 
-	fmt.Println("Server running on http://localhost:8080")
-	http.ListenAndServe("localhost:8080", nil)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func reactHandler(fs http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(runningConfiguration.ClientDirectory, r.URL.Path)
+
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			http.ServeFile(w, r, filepath.Join(runningConfiguration.ClientDirectory, "index.html"))
+			return
+		}
+
+		fs.ServeHTTP(w, r)
+	}
+}
+
+func main() {
+	handlers := map[string]func(http.ResponseWriter, *http.Request){
+		"/login":          loginHandler,
+		"/logout":         logoutHandler,
+		"/rentals/public": publicRentalQueryHandler,
+	}
+	middlewares := []func(http.Handler) http.HandlerFunc{
+		withCORS,
+	}
+
+	mux := http.NewServeMux()
+
+	for key, value := range handlers {
+		handler := value
+
+		for i := range middlewares {
+			handler = middlewares[i](http.HandlerFunc(handler))
+		}
+
+		mux.Handle(key, http.HandlerFunc(handler))
+	}
+
+	fs := http.FileServer(http.Dir(runningConfiguration.ClientDirectory))
+	mux.Handle("/", reactHandler(fs))
+
+	var address = fmt.Sprintf("%s:%s", runningConfiguration.Address, runningConfiguration.Port)
+	fmt.Printf("Server running on http://%s\n", address)
+	http.ListenAndServe(address, mux)
 }

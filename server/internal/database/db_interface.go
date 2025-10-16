@@ -13,7 +13,13 @@ type Listing struct {
 }
 
 type Rental struct {
-	ID int
+	ID          int
+	Title       string
+	Description string
+}
+
+type RentalQueryOptions struct {
+	Text string
 }
 
 type Interactor interface {
@@ -24,5 +30,5 @@ type Interactor interface {
 	// Returns all rentals the user has
 	GetUserRentals(user *User) ([]*Rental, error)
 	// Returns public rentals
-	QueryPublicRentals() ([]*Rental, error)
+	QueryPublicRentals(options *RentalQueryOptions) ([]*Rental, error)
 }

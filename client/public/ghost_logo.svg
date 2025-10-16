@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="128"
+   height="128"
+   viewBox="0 0 33.866666 33.866666"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
+   sodipodi:docname="ghost_logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="true"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="4"
+     inkscape:cx="27"
+     inkscape:cy="68.5"
+     inkscape:window-width="1993"
+     inkscape:window-height="1279"
+     inkscape:window-x="709"
+     inkscape:window-y="47"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1">
+    <inkscape:grid
+       type="xygrid"
+       id="grid528" />
+  </sodipodi:namedview>
+  <defs
+     id="defs2">
+    <rect
+       x="15.723804"
+       y="14.924288"
+       width="195.61478"
+       height="-2.9315567"
+       id="rect416" />
+    <rect
+       x="11.118408"
+       y="12.437541"
+       width="135.55983"
+       height="113.24592"
+       id="rect360" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <text
+       xml:space="preserve"
+       transform="scale(0.26458333)"
+       id="text358"
+       style="font-size:21.3333px;font-family:'0xProto Nerd Font Mono';-inkscape-font-specification:'0xProto Nerd Font Mono';white-space:pre;shape-inside:url(#rect360);fill:#000000;stroke-width:1.00157"><tspan
+         x="11.119141"
+         y="247.9055"
+         id="tspan1627"><tspan
+           style="font-size:133.333px;-inkscape-font-specification:'0xProto Nerd Font Mono, Normal'"
+           id="tspan1625">G</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,5.1474359,29.262821)"
+       id="text414"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:133.333px;font-family:'0xProto Nerd Font Mono';-inkscape-font-specification:'0xProto Nerd Font Mono, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;white-space:pre;shape-inside:url(#rect416);fill:#ffffff;stroke-width:1.00157"><tspan
+         x="0"
+         y="0"
+         id="tspan1629">G</tspan></text>
+    <path
+       style="fill:#ffffff;stroke-width:0.264366"
+       id="path1144"
+       sodipodi:type="arc"
+       sodipodi:cx="20.883844"
+       sodipodi:cy="18.140888"
+       sodipodi:rx="4.5453739"
+       sodipodi:ry="4.8285694"
+       sodipodi:start="3.2637657"
+       sodipodi:end="0"
+       sodipodi:arc-type="slice"
+       d="m 16.372351,17.552434 a 4.5453739,4.8285694 0 0 1 4.788982,-4.231109 4.5453739,4.8285694 0 0 1 4.267885,4.819563 h -4.545374 z" />
+    <ellipse
+       style="fill:#000000;stroke-width:0.264999"
+       id="path1198"
+       cx="22.918364"
+       cy="17.02507"
+       rx="1.2160764"
+       ry="1.1693041" />
+    <ellipse
+       style="fill:#000000;stroke-width:0.264999"
+       id="path1198-0"
+       cx="18.9895"
+       cy="17.02507"
+       rx="1.2160764"
+       ry="1.1693041" />
+    <circle
+       style="fill:#ffffff;stroke-width:0.264999"
+       id="path1222"
+       cx="17.859375"
+       cy="20.687109"
+       r="1.4552083" />
+    <circle
+       style="fill:#ffffff;stroke-width:0.264999"
+       id="path1222-7"
+       cx="20.720182"
+       cy="20.769793"
+       r="1.4552083" />
+  </g>
+</svg>
