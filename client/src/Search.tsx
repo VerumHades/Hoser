@@ -41,11 +41,6 @@ export default function SearchWithFilters() {
     );
 
     useEffect(() => {
-        if (query.trim().length === 0) {
-            setResults([]);
-            return;
-        }
-
         const controller = new AbortController();
         fetchResultsDebounced(query, controller);
 
@@ -72,11 +67,11 @@ export default function SearchWithFilters() {
             ) : results.length === 0 ? (
                 <p className="text-center text-gray-400">No results found.</p>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-3">
                     {results.map((item) => (
                         <div
                             key={item.ID}
-                            className="flex items-start gap-4 p-4 border rounded-md shadow-sm"
+                            className="flex items-start gap-4 p-4 rounded-md shadow-lg bg-gray-900"
                         >
                             <img
                                 src={item.icon || item.image || "/placeholder.png"}
