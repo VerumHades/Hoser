@@ -14,6 +14,7 @@ type Configuration struct {
 	Address         string
 	ClientDirectory string
 	AllowedOrigins  []string
+	SessionSecret   string
 }
 
 func Load() Configuration {
@@ -25,7 +26,8 @@ func Load() Configuration {
 	return Configuration{
 		Port:            getEnviromentalValueOrDefault("PORT", "8080"),
 		Address:         getEnviromentalValueOrDefault("ADDRESS", "localhost"),
-		ClientDirectory: getEnviromentalValueOrDefault("CLIENT_DIRECTORY", "./client/build"),
+		ClientDirectory: getEnviromentalValueOrDefault("CLIENT_DIRECTORY", "../client/dist"),
+		SessionSecret:   getEnviromentalValueOrDefault("SESSION_SECRET", "super_secret_dev_key"),
 		AllowedOrigins:  strings.Split(getEnviromentalValueOrDefault("ALLOWED_ORIGINS", ""), ","),
 	}
 }

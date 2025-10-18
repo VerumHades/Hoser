@@ -20,6 +20,7 @@ export default function LoginForm() {
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
                 body: new URLSearchParams({ username, password }),
+                credentials: "include" 
             });
 
             if (response.ok) {

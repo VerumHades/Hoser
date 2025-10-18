@@ -1,10 +1,10 @@
 import os
 from sys import executable
-from subprocess import Popen, CREATE_NEW_CONSOLE
+from subprocess import Popen
 
 def spawn_function_shell(function):
     import_template = f"from dev import {function.__name__} \n{function.__name__}()"
-    Popen([executable, '-c', import_template], creationflags=CREATE_NEW_CONSOLE)
+    Popen([executable, '-c', import_template])
 
 
 def start_go_server():
