@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [, setTick] = useState(0);
   const navigate = useNavigate(); 
 
   const links = [
