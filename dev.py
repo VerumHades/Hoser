@@ -3,8 +3,11 @@ from sys import executable
 from subprocess import Popen
 
 def spawn_function_shell(function):
-    import_template = f"from dev import {function.__name__} \n{function.__name__}()"
-    Popen([executable, '-c', import_template])
+    import_template = f"\"from dev import {function.__name__} \n{function.__name__}()\""
+    print(" ".join(['gnome-terminal', '--', 'bash', '-c', executable, '-c', import_template]))
+    
+    command = f"{executable} -c {import_template}"
+    Popen(['gnome-terminal', '--', 'bash', '-c', command])
 
 
 def start_go_server():

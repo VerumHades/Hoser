@@ -54,7 +54,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	session.Values["user"] = user
 	session.Save(r, w)
 
-	fmt.Println("Authentificated user: " + user.Username)
+	//fmt.Println("Authentificated user: " + user.Username)
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +77,7 @@ func userDataRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session, _ := store.Get(r, "user-session")
-	fmt.Print(session.Values)
+	//fmt.Print(session.Values)
 	user, _ := session.Values["user"].(database.User)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -119,7 +119,7 @@ func publicRentalQueryHandler(w http.ResponseWriter, r *http.Request) {
 func authRequired(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := store.Get(r, "user-session")
-		fmt.Print(session.Values)
+		//fmt.Print(session.Values)
 		// Check if authenticated value exists and is true
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -171,11 +171,9 @@ func reactHandler(fs http.Handler) http.HandlerFunc {
 type Middleware = func(http.Handler) http.HandlerFunc
 
 func applyMiddlewares(middlewares []Middleware, handlers map[string]http.HandlerFunc) {
-	for key, value := range handlers {
-		handler := value
-
-		for i := range middlewares {
-			handlers[key] = middlewares[i](http.HandlerFunc(handler))
+	for i := range middlewares {
+		for key, value := range handlers {
+			handlers[key] = middlewares[i](http.HandlerFunc(value))
 		}
 	}
 }
@@ -194,7 +192,7 @@ func main() {
 	store.Options = &sessions.Options{
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,                 // must use HTTPS in production
+		Secure:   true,                  // must use HTTPS in production
 		SameSite: http.SameSiteNoneMode, // allow cross-origin requests
 	}
 
@@ -204,7 +202,7 @@ func main() {
 
 	handlers := utils.MergeMaps(public_handlers, login_required_handlers)
 
-	applyMiddlewares([]Middleware{withCORS}, handlers)
+	applyMiddlewares([]Middleware{utils.ColorLogMiddleware, withCORS}, handlers)
 
 	mux := http.NewServeMux()
 

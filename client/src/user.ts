@@ -1,25 +1,20 @@
 import backend_constants from "./backend_constants"
 
 
-type User = {
+export type User = {
     Username: string
 }
 
-let user: User | undefined = undefined
-
-try {
-    let response = await fetch(`${backend_constants.address}/user/data`, {
-        method: "GET",
-        credentials: "include"
-    })
-
-    if (response.status == 200) {
-        user = await response.json() as User
+export async function getUser(): Promise<User | undefined> {
+    try {
+        const response = await fetch(`${backend_constants.address}/user/data`, {
+            method: "GET",
+            credentials: "include"
+        })
+        if (response.status === 200) {
+            return await response.json() as User
+        }
+    } catch {
+        // handle errors
     }
 }
-catch (err) {
-
-}
-
-console.log(user)
-export default user

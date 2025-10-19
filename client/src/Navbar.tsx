@@ -1,7 +1,7 @@
 // src/components/Navbar.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import user from "./user";
+import { getUser, type User } from "./user";
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,6 +21,16 @@ const Navbar: React.FC = () => {
     },
   ]
 
+  const [user, setUser] = useState<User | undefined>(undefined);
+
+  useEffect(() => {
+    async function fetchUser() {
+      const u = await getUser()
+      setUser(u)
+    }
+
+    fetchUser()
+  }, [])
 
   const built_links = links.map(x =>
     <NavLink

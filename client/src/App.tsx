@@ -3,6 +3,7 @@ import LoginForm from "./LoginForm";
 import Home from "./Home";
 import Navbar from "./Navbar";
 import Search from "./Search";
+import AccountPage from "./Account";
 
 function App() {
     return (
@@ -13,6 +14,7 @@ function App() {
                 <Routes>
                     <Route path="/login" element={<LoginForm />} />
                     <Route path="/explore" element={<Search />} />
+                    <Route path="/account" element={<AccountPage />} />
                     <Route path="/" element={<Home />} />
                 </Routes>
             </Router>
