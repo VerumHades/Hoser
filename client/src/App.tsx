@@ -4,6 +4,7 @@ import Home from "./Home";
 import Navbar from "./Navbar";
 import Search from "./Search";
 import AccountPage from "./Account";
+import DashboardApp from "./DeveloperDashboard";
 
 function App() {
     return (
@@ -15,6 +16,7 @@ function App() {
                     <Route path="/login" element={<LoginForm />} />
                     <Route path="/explore" element={<Search />} />
                     <Route path="/account" element={<AccountPage />} />
+                    <Route path="/developer/dashboard" element={<DashboardApp />} />
                     <Route path="/" element={<Home />} />
                 </Routes>
             </Router>
