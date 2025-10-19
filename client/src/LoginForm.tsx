@@ -24,7 +24,7 @@ export default function LoginForm() {
             });
 
             if (response.ok) {
-                navigate("/");
+                navigate("/user_logged_in");
             } else {
                 const text = await response.text();
                 toast.error(text)

@@ -23,7 +23,7 @@ const AccountPage: React.FC = () => {
     try {
       await fetch(`${backend_constants.address}/logout`, { method: "POST", credentials: "include" });
       setUser(undefined);
-      navigate("/login"); // redirect to login after logout
+      navigate("/user_logged_out");
     } catch (err) {
       console.error("Logout failed", err);
     }

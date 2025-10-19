@@ -1,10 +1,13 @@
 // src/components/Navbar.tsx
 import React, { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { getUser, type User } from "./user";
+import { useNavigate } from "react-router-dom";
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [, setTick] = useState(0);
+  const navigate = useNavigate(); 
 
   const links = [
     {
@@ -21,16 +24,31 @@ const Navbar: React.FC = () => {
     },
   ]
 
-  const [user, setUser] = useState<User | undefined>(undefined);
+  const location = useLocation();
 
-  useEffect(() => {
+  const refreshUser = () => {
     async function fetchUser() {
       const u = await getUser()
       setUser(u)
     }
 
     fetchUser()
-  }, [])
+  }
+
+  useEffect(() => {
+    if(location.pathname == "/user_logged_out"){  
+      setUser(undefined)
+      navigate("/")
+    }
+    else if(location.pathname == "/user_logged_in"){
+      refreshUser()
+      navigate("/")
+    }  
+  }, [location]); // Update on login and such
+
+  const [user, setUser] = useState<User | undefined>(undefined);
+
+  useEffect(refreshUser, [])
 
   const built_links = links.map(x =>
     <NavLink

@@ -67,8 +67,6 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	session.Values["authenticated"] = false
 	session.Options.MaxAge = -1
 	session.Save(r, w)
-
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func userDataRequestHandler(w http.ResponseWriter, r *http.Request) {
