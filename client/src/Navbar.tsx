@@ -11,8 +11,7 @@ const Navbar: React.FC = () => {
     const location = useLocation();
 
     const links = [
-        { name: "Explore", to: "/explore" },
-        { name: "Rent", to: "/rent" },
+        { name: "Explore", to: "/explore/listings" },
         { name: "Develop", to: "/developer/dashboard" },
     ];
 

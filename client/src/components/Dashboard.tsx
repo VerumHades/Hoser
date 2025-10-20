@@ -24,7 +24,6 @@ export default function Dashboard({ children }: DashboardProps) {
     const [current_page, setPage] = useState<string>("listings");
 
     const pages = React.Children.toArray(children).map((child) => {
-        console.log(child)
         if (!React.isValidElement<PageProps>(child)) {
             throw new Error("<Dashboard> children must be <Page> components");
         }

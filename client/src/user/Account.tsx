@@ -1,8 +1,8 @@
 // src/components/AccountPage.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUser, type User } from "./user";
-import backend_constants from "./backend_constants";
+import { getUser, type User } from "../user";
+import backend_constants from "../backend_constants";
 
 const AccountPage: React.FC = () => {
   const [user, setUser] = useState<User | undefined>(undefined);

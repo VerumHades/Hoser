@@ -82,9 +82,11 @@ func userDataRequestHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	json.NewEncoder(w).Encode(struct {
-		Username string
+		Username    string
+		IsDeveloper bool
 	}{
-		Username: user.Username,
+		Username:    user.Username,
+		IsDeveloper: user.IsDeveloper,
 	})
 }
 

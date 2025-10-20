@@ -1,10 +1,11 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import LoginForm from "./LoginForm";
-import Home from "./Home";
+import LoginForm from "./user/LoginForm";
+import Home from "./user/Home";
 import Navbar from "./Navbar";
 import Search from "./Search";
-import AccountPage from "./Account";
-import DashboardApp from "./DeveloperDashboard";
+import AccountPage from "./user/Account";
+import DashboardApp from "./developer/DeveloperDashboard";
+import DeveloperJoin from "./developer/DeveloperJoin";
 
 function App() {
     return (
@@ -14,9 +15,10 @@ function App() {
                 <Navbar></Navbar>
                 <Routes>
                     <Route path="/login" element={<LoginForm />} />
-                    <Route path="/explore" element={<Search />} />
+                    <Route path="/explore/listings" element={<Search />} />
                     <Route path="/account" element={<AccountPage />} />
                     <Route path="/developer/dashboard" element={<DashboardApp />} />
+                    <Route path="/developer/join" element={<DeveloperJoin />} />
                     <Route path="/" element={<Home />} />
                 </Routes>
             </Router>

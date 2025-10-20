@@ -15,9 +15,24 @@ func (d *DummyInteractor) GetUserByName(username string) (*User, error) {
 	}
 
 	users := map[string]*User{
-		"alice": {ID: 1, Username: "alice", PasswordHash: "$2y$10$LHg6JpCH8z5YHKsdYBAtiukBbWLLuR.Gyowp7KzX8R3rOm/hjHPJa"},
-		"bob":   {ID: 2, Username: "bob", PasswordHash: "$2y$10$LHg6JpCH8z5YHKsdYBAtiukBbWLLuR.Gyowp7KzX8R3rOm/hjHPJa"},
-		"carol": {ID: 3, Username: "carol", PasswordHash: "$2y$10$LHg6JpCH8z5YHKsdYBAtiukBbWLLuR.Gyowp7KzX8R3rOm/hjHPJa"},
+		"alice": {
+			ID:           1,
+			Username:     "alice",
+			PasswordHash: "$2y$10$LHg6JpCH8z5YHKsdYBAtiukBbWLLuR.Gyowp7KzX8R3rOm/hjHPJa",
+			IsDeveloper:  true,
+		},
+		"bob": {
+			ID:           2,
+			Username:     "bob",
+			PasswordHash: "$2y$10$LHg6JpCH8z5YHKsdYBAtiukBbWLLuR.Gyowp7KzX8R3rOm/hjHPJa",
+			IsDeveloper:  false,
+		},
+		"carol": {
+			ID:           3,
+			Username:     "carol",
+			PasswordHash: "$2y$10$LHg6JpCH8z5YHKsdYBAtiukBbWLLuR.Gyowp7KzX8R3rOm/hjHPJa",
+			IsDeveloper:  true,
+		},
 	}
 
 	user, ok := users[username]

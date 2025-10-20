@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { toast, Toaster } from 'react-hot-toast';
 import { useNavigate } from "react-router-dom";
 
-import backend_constants from "./backend_constants";
+import backend_constants from "../backend_constants";
 
 export default function LoginForm() {
     const [username, setUsername] = useState<string>("");
@@ -37,7 +37,7 @@ export default function LoginForm() {
 
     return (
         <div className="flex items-center justify-center h-screen w-screen margin-0 bg-gray-100 dark:bg-gray-900">
-            <div className="w-96 p-8rounded-lg shadow-lg text-center">
+            <div className="w-96 p-8rounded-lg shadow-lg text-center max-w-11/12">
                 <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">Login</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">

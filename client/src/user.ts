@@ -3,6 +3,7 @@ import backend_constants from "./backend_constants"
 
 export type User = {
     Username: string
+    IsDeveloper: boolean
 }
 
 export async function getUser(): Promise<User | undefined> {
