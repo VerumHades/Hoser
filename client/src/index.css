@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+
+
+.navigation-sublink {
+  @apply text-indigo-700 dark:text-gray-300 px-4 py-2 rounded transition-colors
+}
+
+.navigation-link{
+  @apply  hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white text-indigo-700 dark:text-gray-300 px-4 py-2 rounded transition-colors
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

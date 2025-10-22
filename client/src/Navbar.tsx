@@ -1,19 +1,32 @@
 // src/components/Navbar.tsx
-import React, { useEffect, useState } from "react";
+import React, { Children, useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { getUser, type User } from "./user";
+import { clearCachedUser, getUser, type User } from "./user";
 import { Menu, X, User as UserIcon } from "lucide-react"; // Lucide icons
+import HoverDropdown from "./components/HoverDropdown";
+
+interface NavigationLinkProps {
+    to: string,
+    onClick?: () => void,
+    className?: string,
+    children?: React.ReactNode
+}
+function NavigationLink({children, to, onClick, className}: NavigationLinkProps){
+    return <NavLink
+        to={to}
+        end
+        className={className}
+        onClick={onClick}
+    >
+        {children}
+    </NavLink>
+}
 
 const Navbar: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [user, setUser] = useState<User | undefined>(undefined);
     const navigate = useNavigate();
     const location = useLocation();
-
-    const links = [
-        { name: "Explore", to: "/explore/listings" },
-        { name: "Develop", to: "/developer/dashboard" },
-    ];
 
     const refreshUser = () => {
         async function fetchUser() {
@@ -23,29 +36,23 @@ const Navbar: React.FC = () => {
         fetchUser();
     };
 
+    const close = () => {
+        setIsOpen(false)
+    }
+
     useEffect(refreshUser, []);
 
     useEffect(() => {
         if (location.pathname === "/user_logged_out") {
             setUser(undefined);
+            clearCachedUser()
             navigate("/");
         } else if (location.pathname === "/user_logged_in") {
+            clearCachedUser()
             refreshUser();
             navigate("/");
         }
     }, [location, navigate]);
-
-    const builtLinks = links.map((x, i) => (
-        <NavLink
-            key={i}
-            to={x.to}
-            end
-            className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white px-4 py-2 rounded transition-colors"
-            onClick={() => setIsOpen(false)}
-        >
-            {x.name}
-        </NavLink>
-    ));
 
     const accountButton = (
         <NavLink
@@ -60,6 +67,18 @@ const Navbar: React.FC = () => {
         </NavLink>
     );
 
+    const links = <>
+        <HoverDropdown title="Explore">
+            <NavigationLink to="/explore/public" onClick={close} className="navigation-sublink">
+                Public Servers
+            </NavigationLink>
+            <NavigationLink to="/explore/listings" onClick={close} className="navigation-sublink">
+                Rental Options
+            </NavigationLink>
+        </HoverDropdown>
+        <NavigationLink to="/developer/dashboard" onClick={close} className="navigation-link">Develop</NavigationLink>
+    </>
+
     return (
         <div className="fixed inset-x-0 top-0 flex flex-col pointer-events-none z-50">
             <nav className="bg-white dark:bg-gray-900 shadow-md w-full pointer-events-auto">
@@ -70,7 +89,9 @@ const Navbar: React.FC = () => {
                         <span className="text-2xl font-bold text-gray-900 dark:text-white">
                             gHost
                         </span>
-                        <div className="hidden sm:flex space-x-2">{builtLinks}</div>
+                        <div className="hidden sm:flex space-x-2">
+                            {links}
+                        </div>
                     </div>
 
                     {/* Account button desktop */}
@@ -93,7 +114,7 @@ const Navbar: React.FC = () => {
                 className={`sm:hidden transition-all overflow-hidden ${isOpen ? "max-h-screen" : "max-h-0"
                     } flex flex-col bg-white dark:bg-gray-900 pointer-events-auto`}
             >
-                <div className="flex flex-col px-2 py-2">{builtLinks}</div>
+                <div className="flex flex-col px-2 py-2">{links}</div>
                 {accountButton}
             </div>
         </div>
