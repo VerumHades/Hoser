@@ -47,7 +47,7 @@ const AccountPage: React.FC = () => {
         <strong>Username:</strong> {user.Username}
       </p>
       <p className="mb-4 text-gray-700 dark:text-gray-300">
-        <strong>Email:</strong> {user.Email || "Not provided"}
+        <strong>Email:</strong> {"Not provided"}
       </p>
       <button
         onClick={handleLogout}

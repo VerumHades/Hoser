@@ -1,22 +1,23 @@
 package database
 
-type User struct {
-	ID           int
-	Username     string
-	PasswordHash string
-	IsDeveloper  bool
+type User interface {
+	GetUsername() string
+	GetPasswordHash() string
+	GetListings() ([]Listing, error)
+	CreateListing(title string, description string) (Listing, error)
+
+	GetRentals() ([]Rental, error)
+	IsDeveloper() bool
 }
 
-type Listing struct {
-	ID          int
-	Title       string
-	Description string
+type Listing interface {
+	GetTitle() string
+	GetDescription() string
 }
 
-type Rental struct {
-	ID          int
-	Title       string
-	Description string
+type Rental interface {
+	GetTitle() string
+	GetDescription() string
 }
 
 type RentalQueryOptions struct {
@@ -24,12 +25,6 @@ type RentalQueryOptions struct {
 }
 
 type Interactor interface {
-	// Returns a user by name
-	GetUserByName(username string) (*User, error)
-	// Returns all listings the user has access to
-	GetUserListings(user *User) ([]*Listing, error)
-	// Returns all rentals the user has
-	GetUserRentals(user *User) ([]*Rental, error)
-	// Returns public rentals
-	QueryPublicRentals(options *RentalQueryOptions) ([]*Rental, error)
+	GetUserByName(username string) (User, error)
+	QueryPublicRentals(options *RentalQueryOptions) ([]Rental, error)
 }

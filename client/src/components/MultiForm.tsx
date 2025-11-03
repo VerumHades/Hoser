@@ -1,4 +1,4 @@
-import React, { useRef, useState, type ReactElement } from "react";
+import React, { useState} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface MultiFormProps {
@@ -60,7 +60,7 @@ export const MultiForm: React.FC<MultiFormProps> = ({ children, onSubmit }) => {
   const next = () => setStep((s) => Math.min(s + 1, steps.length - 1));
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
-  const handleSubmit = (formData: Record<string, any>) => {
+  const handleSubmit = () => {
     if (step === steps.length - 1) {
       onSubmit?.();
     } else {

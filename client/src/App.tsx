@@ -10,9 +10,9 @@ import PublicRentalSearch from "./explore/PublicRentalSearch";
 function App() {
     return (
         <div className="absolute flex flex-col inset-0 justify-start">
-            <div className="h-16"></div>
             <Router>
                 <Navbar></Navbar>
+                <div className="absolute inset-0 top-16 flex flex-col items-center">
                 <Routes>
                     <Route path="/login" element={<LoginForm />} />
                     <Route path="/explore/listings" element={<PublicRentalSearch/>} />
@@ -21,6 +21,8 @@ function App() {
                     <Route path="/developer/join" element={<DeveloperJoin />} />
                     <Route path="/" element={<Home />} />
                 </Routes>
+                </div>
+
             </Router>
         </div>
     );

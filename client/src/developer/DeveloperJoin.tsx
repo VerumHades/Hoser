@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { MultiForm, FormPart, FormInput, useMultiformStateHandler } from "../components/MultiForm";
-import RequireLogin from "../components/RequireLogin";
 
 const DeveloperJoin: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);

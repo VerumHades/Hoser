@@ -35,25 +35,25 @@ export default function Dashboard({ children }: DashboardProps) {
     }, [])
 
     return (
-        <div className="flex flex-row h-full bg-slate-50 dark:bg-gray-950 text-slate-800 dark:text-gray-200">
+        <div className="flex md:flex-row flex-col h-full bg-slate-50 dark:bg-gray-950 text-slate-800 dark:text-gray-200">
             {/* Sidebar */}
             <aside className="bg-white dark:bg-gray-900 
                 border-r border-slate-100 dark:border-gray-800 flex-shrink-0
-                sm:relative sm:w-64 fixed bottom-0 w-full">
-                <nav className="mt-4 flex sm:flex-col flex-row space-y-2 text-slate-700 dark:text-gray-300">
+                md:relative md:w-64 md:order-1 w-full order-2">
+                <nav className="mt-4 flex md:flex-col flex-row space-y-2 text-slate-700 dark:text-gray-300">
                     {pages.map((page, i) => {
                         return <div
-                            className="flex flex-row sm:justify-between justify-center sm:flex-0 flex-1 text-center px-4 py-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded"
+                            className="flex flex-row md:justify-between justify-center md:flex-0 flex-1 text-center px-4 py-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded"
                             onClick={() => setPage(page.name)}
                         >
-                            <button className="sm:flex hidden" key={i}>{page.name}</button>
+                            <button className="md:flex hidden" key={i}>{page.name}</button>
                             {page.icon}
                         </div>
                     })}
                 </nav>
             </aside>
 
-            <main className="flex-1 p-6 overflow-auto">
+            <main className="flex-1 p-6 overflow-auto md:order-2 order-1">
                 {pages.map(page => {
                     if (page.name == current_page) return page.children
                     return null

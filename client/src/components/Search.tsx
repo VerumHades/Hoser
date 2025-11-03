@@ -23,6 +23,7 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
                 const params = new URLSearchParams(queryBuilder(query));
                 const res = await fetch(`${endpoint}?${params}`, {
                     signal: controller.signal,
+                    credentials: "include"
                 });
                 if (!res.ok) throw new Error("Failed to fetch results");
 
@@ -49,8 +50,8 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
     }, [query, fetchResultsDebounced]);
 
     return (
-        <div className="max-w-7xl flex flex-col mx-auto p-6 space-y-2 w-screen h-screen">
-            <div className="flex flex-col sm:flex-row gap-3 items-center w-full">
+        <div className="relative max-w-7xl flex flex-col p-6 w-full h-full">
+            <div className="flex flex-col sm:flex-row gap-3 items-center w-full mb-3">
                 <input
                     type="text"
                     placeholder="Search..."
@@ -67,7 +68,7 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
                 <p className="text-center text-gray-400">No results found.</p>
             ) : (
                 <div className="flex flex-col overflow-y-auto flex-1">
-                    {results.map((item) => itemBuilder(item))}
+                    {Array.isArray(results) ? results.map((item) => itemBuilder(item)) : <p className="text-center text-gray-400">No results found.</p>}
                 </div>
             )}
         </div>

@@ -41,7 +41,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	err := bcrypt.CompareHashAndPassword([]byte(user.GetPasswordHash()), []byte(password))
 
 	if err != nil {
 		sendIvalidCredentialsError(w)
@@ -85,8 +85,82 @@ func userDataRequestHandler(w http.ResponseWriter, r *http.Request) {
 		Username    string
 		IsDeveloper bool
 	}{
-		Username:    user.Username,
-		IsDeveloper: user.IsDeveloper,
+		Username:    user.GetUsername(),
+		IsDeveloper: user.IsDeveloper(),
+	})
+}
+
+type DeveloperListings struct {
+	Author      string
+	Title       string
+	Description string
+}
+
+func developerListingsRequestHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		return
+	}
+
+	session, _ := store.Get(r, "user-session")
+	user, _ := session.Values["user"].(database.User)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	db_listings, db_error := user.GetListings()
+
+	if db_error != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	listings := make([]DeveloperListings, len(db_listings))
+
+	username := user.GetUsername()
+	for i := range db_listings {
+		listings[i] = DeveloperListings{
+			Author:      username,
+			Description: db_listings[i].GetDescription(),
+			Title:       db_listings[i].GetTitle(),
+		}
+	}
+
+	json.NewEncoder(w).Encode(listings)
+}
+
+func developerAddListingRequestHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	type AddListingRequest struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+	}
+
+	var req AddListingRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	title := req.Title
+	description := req.Description
+
+	session, _ := store.Get(r, "user-session")
+	user, _ := session.Values["user"].(database.User)
+
+	listing, err := user.CreateListing(title, description)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(DeveloperListings{
+		Author:      user.GetUsername(),
+		Description: listing.GetDescription(),
+		Title:       listing.GetTitle(),
 	})
 }
 
@@ -122,6 +196,22 @@ func authRequired(next http.Handler) http.HandlerFunc {
 		//fmt.Print(session.Values)
 		// Check if authenticated value exists and is true
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Continue to next handler
+		next.ServeHTTP(w, r)
+	})
+}
+
+// After auth check for developer
+func developerOnly(next http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "user-session")
+		user, _ := session.Values["user"].(database.User)
+
+		if !user.IsDeveloper() {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -189,6 +279,11 @@ func main() {
 		"/user/data": userDataRequestHandler,
 	}
 
+	developer_only_handlers := map[string]http.HandlerFunc{
+		"/developer/listings": developerListingsRequestHandler,
+		"/developer/listing":  developerAddListingRequestHandler,
+	}
+
 	store.Options = &sessions.Options{
 		Path:     "/",
 		HttpOnly: true,
@@ -196,11 +291,12 @@ func main() {
 		SameSite: http.SameSiteNoneMode, // allow cross-origin requests
 	}
 
-	gob.Register(database.User{})
+	gob.Register(&database.DummyUser{})
 
+	applyMiddlewares([]Middleware{developerOnly, authRequired}, developer_only_handlers)
 	applyMiddlewares([]Middleware{authRequired}, login_required_handlers)
 
-	handlers := utils.MergeMaps(public_handlers, login_required_handlers)
+	handlers := utils.MergeMultipleMaps([]map[string]http.HandlerFunc{public_handlers, login_required_handlers, developer_only_handlers})
 
 	applyMiddlewares([]Middleware{utils.ColorLogMiddleware, withCORS}, handlers)
 

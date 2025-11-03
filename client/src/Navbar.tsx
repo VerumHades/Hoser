@@ -1,9 +1,8 @@
 // src/components/Navbar.tsx
-import React, { Children, useEffect, useState } from "react";
+import React, {  useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { clearCachedUser, getUser, type User } from "./user";
 import { Menu, X, User as UserIcon } from "lucide-react"; // Lucide icons
-import HoverDropdown from "./components/HoverDropdown";
 
 interface NavigationLinkProps {
     to: string,
@@ -68,14 +67,12 @@ const Navbar: React.FC = () => {
     );
 
     const links = <>
-        <HoverDropdown title="Explore">
-            <NavigationLink to="/explore/public" onClick={close} className="navigation-sublink">
-                Public Servers
-            </NavigationLink>
-            <NavigationLink to="/explore/listings" onClick={close} className="navigation-sublink">
-                Rental Options
-            </NavigationLink>
-        </HoverDropdown>
+        <NavigationLink to="/explore/public" onClick={close} className="navigation-link">
+            Public Servers
+        </NavigationLink>
+        <NavigationLink to="/explore/listings" onClick={close} className="navigation-link">
+            Rental Options
+        </NavigationLink>
         <NavigationLink to="/developer/dashboard" onClick={close} className="navigation-link">Develop</NavigationLink>
     </>
 

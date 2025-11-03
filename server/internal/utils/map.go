@@ -12,3 +12,11 @@ func MergeMaps[K comparable, V any](m1, m2 map[K]V) map[K]V {
 
 	return merged
 }
+
+func MergeMultipleMaps[K comparable, V any](maps []map[K]V) map[K]V {
+	merged := make(map[K]V)
+	for i := range maps {
+		merged = MergeMaps(merged, maps[i])
+	}
+	return merged
+}
