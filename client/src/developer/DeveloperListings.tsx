@@ -3,19 +3,11 @@ import { useState } from "react";
 import backend_constants from "../backend_constants";
 import Search from "../components/Search";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import DeveloperListingDisplay from "./DeveloperListing";
+import DeveloperListingDisplay, { type Listing } from "./DeveloperListing";
 
-interface SearchItem {
-    ID: string | number;
-    Title: string;
-    Description: string;
-    icon?: string;
-    image?: string;
-    Author: string;
-}
 
 export default function DeveloperListings() {
-    const [listing, setListing] = useState<undefined | SearchItem>(undefined);
+    const [listing, setListing] = useState<undefined | Listing>(undefined);
 
     if (listing) return <div className="flex flex-col w-full h-full">
         <div className="my-3 py-2 flex flex-row items-center hover:bg-gray-700 rounded-md transition-all" onClick={() => setListing(undefined)} >
@@ -23,11 +15,11 @@ export default function DeveloperListings() {
             <label>Back</label>
         </div>
         <div className="flex-1">
-            <DeveloperListingDisplay listing={listing}></DeveloperListingDisplay>
+            <DeveloperListingDisplay listing={listing} onShouldClose={() => setListing(undefined)}></DeveloperListingDisplay>
         </div>
     </div>
 
-    const itemBuilder = (item: SearchItem) => {
+    const itemBuilder = (item: Listing) => {
         return <div
             key={item.ID}
             className="flex items-center gap-4 p-4 shadow-lg bg-gray-900 hover:bg-gray-800 transition-all hover:translate-x-2 mx-2"

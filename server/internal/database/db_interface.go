@@ -3,7 +3,10 @@ package database
 type User interface {
 	GetUsername() string
 	GetPasswordHash() string
+
 	GetListings() ([]Listing, error)
+	GetListing(uuid string) (Listing, error)
+	DeleteListing(uuid string) (Listing, error)
 	CreateListing(title string, description string) (Listing, error)
 
 	GetRentals() ([]Rental, error)
@@ -11,8 +14,13 @@ type User interface {
 }
 
 type Listing interface {
+	GetUUID() string
+
 	GetTitle() string
 	GetDescription() string
+
+	SetTitle(title string) error
+	SetDescription(description string) error
 }
 
 type Rental interface {

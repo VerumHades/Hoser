@@ -26,11 +26,6 @@ func sendIvalidCredentialsError(w http.ResponseWriter) {
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
@@ -58,10 +53,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		return
-	}
-
 	session, _ := store.Get(r, "user-session")
 
 	session.Values["authenticated"] = false
@@ -70,10 +61,6 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func userDataRequestHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		return
-	}
-
 	session, _ := store.Get(r, "user-session")
 	//fmt.Print(session.Values)
 	user, _ := session.Values["user"].(database.User)
@@ -92,15 +79,12 @@ func userDataRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 type DeveloperListings struct {
 	Author      string
+	ID          string
 	Title       string
 	Description string
 }
 
 func developerListingsRequestHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		return
-	}
-
 	session, _ := store.Get(r, "user-session")
 	user, _ := session.Values["user"].(database.User)
 
@@ -119,6 +103,7 @@ func developerListingsRequestHandler(w http.ResponseWriter, r *http.Request) {
 	for i := range db_listings {
 		listings[i] = DeveloperListings{
 			Author:      username,
+			ID:          db_listings[i].GetUUID(),
 			Description: db_listings[i].GetDescription(),
 			Title:       db_listings[i].GetTitle(),
 		}
@@ -128,11 +113,6 @@ func developerListingsRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func developerAddListingRequestHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	type AddListingRequest struct {
 		Title       string `json:"title"`
 		Description string `json:"description"`
@@ -159,16 +139,75 @@ func developerAddListingRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(DeveloperListings{
 		Author:      user.GetUsername(),
+		ID:          listing.GetUUID(),
 		Description: listing.GetDescription(),
 		Title:       listing.GetTitle(),
 	})
 }
 
-func publicRentalQueryHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+type ListingRequest struct {
+	ID          string  `json:"id"`                    // required
+	Title       *string `json:"title,omitempty"`       // optional
+	Description *string `json:"description,omitempty"` // optional
+}
+
+func developerAlterListingRequestHandler(w http.ResponseWriter, r *http.Request) {
+	var req ListingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
+	if req.ID == "" {
+		http.Error(w, "Missing listing ID", http.StatusBadRequest)
+		return
+	}
+
+	session, _ := store.Get(r, "user-session")
+	user, _ := session.Values["user"].(database.User)
+
+	listing, err := user.GetListing(req.ID)
+	if err != nil {
+		http.Error(w, "Listing not found", http.StatusNotFound)
+		return
+	}
+
+	fmt.Println(listing.GetUUID())
+
+	if req.Title != nil {
+		listing.SetTitle(*req.Title)
+	}
+	if req.Description != nil {
+		listing.SetDescription(*req.Description)
+	}
+
+	json.NewEncoder(w).Encode(DeveloperListings{
+		Author:      user.GetUsername(),
+		ID:          listing.GetUUID(),
+		Title:       listing.GetTitle(),
+		Description: listing.GetDescription(),
+	})
+}
+
+func developerDeleteListingRequestHandler(w http.ResponseWriter, r *http.Request) {
+	var req ListingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.ID == "" {
+		http.Error(w, "Missing listing ID", http.StatusBadRequest)
+		return
+	}
+
+	session, _ := store.Get(r, "user-session")
+	user, _ := session.Values["user"].(database.User)
+
+	user.DeleteListing(req.ID)
+}
+
+func publicRentalQueryHandler(w http.ResponseWriter, r *http.Request) {
 	options := database.RentalQueryOptions{}
 
 	query := r.URL.Query() // returns url.Values (map[string][]string)
@@ -190,7 +229,7 @@ func publicRentalQueryHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func authRequired(next http.Handler) http.HandlerFunc {
+func middlewareAuthentificationRequired(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := store.Get(r, "user-session")
 		//fmt.Print(session.Values)
@@ -206,7 +245,7 @@ func authRequired(next http.Handler) http.HandlerFunc {
 }
 
 // After auth check for developer
-func developerOnly(next http.Handler) http.HandlerFunc {
+func middlewareDeveloperOnly(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := store.Get(r, "user-session")
 		user, _ := session.Values["user"].(database.User)
@@ -221,7 +260,7 @@ func developerOnly(next http.Handler) http.HandlerFunc {
 	})
 }
 
-func withCORS(next http.Handler) http.HandlerFunc {
+func middlewareCORS(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 
@@ -268,21 +307,52 @@ func applyMiddlewares(middlewares []Middleware, handlers map[string]http.Handler
 	}
 }
 
+type HandlerMethodMap = map[string]http.HandlerFunc
+
+func buildHandlerForAllRequestMethods(method_map HandlerMethodMap) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler, exists := method_map[r.Method]
+
+		if !exists {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		handler.ServeHTTP(w, r)
+	})
+}
+
+type HandlerMap = map[string]HandlerMethodMap
+
+func buildHandlerMap(handler_map HandlerMap) map[string]http.HandlerFunc {
+	built_map := map[string]http.HandlerFunc{}
+
+	for route, method_map := range handler_map {
+		built_map[route] = buildHandlerForAllRequestMethods(method_map)
+	}
+
+	return built_map
+}
+
 func main() {
-	public_handlers := map[string]http.HandlerFunc{
-		"/login":          loginHandler,
-		"/logout":         logoutHandler,
-		"/rentals/public": publicRentalQueryHandler,
-	}
+	public_handlers := buildHandlerMap(HandlerMap{
+		"/login":          {http.MethodPost: loginHandler},
+		"/logout":         {http.MethodPost: logoutHandler},
+		"/rentals/public": {http.MethodGet: publicRentalQueryHandler},
+	})
 
-	login_required_handlers := map[string]http.HandlerFunc{
-		"/user/data": userDataRequestHandler,
-	}
+	login_required_handlers := buildHandlerMap(HandlerMap{
+		"/user/data": {http.MethodGet: userDataRequestHandler},
+	})
 
-	developer_only_handlers := map[string]http.HandlerFunc{
-		"/developer/listings": developerListingsRequestHandler,
-		"/developer/listing":  developerAddListingRequestHandler,
-	}
+	developer_only_handlers := buildHandlerMap(HandlerMap{
+		"/developer/listings": {http.MethodGet: developerListingsRequestHandler},
+		"/developer/listing": {
+			http.MethodPost:   developerAddListingRequestHandler,
+			http.MethodPut:    developerAlterListingRequestHandler,
+			http.MethodDelete: developerDeleteListingRequestHandler,
+		},
+	})
 
 	store.Options = &sessions.Options{
 		Path:     "/",
@@ -293,12 +363,12 @@ func main() {
 
 	gob.Register(&database.DummyUser{})
 
-	applyMiddlewares([]Middleware{developerOnly, authRequired}, developer_only_handlers)
-	applyMiddlewares([]Middleware{authRequired}, login_required_handlers)
+	applyMiddlewares([]Middleware{middlewareDeveloperOnly, middlewareAuthentificationRequired}, developer_only_handlers)
+	applyMiddlewares([]Middleware{middlewareAuthentificationRequired}, login_required_handlers)
 
 	handlers := utils.MergeMultipleMaps([]map[string]http.HandlerFunc{public_handlers, login_required_handlers, developer_only_handlers})
 
-	applyMiddlewares([]Middleware{utils.ColorLogMiddleware, withCORS}, handlers)
+	applyMiddlewares([]Middleware{utils.ColorLogMiddleware, middlewareCORS}, handlers)
 
 	mux := http.NewServeMux()
 
