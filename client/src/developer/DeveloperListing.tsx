@@ -1,17 +1,17 @@
 // src/components/AccountPage.tsx
 import React, {  useState } from "react";
 import EditableText from "../components/EditableText";
-import { backend_request } from "../backend";
+import { backend_request, ListingAccessModes } from "../backend";
 import { Delete } from "lucide-react";
 import PromptButton from "../components/PromptButton";
+import SelectBox from "../components/SelectBox";
 
 export interface Listing {
   ID: string;
   Title: string;
   Description: string;
-  icon?: string;
-  image?: string;
   Author: string;
+  AccessMode: number
 }
 
 interface ListingDisplayProps {
@@ -33,10 +33,14 @@ export default function DeveloperListingDisplay({ listing, onShouldClose }: List
       onShouldClose?.()
   }
 
+  const onSelectedAccessMode = (mode: string, oldMode: string) => {
+    backend_request("/developer/listing", "PUT", { id: listing.ID, accessMode: parseInt(mode) })
+  }   
+
   return (
     <div className="w-full h-full p-6  shadow-md rounded-lg">
       <div className="flex flex-row justify-between mb-10">
-        <div></div>
+        <SelectBox options={ListingAccessModes} onSelected={onSelectedAccessMode} defaultValue={""+listing.AccessMode}></SelectBox>
         <PromptButton
           className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors dark:bg-red-600 dark:hover:bg-red-700 flex flex-row gap-2"
           submitClassName={`
@@ -46,23 +50,34 @@ export default function DeveloperListingDisplay({ listing, onShouldClose }: List
               : "bg-red-500 hover:bg-red-600 text-white dark:bg-red-600 dark:hover:bg-red-700"
             }
           `}
-          contents={<>Delete <Delete></Delete></>}
+          promptContents={
+            <>
+            <p>This operation will delete this listing. If you are sure you want to do this type "Delete" as confirmation.</p>
+            <input onKeyUp={handleChange} type="text"
+            className="w-full p-3 my-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500
+          dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:ring-red-400 dark:focus:border-red-400"></input>
+            </>
+          }
           isSubmitLocked={() => isDeleteLocked}
           onCancel={() => setText("")}
           onSubmit={() => deleteThisListing()}
         >
-          <p>This operation will delete this listing. If you are sure you want to do this type "Delete" as confirmation.</p>
-          <input onKeyUp={handleChange} type="text"
-          className="w-full p-3 my-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500
-        dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:ring-red-400 dark:focus:border-red-400"></input>
+          Delete <Delete></Delete>
         </PromptButton>
       </div>
-
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-        <EditableText text={listing.Title} onChange={(name: string) => { backend_request("/developer/listing", "PUT", { id: listing.ID, title: name }) }}></EditableText>
+        <EditableText 
+          text={listing.Title} 
+          onChange={(name: string) => { backend_request("/developer/listing", "PUT", { id: listing.ID, title: name }) }}>
+
+        </EditableText>
       </h1>
       <p className="mb-2 text-gray-700 dark:text-gray-300">
-        <EditableText text={listing.Description} onChange={(name: string) => { backend_request("/developer/listing", "PUT", { id: listing.ID, description: name }) }}></EditableText>
+        <EditableText 
+          text={listing.Description} 
+          onChange={(name: string) => { backend_request("/developer/listing", "PUT", { id: listing.ID, description: name }) }}>
+
+        </EditableText>
       </p>
     </div>
   );
