@@ -14,6 +14,12 @@ type App struct {
 	RunningConfiguration *configuration.Configuration
 }
 
+func (app *App) GetUser(request *http.Request) database.User {
+	session, _ := app.Store.Get(request, "user-session")
+	user, _ := session.Values["user"].(database.User)
+	return user
+}
+
 func NewApp(store *sessions.CookieStore, db database.Interactor, cfg *configuration.Configuration) *App {
 	var app = &App{
 		Store:                store,
@@ -29,4 +35,14 @@ func NewApp(store *sessions.CookieStore, db database.Interactor, cfg *configurat
 	}
 
 	return app
+}
+
+func NewTestApp() *App {
+	var store = sessions.NewCookieStore([]byte("secret-key"))
+	var db = &database.DummyInteractor{}
+	var cfg = &configuration.Configuration{
+		AllowedOrigins: []string{"http://localhost"},
+	}
+
+	return NewApp(store, db, cfg)
 }

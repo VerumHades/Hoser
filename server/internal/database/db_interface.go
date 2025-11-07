@@ -11,6 +11,8 @@ type User interface {
 
 	GetRentals() ([]Rental, error)
 	IsDeveloper() bool
+
+	Rent(listingUUID string) error
 }
 
 type ListingAccessMode int
@@ -33,8 +35,14 @@ type Listing interface {
 }
 
 type Rental interface {
+	GetUUID() string
+	GetSourceListingUUID() string
+
 	GetTitle() string
 	GetDescription() string
+
+	SetTitle(title string) error
+	SetDescription(description string) error
 }
 
 type RentalQueryOptions struct {
@@ -43,5 +51,6 @@ type RentalQueryOptions struct {
 
 type Interactor interface {
 	GetUserByName(username string) (User, error)
+	GetPublicListing(uuid string) (Listing, error)
 	QueryPublicRentals(options *RentalQueryOptions) ([]Rental, error)
 }

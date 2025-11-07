@@ -92,6 +92,38 @@ func (u *DummyUser) DeleteListing(uuid string) (Listing, error) {
 	return deleted, nil
 }
 
+func (u *DummyUser) Rent(listingUUID string) error {
+	// Convert UUID to index
+	index, err := uuidToIndex(listingUUID)
+	if err != nil {
+		return errors.New("invalid listing UUID")
+	}
+
+	// Check bounds
+	if index < 0 || index >= len(globalListings) || globalListings[index] == nil {
+		return errors.New("listing not found")
+	}
+
+	listing := globalListings[index]
+
+	// Only allow renting public listings
+	if listing.GetAccessMode() != Public {
+		return errors.New("listing is not public")
+	}
+
+	// Create a new rental
+	rental := &DummyRental{
+		ID:                len(dummyRentals[u.ID]) + 100, // unique dummy ID
+		SourceListingUUID: listing.GetUUID(),
+		Title:             listing.GetTitle(),
+		Description:       listing.GetDescription(),
+	}
+
+	dummyRentals[u.ID] = append(dummyRentals[u.ID], rental)
+
+	return nil
+}
+
 // -----------------------
 // Listing
 // -----------------------
@@ -126,13 +158,37 @@ func (l *DummyListing) SetAccessMode(mode ListingAccessMode) error {
 // -----------------------
 
 type DummyRental struct {
-	ID          int
-	Title       string
-	Description string
+	ID                int
+	SourceListingUUID string
+	Title             string
+	Description       string
 }
 
-func (r *DummyRental) GetTitle() string       { return r.Title }
-func (r *DummyRental) GetDescription() string { return r.Description }
+func (r *DummyRental) GetUUID() string {
+	return strconv.Itoa(r.ID)
+}
+
+func (r *DummyRental) GetSourceListingUUID() string {
+	return r.SourceListingUUID
+}
+
+func (r *DummyRental) GetTitle() string {
+	return r.Title
+}
+
+func (r *DummyRental) GetDescription() string {
+	return r.Description
+}
+
+func (r *DummyRental) SetTitle(title string) error {
+	r.Title = title
+	return nil
+}
+
+func (r *DummyRental) SetDescription(description string) error {
+	r.Description = description
+	return nil
+}
 
 // -----------------------
 // Dummy Data
@@ -156,8 +212,22 @@ var userListingMap = map[int][]int{
 }
 
 var dummyRentals = map[int][]Rental{
-	1: {&DummyRental{ID: 11, Title: "Go API Testbed", Description: "Running Docker container"}},
-	2: {&DummyRental{ID: 13, Title: "TensorFlow Training Node", Description: "GPU container"}},
+	1: {
+		&DummyRental{
+			ID:                11,
+			SourceListingUUID: "0", // Rental originated from listing 0
+			Title:             "Go API Testbed",
+			Description:       "Running Docker container",
+		},
+	},
+	2: {
+		&DummyRental{
+			ID:                13,
+			SourceListingUUID: "2", // Rental from listing 2
+			Title:             "TensorFlow Training Node",
+			Description:       "GPU container",
+		},
+	},
 }
 
 // -----------------------
@@ -196,6 +266,26 @@ func (d *DummyInteractor) QueryPublicRentals(options *RentalQueryOptions) ([]Ren
 		}
 	}
 	return result, nil
+}
+
+func (d *DummyInteractor) GetPublicListing(uuid string) (Listing, error) {
+	index, err := uuidToIndex(uuid)
+	if err != nil {
+		return nil, errors.New("invalid UUID")
+	}
+
+	if index < 0 || index >= len(globalListings) || globalListings[index] == nil {
+		return nil, errors.New("listing not found")
+	}
+
+	listing := globalListings[index]
+
+	// Check if listing is public
+	if listing.GetAccessMode() != Public {
+		return nil, errors.New("listing is not public")
+	}
+
+	return listing, nil
 }
 
 func uuidToIndex(uuid string) (int, error) {
