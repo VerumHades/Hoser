@@ -27,7 +27,7 @@ export default function SelectBox({
     }
 
     const makeSelectHandler = (key: string) => {
-        return (e: React.MouseEvent<HTMLDivElement>) => {
+        return () => {
             select(key)
             setOpen(false)
         }

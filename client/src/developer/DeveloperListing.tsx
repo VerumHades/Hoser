@@ -1,7 +1,7 @@
 // src/components/AccountPage.tsx
 import React, {  useState } from "react";
 import EditableText from "../components/EditableText";
-import { backend_request, ListingAccessModes } from "../backend";
+import { API, ListingAccessModes } from "../backend";
 import { Delete } from "lucide-react";
 import PromptButton from "../components/PromptButton";
 import SelectBox from "../components/SelectBox";
@@ -29,12 +29,12 @@ export default function DeveloperListingDisplay({ listing, onShouldClose }: List
   };
 
   const deleteThisListing = async () => {
-    if((await backend_request("/developer/listing", "DELETE", {id: listing.ID})).status == 200)
+    if(!(await API.developer.deleteListing(listing.ID)).ok)
       onShouldClose?.()
   }
 
-  const onSelectedAccessMode = (mode: string, oldMode: string) => {
-    backend_request("/developer/listing", "PUT", { id: listing.ID, accessMode: parseInt(mode) })
+  const onSelectedAccessMode = (mode: string) => {
+    API.developer.editListing(listing.ID, { accessMode: parseInt(mode) as (0 | 1) })
   }   
 
   return (
@@ -68,14 +68,14 @@ export default function DeveloperListingDisplay({ listing, onShouldClose }: List
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
         <EditableText 
           text={listing.Title} 
-          onChange={(name: string) => { backend_request("/developer/listing", "PUT", { id: listing.ID, title: name }) }}>
+          onChange={(name: string) => { API.developer.editListing(listing.ID, { title: name }) }}>
 
         </EditableText>
       </h1>
       <p className="mb-2 text-gray-700 dark:text-gray-300">
         <EditableText 
           text={listing.Description} 
-          onChange={(name: string) => { backend_request("/developer/listing", "PUT", { id: listing.ID, description: name }) }}>
+          onChange={(name: string) => { API.developer.editListing(listing.ID, { description: name }) }}>
 
         </EditableText>
       </p>

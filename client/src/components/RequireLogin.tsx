@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { getUser, type User } from "../user";
+import LoadingIcon from "./prefabs/LoadingIcon";
 
 interface RequireLoginProps {
   children: React.ReactNode;
@@ -37,10 +38,8 @@ const RequireLogin: React.FC<RequireLoginProps> = ({ children, condition, no_acc
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-950">
-        <div className="animate-pulse text-gray-700 dark:text-gray-300 text-lg">
-          Loading...
-        </div>
+      <div className="w-full h-full flex flex-col justify-center bg-slate-50">
+        <LoadingIcon></LoadingIcon>
       </div>
     );
   }
@@ -74,7 +73,7 @@ const RequireLogin: React.FC<RequireLoginProps> = ({ children, condition, no_acc
 
   if (!user || (condition && !condition(user))) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-950 px-4">
+      <div className="flex items-center justify-center w-full h-full bg-gray-50 dark:bg-gray-950 px-4">
         <div className="w-full text-center flex flex-col items-center">
           {
             no_access_element ? no_access_element : default_required_login_component

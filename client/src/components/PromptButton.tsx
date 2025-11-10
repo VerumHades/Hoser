@@ -16,34 +16,34 @@ export default function PromptButton({ children, promptContents, className, onSu
 
     const submit = () => {
         onSubmit?.()
-        setOpen(false); 
+        setOpen(false);
     }
     const cancel = () => {
         onCancel?.()
         setOpen(false)
     }
-
-    if (open) {
-        return <Prompt 
-        submit={
-            <button onClick={submit} disabled={isSubmitLocked?.()} className={submitClassName}>{children}</button>
-        }
-        cancel= {
-            <button 
-            onClick={cancel} 
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded
-             dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
-                Cancel
-            </button>
-        }
-        >
-            {promptContents}
-        </Prompt>
-    }
-
     return (
-        <button className={className} onClick={() => setOpen(true)}>
-            {children}
-        </button>
+        <>
+            {open ?
+                <Prompt
+                    submit={
+                        <button onClick={submit} disabled={isSubmitLocked?.()} className={submitClassName}>{children}</button>
+                    }
+                    cancel={
+                        <button
+                            onClick={cancel}
+                            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded
+             dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+                            Cancel
+                        </button>
+                    }
+                >
+                    {promptContents}
+                </Prompt> : <></>
+            }
+            <button className={className} onClick={() => setOpen(true)}>
+                {children}
+            </button>
+        </>
     );
 };

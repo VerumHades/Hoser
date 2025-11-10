@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import debounce from "lodash.debounce"
+import LoadingIcon from "./prefabs/LoadingIcon";
 
 interface SearchProps<T> {
     children?: React.ReactNode,
@@ -63,7 +64,7 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
             </div>
 
             {loading ? (
-                <p className="text-center text-gray-500">Loading...</p>
+                <LoadingIcon></LoadingIcon>
             ) : results.length === 0 ? (
                 <p className="text-center text-gray-400">No results found.</p>
             ) : (

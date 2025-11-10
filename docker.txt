@@ -1,0 +1,2 @@
+docker run --env-file .env --name kubia-container -p 1234:8080 -d kubia
+docker build -t kubia:latest .

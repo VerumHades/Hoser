@@ -1,4 +1,5 @@
 import backend_constants from "../backend_constants";
+import ListElement from "../components/prefabs/ListElement";
 import Search from "../components/Search";
 
 interface SearchItem {
@@ -32,28 +33,18 @@ interface SearchItem {
 
 export default function PublicRentalSearch() {
     const itemBuilder = (item: SearchItem) => {
-        return <div
-            key={item.ID}
-            className="flex items-center gap-4 p-4 rounded-md shadow-lg bg-gray-900 mt-3"
-        >
-            <img
-                src={item.icon || item.image || "/placeholder.svg"}
-                alt=""
-                className="w-12 h-12 object-cover rounded-xl"
-            />
-            <div>
-                <h3 className="font-semibold text-lg">{item.Title}</h3>
-                <p className="text-sm text-gray-600">{item.Description}</p>
-                <p className="text-xs text-gray-400 mt-1">By {item.author}</p>
-            </div>
-        </div>
+        return <ListElement>
+            <h3 className="font-semibold text-lg">{item.Title}</h3>
+            <p className="text-sm">{item.Description}</p>
+            <p className="text-xs mt-1">By {item.author}</p>
+        </ListElement>
     }
 
     const queryBuilder = (query: string) => {return {q: query}}
 
-    return <>
+    return <div className="w-full h-full bg-slate-50">
         <Search itemBuilder={itemBuilder} queryBuilder={queryBuilder} endpoint={`${backend_constants.address}/rentals/public`}>
             
         </Search>
-    </> 
+    </div> 
 }

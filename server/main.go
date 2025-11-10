@@ -51,6 +51,9 @@ func reactHandler(fs http.Handler) http.HandlerFunc {
 		path := filepath.Join(runningConfiguration.ClientDirectory, r.URL.Path)
 
 		if _, err := os.Stat(path); os.IsNotExist(err) {
+			fmt.Println("Serving index.html at")
+			fmt.Println(filepath.Join(runningConfiguration.ClientDirectory))
+
 			http.ServeFile(w, r, filepath.Join(runningConfiguration.ClientDirectory, "index.html"))
 			return
 		}
@@ -93,7 +96,8 @@ func main() {
 	})
 
 	login_required_handlers := buildHandlerMap(HandlerMap{
-		"/user/data": {http.MethodGet: app.UserDataRequestHandler()},
+		"/user/data":    {http.MethodGet: app.UserDataRequestHandler()},
+		"/user/rentals": {http.MethodGet: app.UserRentalsRequestHandler()},
 	})
 
 	developer_only_handlers := buildHandlerMap(HandlerMap{
