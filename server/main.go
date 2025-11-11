@@ -24,7 +24,7 @@ var app = handlers.App{
 	DatabaseInteractor:   &database.DummyInteractor{},
 }
 
-func publicRentalQueryHandler(w http.ResponseWriter, r *http.Request) {
+func publicListingQueryHandler(w http.ResponseWriter, r *http.Request) {
 	options := database.RentalQueryOptions{}
 
 	query := r.URL.Query() // returns url.Values (map[string][]string)
@@ -33,7 +33,7 @@ func publicRentalQueryHandler(w http.ResponseWriter, r *http.Request) {
 		options.Text = q
 	}
 
-	response, err := app.DatabaseInteractor.QueryPublicRentals(&options)
+	response, err := app.DatabaseInteractor.QueryPublicListings(&options)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -92,7 +92,7 @@ func main() {
 	public_handlers := buildHandlerMap(HandlerMap{
 		"/login":          {http.MethodPost: app.LoginHandler()},
 		"/logout":         {http.MethodPost: app.LogoutHandler()},
-		"/rentals/public": {http.MethodGet: publicRentalQueryHandler},
+		"/rentals/public": {http.MethodGet: publicListingQueryHandler},
 	})
 
 	login_required_handlers := buildHandlerMap(HandlerMap{

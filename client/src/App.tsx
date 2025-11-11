@@ -5,7 +5,7 @@ import Navbar from "./Navbar";
 import AccountPage from "./user/Account";
 import DashboardApp from "./developer/DeveloperDashboard";
 import DeveloperJoin from "./developer/DeveloperJoin";
-import PublicRentalSearch from "./explore/PublicRentalSearch";
+import PublicListingSearch from "./explore/PublicListingSearch";
 
 function App() {
     return (
@@ -15,7 +15,7 @@ function App() {
                 <div className="absolute inset-0 top-16 flex flex-col items-center">
                 <Routes>
                     <Route path="/login" element={<LoginForm />} />
-                    <Route path="/explore/listings" element={<PublicRentalSearch/>} />
+                    <Route path="/explore/listings" element={<PublicListingSearch/>} />
                     <Route path="/account" element={<AccountPage />} />
                     <Route path="/developer/dashboard" element={<DashboardApp />} />
                     <Route path="/developer/join" element={<DeveloperJoin />} />

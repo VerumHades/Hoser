@@ -71,7 +71,7 @@ const Navbar: React.FC = () => {
             Public Servers
         </NavigationLink>
         <NavigationLink to="/explore/listings" onClick={close} className="navigation-link">
-            Rental Options
+            Listings
         </NavigationLink>
         <NavigationLink to="/developer/dashboard" onClick={close} className="navigation-link">Develop</NavigationLink>
     </>

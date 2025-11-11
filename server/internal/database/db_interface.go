@@ -1,5 +1,11 @@
 package database
 
+type Currency interface {
+	GetAsNumber() float32
+	GetName() string
+	GetShort() string
+}
+
 type User interface {
 	GetUsername() string
 	GetPasswordHash() string
@@ -29,9 +35,17 @@ type Listing interface {
 	GetDescription() string
 	GetAccessMode() ListingAccessMode
 
+	GetSinglePurchasePrice() Currency
+	GetMonthlySubscriptionPrice() Currency
+	GetMonthlyHardwarePrice() Currency
+
 	SetTitle(title string) error
 	SetDescription(description string) error
 	SetAccessMode(mode ListingAccessMode) error
+
+	SetSinglePurchasePrice(price Currency) error
+	SetMonthlySubscriptionPrice(price Currency) error
+	SetMonthlyHardwarePrice(price Currency) error
 }
 
 type Rental interface {
@@ -52,5 +66,5 @@ type RentalQueryOptions struct {
 type Interactor interface {
 	GetUserByName(username string) (User, error)
 	GetPublicListing(uuid string) (Listing, error)
-	QueryPublicRentals(options *RentalQueryOptions) ([]Rental, error)
+	QueryPublicListings(options *RentalQueryOptions) ([]Listing, error)
 }

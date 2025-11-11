@@ -29,6 +29,7 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
                 if (!res.ok) throw new Error("Failed to fetch results");
 
                 const data: T[] = await res.json();
+                console.log(data)
                 setResults(data || []);
             } catch (err) {
                 if (err instanceof DOMException && err.name === "AbortError") return;
@@ -51,14 +52,14 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
     }, [query, fetchResultsDebounced]);
 
     return (
-        <div className="relative max-w-7xl flex flex-col p-6 w-full h-full">
+        <div className="relative max-w-7xl flex flex-col p-6 w-full h-full ">
             <div className="flex flex-col sm:flex-row gap-3 items-center w-full mb-3">
                 <input
                     type="text"
                     placeholder="Search..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="flex-1 px-6 py-3 focus:outline-none bg-gray-300 dark:bg-gray-800 sm:w-auto sm:flex-1 w-full"
+                    className="flex-1 px-6 py-3 focus:outline-none bg-gray-300 dark:bg-gray-800 sm:w-auto sm:flex-1 w-full text-gray-900 dark:text-gray-100"
                 />
                 {children}
             </div>

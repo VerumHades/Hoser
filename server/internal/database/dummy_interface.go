@@ -6,6 +6,16 @@ import (
 	"strings"
 )
 
+type DummyCurrency struct {
+	Name  string
+	Short string
+	Value float32
+}
+
+func (c *DummyCurrency) GetAsNumber() float32 { return c.Value }
+func (c *DummyCurrency) GetName() string      { return c.Name }
+func (c *DummyCurrency) GetShort() string     { return c.Short }
+
 // -----------------------
 // Types
 // -----------------------
@@ -133,6 +143,10 @@ type DummyListing struct {
 	Title       string
 	Description string
 	AccessMode  ListingAccessMode
+
+	SinglePurchasePrice      Currency
+	MonthlySubscriptionPrice Currency
+	MonthlyHardwarePrice     Currency
 }
 
 func (l *DummyListing) GetUUID() string                  { return strconv.Itoa(l.ID) }
@@ -150,6 +164,28 @@ func (l *DummyListing) SetDescription(description string) error {
 }
 func (l *DummyListing) SetAccessMode(mode ListingAccessMode) error {
 	l.AccessMode = mode
+	return nil
+}
+func (l *DummyListing) GetSinglePurchasePrice() Currency {
+	return l.SinglePurchasePrice
+}
+func (l *DummyListing) GetMonthlySubscriptionPrice() Currency {
+	return l.MonthlySubscriptionPrice
+}
+func (l *DummyListing) GetMonthlyHardwarePrice() Currency {
+	return l.MonthlyHardwarePrice
+}
+
+func (l *DummyListing) SetSinglePurchasePrice(price Currency) error {
+	l.SinglePurchasePrice = price
+	return nil
+}
+func (l *DummyListing) SetMonthlySubscriptionPrice(price Currency) error {
+	l.MonthlySubscriptionPrice = price
+	return nil
+}
+func (l *DummyListing) SetMonthlyHardwarePrice(price Currency) error {
+	l.MonthlyHardwarePrice = price
 	return nil
 }
 
@@ -201,14 +237,67 @@ var dummyUsers = map[string]*DummyUser{
 }
 
 var globalListings = []Listing{
-	&DummyListing{ID: 0, Title: "Node.js Dev Stack", Description: "Node.js 20 with MongoDB...", AccessMode: Public},
-	&DummyListing{ID: 1, Title: "Go Microservices Boilerplate", Description: "Go + Kafka setup", AccessMode: Public},
-	&DummyListing{ID: 2, Title: "Python ML Environment", Description: "TensorFlow + PyTorch", AccessMode: Private},
+	&DummyListing{
+		ID:                       0,
+		Title:                    "Node.js Dev Stack",
+		Description:              "Node.js 20 with MongoDB...",
+		AccessMode:               Public,
+		SinglePurchasePrice:      &DummyCurrency{Name: "Credits", Short: "CR", Value: 10},
+		MonthlySubscriptionPrice: &DummyCurrency{Name: "Credits", Short: "CR", Value: 2},
+		MonthlyHardwarePrice:     &DummyCurrency{Name: "Credits", Short: "CR", Value: 1}, // Added
+	},
+
+	&DummyListing{
+		ID:                       1,
+		Title:                    "Go Microservices Boilerplate",
+		Description:              "Go + Kafka setup",
+		AccessMode:               Public,
+		MonthlySubscriptionPrice: &DummyCurrency{Name: "Credits", Short: "CR", Value: 3},
+		MonthlyHardwarePrice:     &DummyCurrency{Name: "Credits", Short: "CR", Value: 1}, // Added
+	},
+
+	&DummyListing{
+		ID:                   2,
+		Title:                "Python ML Environment",
+		Description:          "TensorFlow + PyTorch",
+		AccessMode:           Private,
+		MonthlyHardwarePrice: &DummyCurrency{Name: "Credits", Short: "CR", Value: 7}, // unchanged
+	},
+
+	// NEW LISTINGS
+
+	&DummyListing{
+		ID:                       3,
+		Title:                    "Unity Game Build Cloud",
+		Description:              "Automated Unity build CI runners.",
+		AccessMode:               Public,
+		SinglePurchasePrice:      &DummyCurrency{Name: "Credits", Short: "CR", Value: 5},
+		MonthlySubscriptionPrice: &DummyCurrency{Name: "Credits", Short: "CR", Value: 2},
+		MonthlyHardwarePrice:     &DummyCurrency{Name: "Credits", Short: "CR", Value: 1},
+	},
+
+	&DummyListing{
+		ID:          4,
+		Title:       "Rust Embedded Toolchain",
+		Description: "Cross-compile firmware for ARM MCUs.",
+		AccessMode:  Private,
+		// No pricing at all → valid, optional
+	},
+
+	&DummyListing{
+		ID:                       5,
+		Title:                    "Shared GPU ML Lab Node",
+		Description:              "Multi-user GPU workspace environment.",
+		AccessMode:               Public,
+		MonthlySubscriptionPrice: &DummyCurrency{Name: "Credits", Short: "CR", Value: 6},
+		MonthlyHardwarePrice:     &DummyCurrency{Name: "Credits", Short: "CR", Value: 3}, // required & present
+	},
 }
 
 var userListingMap = map[int][]int{
-	1: {0, 1},
-	2: {2},
+	1: {0, 1, 3}, // Alice owns listings 0, 1, 3
+	2: {2},       // Bob owns listing 2
+	3: {4},       // Carol owns listing 4
 }
 
 var dummyRentals = map[int][]Rental{
@@ -247,45 +336,56 @@ func (d *DummyInteractor) GetUserByName(username string) (User, error) {
 	return u, nil
 }
 
-func (d *DummyInteractor) QueryPublicRentals(options *RentalQueryOptions) ([]Rental, error) {
-	rentals := []Rental{
-		&DummyRental{ID: 101, Title: "Public PostgreSQL", Description: "Shared test DB"},
-		&DummyRental{ID: 102, Title: "Docker-in-Docker Sandbox", Description: "Run containers inside containers"},
-	}
-
-	if options == nil || options.Text == "" {
-		return rentals, nil
-	}
-
-	query := strings.ToLower(options.Text)
-	var result []Rental
-	for _, r := range rentals {
-		if strings.Contains(strings.ToLower(r.GetTitle()), query) ||
-			strings.Contains(strings.ToLower(r.GetDescription()), query) {
-			result = append(result, r)
-		}
-	}
-	return result, nil
-}
-
 func (d *DummyInteractor) GetPublicListing(uuid string) (Listing, error) {
 	index, err := uuidToIndex(uuid)
 	if err != nil {
 		return nil, errors.New("invalid UUID")
 	}
 
+	// Out of bounds or deleted listing
 	if index < 0 || index >= len(globalListings) || globalListings[index] == nil {
 		return nil, errors.New("listing not found")
 	}
 
 	listing := globalListings[index]
 
-	// Check if listing is public
+	// Ensure listing is public
 	if listing.GetAccessMode() != Public {
 		return nil, errors.New("listing is not public")
 	}
 
 	return listing, nil
+}
+
+func (d *DummyInteractor) QueryPublicListings(options *RentalQueryOptions) ([]Listing, error) {
+	var results []Listing
+
+	for _, l := range globalListings {
+		// Skip deleted or nil entries
+		if l == nil {
+			continue
+		}
+
+		// Only include public listings
+		if l.GetAccessMode() != Public {
+			continue
+		}
+
+		// If no search text, include all public listings
+		if options == nil || options.Text == "" {
+			results = append(results, l)
+			continue
+		}
+
+		// Text filtering (title or description)
+		q := strings.ToLower(options.Text)
+		if strings.Contains(strings.ToLower(l.GetTitle()), q) ||
+			strings.Contains(strings.ToLower(l.GetDescription()), q) {
+			results = append(results, l)
+		}
+	}
+
+	return results, nil
 }
 
 func uuidToIndex(uuid string) (int, error) {

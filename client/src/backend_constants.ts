@@ -1,3 +1,3 @@
 export default {
-    address: ""
+    address: "http://localhost:8080"
 }

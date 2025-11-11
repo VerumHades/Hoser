@@ -11,15 +11,8 @@ import ListElement from "../components/prefabs/ListElement";
 export default function DeveloperListings() {
     const [listing, setListing] = useState<undefined | Listing>(undefined);
 
-    const itemViewBuilder = (listing: Listing) => <div className="flex flex-col w-full h-full">
-        <div className="my-3 py-2 flex flex-row items-center hover:bg-slate-200 dark:hover:bg-gray-700 rounded-md transition-all" onClick={() => setListing(undefined)} >
-            <ChevronLeft size={32} ></ChevronLeft>
-            <label>Back</label>
-        </div>
-        <div className="flex-1">
-            <DeveloperListingDisplay listing={listing} onShouldClose={() => setListing(undefined)}></DeveloperListingDisplay>
-        </div>
-    </div>
+    const itemViewBuilder = (listing: Listing) => 
+        <DeveloperListingDisplay listing={listing} onShouldClose={() => setListing(undefined)}></DeveloperListingDisplay>
 
     const itemBuilder = (item: Listing) => {
         return <ListElement onClick={() => setListing(item)}>
@@ -42,6 +35,7 @@ export default function DeveloperListings() {
             queryBuilder={queryBuilder} 
             endpoint={`${backend_constants.address}/developer/listings`}
             itemViewBuilder={itemViewBuilder}
+            onResetElement={() => setListing(undefined)}
         >
 
         </ElementList>

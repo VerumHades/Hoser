@@ -10,15 +10,7 @@ import UserRentalDisplay from "./RentalDisplay";
 export default function UserRentalList() {
     const [rental, setRental] = useState<undefined | Rental>(undefined);
 
-    const itemViewBuilder = (rental: Rental) => <div className="flex flex-col w-full h-full">
-        <div className="my-3 py-2 flex flex-row items-center hover:bg-gray-700 rounded-md transition-all" onClick={() => setRental(undefined)} >
-            <ChevronLeft size={32} ></ChevronLeft>
-            <label>Back</label>
-        </div>
-        <div className="flex-1">
-            <UserRentalDisplay rental={rental}></UserRentalDisplay>
-        </div>
-    </div>
+    const itemViewBuilder = (rental: Rental) => <UserRentalDisplay rental={rental}></UserRentalDisplay>
 
     const itemBuilder = (item: Rental) => {
         return <ListElement onClick={() => setRental(item)}>
@@ -36,6 +28,7 @@ export default function UserRentalList() {
             queryBuilder={queryBuilder}
             endpoint={`${backend_constants.address}/user/rentals`}
             itemViewBuilder={itemViewBuilder}
+            onResetElement={() => setRental(undefined)}
         >
 
         </ElementList>
