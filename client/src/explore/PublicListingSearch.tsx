@@ -106,7 +106,6 @@ function PublicListingDisplay({ item }: PublicListingDisplayProps) {
                     </ListElement> : <></>}
                 </div>
             </div>
-
         </div>
     );
 };

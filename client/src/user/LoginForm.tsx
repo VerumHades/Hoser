@@ -7,8 +7,8 @@ import backend_constants from "../backend_constants";
 export default function LoginForm() {
     const [username, setUsername] = useState<string>("");
     const [password, setPassword] = useState<string>("");
-    
-    const navigate = useNavigate(); 
+
+    const navigate = useNavigate();
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -17,10 +17,10 @@ export default function LoginForm() {
             const response = await fetch(`${backend_constants.address}/login`, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Content-Type": "application/json",
                 },
-                body: new URLSearchParams({ username, password }),
-                credentials: "include" 
+                body: JSON.stringify({ username, password }),
+                credentials: "include"
             });
 
             if (response.ok) {

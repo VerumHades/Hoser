@@ -16,8 +16,8 @@ export default function DeveloperListings() {
 
     const itemBuilder = (item: Listing) => {
         return <ListElement onClick={() => setListing(item)}>
-            <h3 className="font-semibold text-lg">{item.Title}</h3>
-            <p className="text-sm text-gray-600">{item.Description}</p>
+            <h3 className="font-semibold text-lg">{item.title}</h3>
+            <p className="text-sm text-gray-600">{item.description}</p>
         </ListElement>
     }
 

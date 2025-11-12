@@ -30,6 +30,9 @@ type DummyUser struct {
 func (u *DummyUser) GetUsername() string     { return u.Username }
 func (u *DummyUser) GetPasswordHash() string { return u.PasswordHash }
 func (u *DummyUser) IsDeveloper() bool       { return u.IsDev }
+func (u *DummyUser) GetID() string {
+	return strconv.Itoa(u.ID)
+}
 
 func (u *DummyUser) GetListings() ([]Listing, error) {
 	indices, exists := userListingMap[u.ID]
@@ -45,7 +48,13 @@ func (u *DummyUser) GetListings() ([]Listing, error) {
 	return listings, nil
 }
 
-func (u *DummyUser) GetRentals() ([]Rental, error) { return dummyRentals[u.ID], nil }
+func (u *DummyUser) GetRentals() ([]Rental, error) {
+	r, ok := dummyRentals[u.ID]
+	if !ok {
+		return []Rental{}, nil
+	}
+	return r, nil
+}
 
 func (u *DummyUser) CreateListing(title string, description string) (Listing, error) {
 	listing := &DummyListing{
@@ -75,14 +84,15 @@ func (u *DummyUser) GetListing(uuid string) (Listing, error) {
 	return nil, errors.New("listing not owned by user")
 }
 
-func (u *DummyUser) DeleteListing(uuid string) (Listing, error) {
+func (u *DummyUser) DeleteListing(uuid string) error {
 	index, err := uuidToIndex(uuid)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if index < 0 || index >= len(globalListings) || globalListings[index] == nil {
-		return nil, errors.New("invalid listing ID")
+		return errors.New("invalid listing ID")
 	}
+
 	ownedIndices := userListingMap[u.ID]
 	newOwned := []int{}
 	found := false
@@ -94,12 +104,11 @@ func (u *DummyUser) DeleteListing(uuid string) (Listing, error) {
 		}
 	}
 	if !found {
-		return nil, errors.New("listing not owned by user")
+		return errors.New("listing not owned by user")
 	}
 	userListingMap[u.ID] = newOwned
-	deleted := globalListings[index]
 	globalListings[index] = nil
-	return deleted, nil
+	return nil
 }
 
 func (u *DummyUser) Rent(listingUUID string) error {
@@ -122,13 +131,15 @@ func (u *DummyUser) Rent(listingUUID string) error {
 	}
 
 	// Create a new rental
+	if dummyRentals[u.ID] == nil {
+		dummyRentals[u.ID] = []Rental{}
+	}
 	rental := &DummyRental{
-		ID:                len(dummyRentals[u.ID]) + 100, // unique dummy ID
+		ID:                len(dummyRentals[u.ID]) + 100,
 		SourceListingUUID: listing.GetUUID(),
 		Title:             listing.GetTitle(),
 		Description:       listing.GetDescription(),
 	}
-
 	dummyRentals[u.ID] = append(dummyRentals[u.ID], rental)
 
 	return nil
@@ -386,6 +397,15 @@ func (d *DummyInteractor) QueryPublicListings(options *RentalQueryOptions) ([]Li
 	}
 
 	return results, nil
+}
+
+func (d *DummyInteractor) GetUserByID(id string) (User, error) {
+	for _, u := range dummyUsers {
+		if strconv.Itoa(u.ID) == id {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
 }
 
 func uuidToIndex(uuid string) (int, error) {

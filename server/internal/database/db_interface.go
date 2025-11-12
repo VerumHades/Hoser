@@ -7,12 +7,13 @@ type Currency interface {
 }
 
 type User interface {
+	GetID() string
 	GetUsername() string
 	GetPasswordHash() string
 
 	GetListings() ([]Listing, error)
 	GetListing(uuid string) (Listing, error)
-	DeleteListing(uuid string) (Listing, error)
+	DeleteListing(uuid string) error
 	CreateListing(title string, description string) (Listing, error)
 
 	GetRentals() ([]Rental, error)
@@ -64,6 +65,7 @@ type RentalQueryOptions struct {
 }
 
 type Interactor interface {
+	GetUserByID(id string) (User, error)
 	GetUserByName(username string) (User, error)
 	GetPublicListing(uuid string) (Listing, error)
 	QueryPublicListings(options *RentalQueryOptions) ([]Listing, error)

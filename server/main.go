@@ -1,133 +1,97 @@
 package main
 
 import (
-	"encoding/gob"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
-
 	"server/internal/configuration"
 	"server/internal/database"
 	"server/internal/handlers"
-	"server/internal/utils"
 
-	"github.com/gorilla/sessions"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
-var runningConfiguration = configuration.Load()
-
-var app = handlers.App{
-	RunningConfiguration: &runningConfiguration,
-	Store:                sessions.NewCookieStore([]byte(runningConfiguration.SessionSecret)),
-	DatabaseInteractor:   &database.DummyInteractor{},
-}
-
-func publicListingQueryHandler(w http.ResponseWriter, r *http.Request) {
-	options := database.RentalQueryOptions{}
-
-	query := r.URL.Query() // returns url.Values (map[string][]string)
-
-	if q := query.Get("q"); q != "" {
-		options.Text = q
-	}
-
-	response, err := app.DatabaseInteractor.QueryPublicListings(&options)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	json.NewEncoder(w).Encode(response)
-}
-
-func reactHandler(fs http.Handler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		path := filepath.Join(runningConfiguration.ClientDirectory, r.URL.Path)
-
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			fmt.Println("Serving index.html at")
-			fmt.Println(filepath.Join(runningConfiguration.ClientDirectory))
-
-			http.ServeFile(w, r, filepath.Join(runningConfiguration.ClientDirectory, "index.html"))
-			return
-		}
-
-		fs.ServeHTTP(w, r)
-	}
-}
-
-type HandlerMethodMap = map[string]http.HandlerFunc
-type HandlerMap = map[string]HandlerMethodMap
-
-func buildHandlerForAllRequestMethods(method_map HandlerMethodMap) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler, exists := method_map[r.Method]
-
-		if !exists {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
-		handler.ServeHTTP(w, r)
-	})
-}
-
-func buildHandlerMap(handler_map HandlerMap) map[string]http.HandlerFunc {
-	built_map := map[string]http.HandlerFunc{}
-
-	for route, method_map := range handler_map {
-		built_map[route] = buildHandlerForAllRequestMethods(method_map)
-	}
-
-	return built_map
-}
-
 func main() {
-	public_handlers := buildHandlerMap(HandlerMap{
-		"/login":          {http.MethodPost: app.LoginHandler()},
-		"/logout":         {http.MethodPost: app.LogoutHandler()},
-		"/rentals/public": {http.MethodGet: publicListingQueryHandler},
-	})
+	// ---------------------------
+	// Load configuration
+	// ---------------------------
+	runningConfiguration := configuration.Load()
 
-	login_required_handlers := buildHandlerMap(HandlerMap{
-		"/user/data":    {http.MethodGet: app.UserDataRequestHandler()},
-		"/user/rentals": {http.MethodGet: app.UserRentalsRequestHandler()},
-	})
-
-	developer_only_handlers := buildHandlerMap(HandlerMap{
-		"/developer/listings": {http.MethodGet: app.DeveloperListingsRequestHandler()},
-		"/developer/listing": {
-			http.MethodPost:   app.DeveloperAddListingRequestHandler(),
-			http.MethodPut:    app.DeveloperAlterListingRequestHandler(),
-			http.MethodDelete: app.DeveloperDeleteListingRequestHandler(),
-		},
-	})
-
-	gob.Register(&database.DummyUser{})
-
-	handlers.ApplyMiddlewares([]handlers.Middleware{app.MiddlewareDeveloperOnly(), app.MiddlewareAuthenticationRequired()}, developer_only_handlers)
-	handlers.ApplyMiddlewares([]handlers.Middleware{app.MiddlewareAuthenticationRequired()}, login_required_handlers)
-
-	all_handlers := utils.MergeMultipleMaps([]map[string]http.HandlerFunc{public_handlers, login_required_handlers, developer_only_handlers})
-
-	handlers.ApplyMiddlewares([]handlers.Middleware{utils.ColorLogMiddleware, app.MiddlewareCORS()}, all_handlers)
-
-	mux := http.NewServeMux()
-
-	for key, handler := range all_handlers {
-		mux.Handle(key, http.HandlerFunc(handler))
+	app := &handlers.App{
+		RunningConfiguration: &runningConfiguration,
+		DatabaseInteractor:   &database.DummyInteractor{},
+		JWTSecret:            []byte(runningConfiguration.SessionSecret),
 	}
 
-	fs := http.FileServer(http.Dir(runningConfiguration.ClientDirectory))
-	mux.Handle("/", reactHandler(fs))
+	e := echo.New()
 
-	var address = fmt.Sprintf("%s:%s", runningConfiguration.Address, runningConfiguration.Port)
+	// ---------------------------
+	// Middleware
+	// ---------------------------
+	e.Use(app.CORSMiddleware())
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	// ---------------------------
+	// Public routes
+	// ---------------------------
+	public := e.Group("")
+	public.GET("/rentals/public", func(c echo.Context) error {
+		options := database.RentalQueryOptions{}
+		q := c.QueryParam("q")
+		if q != "" {
+			options.Text = q
+		}
+
+		response, err := app.DatabaseInteractor.QueryPublicListings(&options)
+		if err != nil {
+			return c.NoContent(http.StatusInternalServerError)
+		}
+
+		return c.JSON(http.StatusOK, response)
+	})
+	public.POST("/login", app.LoginHandler)
+	public.POST("/logout", app.LogoutHandler)
+
+	// ---------------------------
+	// Authenticated routes
+	// ---------------------------
+	auth := e.Group("")
+
+	auth.GET("/user/data", app.UserDataHandler)
+	auth.GET("/user/rentals", app.UserRentalsHandler)
+	auth.POST("/user/rent", app.UserRentHandler)
+
+	// ---------------------------
+	// Developer-only routes
+	// ---------------------------
+	dev := e.Group("")
+	dev.Use(app.DeveloperOnlyMiddleware)
+
+	dev.GET("/developer/listings", app.DeveloperListingsHandler)
+	dev.POST("/developer/listing", app.DeveloperAddListingHandler)
+	dev.PUT("/developer/listing", app.DeveloperAlterListingHandler)
+	dev.DELETE("/developer/listing", app.DeveloperDeleteListingHandler)
+
+	// ---------------------------
+	// Serve React client
+	// ---------------------------
+	fsRoot := runningConfiguration.ClientDirectory
+	e.GET("/*", func(c echo.Context) error {
+		path := filepath.Join(fsRoot, c.Request().URL.Path)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			// Fallback to index.html
+			return c.File(filepath.Join(fsRoot, "index.html"))
+		}
+		return c.File(path)
+	})
+
+	// ---------------------------
+	// Start server
+	// ---------------------------
+	address := fmt.Sprintf("%s:%s", runningConfiguration.Address, runningConfiguration.Port)
 	fmt.Printf("Server running on http://%s\n", address)
-	http.ListenAndServe(address, mux)
+	e.Logger.Fatal(e.Start(address))
 }

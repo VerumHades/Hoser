@@ -7,11 +7,11 @@ import PromptButton from "../components/PromptButton";
 import SelectBox from "../components/SelectBox";
 
 export interface Listing {
-  ID: string;
-  Title: string;
-  Description: string;
-  Author: string;
-  AccessMode: number
+  id: string;
+  title: string;
+  description: string;
+  author: string;
+  accessMode: number
 }
 
 interface ListingDisplayProps {
@@ -29,18 +29,18 @@ export default function DeveloperListingDisplay({ listing, onShouldClose }: List
   };
 
   const deleteThisListing = async () => {
-    if(!(await API.developer.deleteListing(listing.ID)).ok)
+    if(!(await API.developer.deleteListing(listing.id)).ok)
       onShouldClose?.()
   }
 
   const onSelectedAccessMode = (mode: string) => {
-    API.developer.editListing(listing.ID, { accessMode: parseInt(mode) as (0 | 1) })
+    API.developer.editListing(listing.id, { accessMode: parseInt(mode) as (0 | 1) })
   }   
 
   return (
     <div className="w-full h-full p-6  shadow-md rounded-lg">
       <div className="flex flex-row justify-between mb-10">
-        <SelectBox options={ListingAccessModes} onSelected={onSelectedAccessMode} defaultValue={""+listing.AccessMode}></SelectBox>
+        <SelectBox options={ListingAccessModes} onSelected={onSelectedAccessMode} defaultValue={""+listing.accessMode}></SelectBox>
         <PromptButton
           className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors dark:bg-red-600 dark:hover:bg-red-700 flex flex-row gap-2"
           submitClassName={`
@@ -67,15 +67,15 @@ export default function DeveloperListingDisplay({ listing, onShouldClose }: List
       </div>
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
         <EditableText 
-          text={listing.Title} 
-          onChange={(name: string) => { API.developer.editListing(listing.ID, { title: name }) }}>
+          text={listing.title} 
+          onChange={(name: string) => { API.developer.editListing(listing.id, { title: name }) }}>
 
         </EditableText>
       </h1>
       <p className="mb-2 text-gray-700 dark:text-gray-300">
         <EditableText 
-          text={listing.Description} 
-          onChange={(name: string) => { API.developer.editListing(listing.ID, { description: name }) }}>
+          text={listing.description} 
+          onChange={(name: string) => { API.developer.editListing(listing.id, { description: name }) }}>
 
         </EditableText>
       </p>

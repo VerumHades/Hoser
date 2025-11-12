@@ -2,8 +2,8 @@ import backend_constants from "./backend_constants"
 
 
 export type User = {
-    Username: string
-    IsDeveloper: boolean
+    username: string
+    isDeveloper: boolean
 }
 
 export function clearCachedUser() {

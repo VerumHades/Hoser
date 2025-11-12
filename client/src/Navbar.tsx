@@ -61,7 +61,7 @@ const Navbar: React.FC = () => {
         >
             <UserIcon size={20} className="text-gray-700 dark:text-gray-300" />
             <span className="font-medium text-gray-900 dark:text-gray-100">
-                {user ? user.Username : "Login"}
+                {user ? user.username : "Login"}
             </span>
         </NavLink>
     );

@@ -1,64 +1,95 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
-	"server/internal/database"
+	"time"
 
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/labstack/echo/v4"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func sendInvalidCredentialsError(w http.ResponseWriter) {
-	http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+// LoginRequest defines the expected login payload
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
-func (app *App) LoginHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-
-		user, err := app.DatabaseInteractor.GetUserByName(username)
-		if err != nil {
-			sendInvalidCredentialsError(w)
-			return
-		}
-
-		if bcrypt.CompareHashAndPassword([]byte(user.GetPasswordHash()), []byte(password)) != nil {
-			sendInvalidCredentialsError(w)
-			return
-		}
-
-		session, _ := app.Store.Get(r, "user-session")
-		session.Values["authenticated"] = true
-		session.Values["user"] = user
-		_ = session.Save(r, w)
-	}
+// LoginResponse defines the response with JWT
+type LoginResponse struct {
+	Token string `json:"token"`
 }
 
-func (app *App) LogoutHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := app.Store.Get(r, "user-session")
-		session.Values["authenticated"] = false
-
-		session.Options.MaxAge = -1
-		_ = session.Save(r, w)
+func (app *App) LoginHandler(c echo.Context) error {
+	type LoginRequest struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
+
+	req := new(LoginRequest)
+	if err := c.Bind(req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
+	}
+
+	user, err := app.DatabaseInteractor.GetUserByName(req.Username)
+	if err != nil || bcrypt.CompareHashAndPassword([]byte(user.GetPasswordHash()), []byte(req.Password)) != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
+	}
+
+	// Create JWT
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.GetID(),
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+	})
+
+	tokenString, err := token.SignedString([]byte(app.JWTSecret))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate token")
+	}
+
+	// Set cookie
+	cookie := new(http.Cookie)
+	cookie.Name = "jwt"
+	cookie.Value = tokenString
+	cookie.HttpOnly = true
+	cookie.Secure = true // HTTPS only
+	cookie.Path = "/"
+	cookie.SameSite = http.SameSiteNoneMode // allow cross-origin
+	cookie.Expires = time.Now().Add(24 * time.Hour)
+	c.SetCookie(cookie)
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Logged in successfully",
+	})
 }
 
-func (app *App) UserDataRequestHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := app.Store.Get(r, "user-session")
-		user, _ := session.Values["user"].(database.User)
+func (app *App) LogoutHandler(c echo.Context) error {
+	cookie := new(http.Cookie)
+	cookie.Name = "jwt"
+	cookie.Value = ""
+	cookie.HttpOnly = true
+	cookie.Secure = true
+	cookie.Path = "/"
+	cookie.Expires = time.Unix(0, 0)
+	c.SetCookie(cookie)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Logged out successfully",
+	})
+}
 
-		json.NewEncoder(w).Encode(struct {
-			Username    string
-			IsDeveloper bool
-		}{
-			Username:    user.GetUsername(),
-			IsDeveloper: user.IsDeveloper(),
-		})
+// UserDataHandler returns info about the currently authenticated user
+func (app *App) UserDataHandler(c echo.Context) error {
+	user, err := app.GetUserFromContext(c)
+	if err != nil {
+		return err
 	}
+
+	return c.JSON(http.StatusOK, struct {
+		Username    string `json:"username"`
+		IsDeveloper bool   `json:"isDeveloper"`
+	}{
+		Username:    user.GetUsername(),
+		IsDeveloper: user.IsDeveloper(),
+	})
 }

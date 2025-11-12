@@ -5,44 +5,68 @@ import (
 	"server/internal/configuration"
 	"server/internal/database"
 
-	"github.com/gorilla/sessions"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/labstack/echo/v4"
 )
 
 type App struct {
-	Store                *sessions.CookieStore
 	DatabaseInteractor   database.Interactor
 	RunningConfiguration *configuration.Configuration
+	JWTSecret            []byte
 }
 
-func (app *App) GetUser(request *http.Request) database.User {
-	session, _ := app.Store.Get(request, "user-session")
-	user, _ := session.Values["user"].(database.User)
-	return user
-}
+// =================== APP INIT ===================
 
-func NewApp(store *sessions.CookieStore, db database.Interactor, cfg *configuration.Configuration) *App {
-	var app = &App{
-		Store:                store,
+func NewApp(db database.Interactor, cfg *configuration.Configuration, jwtSecret []byte) *App {
+	return &App{
 		DatabaseInteractor:   db,
 		RunningConfiguration: cfg,
+		JWTSecret:            jwtSecret,
 	}
-
-	app.Store.Options = &sessions.Options{
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,                  // must use HTTPS in production
-		SameSite: http.SameSiteNoneMode, // allow cross-origin requests
-	}
-
-	return app
 }
 
-func NewTestApp() *App {
-	var store = sessions.NewCookieStore([]byte("secret-key"))
-	var db = &database.DummyInteractor{}
-	var cfg = &configuration.Configuration{
-		AllowedOrigins: []string{"http://localhost"},
+// =================== HELPER FUNCTIONS ===================
+
+// GetUserFromContext retrieves the authenticated user from Echo context (JWT claims)
+func (app *App) GetUserFromContext(c echo.Context) (database.User, error) {
+	cookie, err := c.Cookie("jwt")
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Missing token")
 	}
 
-	return NewApp(store, db, cfg)
+	token, err := jwt.Parse(cookie.Value, func(t *jwt.Token) (interface{}, error) {
+		return []byte(app.JWTSecret), nil
+	})
+	if err != nil || !token.Valid {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	userID, ok := claims["user_id"].(string)
+	if !ok {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	user, err := app.DatabaseInteractor.GetUserByID(userID)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	return user, nil
+}
+
+// =================== TEST APP ===================
+
+func NewTestApp() *App {
+	db := &database.DummyInteractor{}
+	cfg := &configuration.Configuration{
+		AllowedOrigins: []string{"http://localhost"},
+	}
+	jwtSecret := []byte("test-secret-key")
+
+	return NewApp(db, cfg, jwtSecret)
 }

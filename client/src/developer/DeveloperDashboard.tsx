@@ -8,7 +8,7 @@ export default function DashboardApp() {
   return (
     <RequireLogin>
       <RequireLogin
-        condition={(user) => user.IsDeveloper}
+        condition={(user) => user.isDeveloper}
         redirect="/developer/join"
       >
         <div className="w-full h-full">
