@@ -4,7 +4,8 @@ import ElementList from "../components/ElementList";
 import ListElement from "../components/prefabs/ListElement";
 import { PriceTag } from "../components/prefabs/PriceTag";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
-
+import { Flow, FlowSwitch, FlowTopBackWrapper } from "../components/Flow";
+import Search from "../components/Search";
 interface CurrencyValue {
     Name: string,
     Short: string,
@@ -76,7 +77,7 @@ function PublicListingDisplay({ item }: PublicListingDisplayProps) {
                     title={item.Title}
                     description={item.Description}
                     titleClassname="text-7xl">
-                    
+
                 </TitleAndDescription>
             </div>
             <div className="flex flex-col">
@@ -84,16 +85,18 @@ function PublicListingDisplay({ item }: PublicListingDisplayProps) {
                     Purchase:
                 </h2>
                 <div className="flex flex-col">
-                    { singlePurchaseTag ? <ListElement>
-                        <div className="flex flex-row items-center">
-                            <TitleAndDescription
-                                className="flex-1"
-                                title={"One time"}
-                                description={"Pay once, rent only hardware"}>
-                            </TitleAndDescription>
-                            <div>{singlePurchaseTag}</div>
-                        </div>
-                    </ListElement> : <></>}
+                    <FlowSwitch direction="next">
+                        {singlePurchaseTag ? <ListElement>
+                            <div className="flex flex-row items-center">
+                                <TitleAndDescription
+                                    className="flex-1"
+                                    title={"One time"}
+                                    description={"Pay once, rent only hardware"}>
+                                </TitleAndDescription>
+                                <div>{singlePurchaseTag}</div>
+                            </div>
+                        </ListElement> : <></>}
+                    </FlowSwitch>
                     {monthlyPurchaseTag ? <ListElement>
                         <div className="flex flex-row items-center">
                             <TitleAndDescription
@@ -110,11 +113,8 @@ function PublicListingDisplay({ item }: PublicListingDisplayProps) {
     );
 };
 
-
 export default function PublicListingSearch() {
     const [item, setItem] = useState<undefined | SearchItem>(undefined);
-
-    const itemViewBuilder = (item: SearchItem) => <PublicListingDisplay item={item} />
 
     const itemBuilder = (item: SearchItem) => {
         const singlePurchaseTag = CreateSinglePurchasePriceTag(item)
@@ -122,32 +122,31 @@ export default function PublicListingSearch() {
 
         const showOr = singlePurchaseTag && monthlyPurchaseTag;
 
-        return <ListElement onClick={() => setItem(item)}>
-            <div className="flex flex-col md:flex-row w-full">
-                <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{item.Title}</h3>
-                    <p className="text-sm">{item.Description}</p>
-                    <p className="text-xs mt-1">By {item.author}</p>
+        return <FlowSwitch direction="next">
+            <ListElement onClick={() => setItem(item)}>
+                <div className="flex flex-col md:flex-row w-full">
+                    <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{item.Title}</h3>
+                        <p className="text-sm">{item.Description}</p>
+                        <p className="text-xs mt-1">By {item.author}</p>
+                    </div>
+                    <div className="flex flex-row items-center text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap md:mt-0 mt-5">
+                        {singlePurchaseTag}{showOr ? <label className="mx-5">or</label> : <></>}{monthlyPurchaseTag}
+                    </div>
                 </div>
-                <div className="flex flex-row items-center text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap md:mt-0 mt-5">
-                    {singlePurchaseTag}{showOr ? <label className="mx-5">or</label> : <></>}{monthlyPurchaseTag}
-                </div>
-            </div>
-        </ListElement>
+            </ListElement>
+        </FlowSwitch>
     }
 
     const queryBuilder = (query: string) => { return { q: query } }
 
     return <div className="w-full h-full flex flex-col items-center bg-slate-100">
-        <ElementList
-            element={item}
-            itemBuilder={itemBuilder}
-            queryBuilder={queryBuilder}
-            endpoint={`${backend_constants.address}/rentals/public`}
-            itemViewBuilder={itemViewBuilder}
-            onResetElement={() => setItem(undefined)}
-        >
-
-        </ElementList>
+        <Flow>
+            <Search itemBuilder={itemBuilder} queryBuilder={queryBuilder} endpoint={`${backend_constants.address}/rentals/public`} />
+            <FlowTopBackWrapper>
+                {item ? <PublicListingDisplay item={item}></PublicListingDisplay> : <></>}
+            </FlowTopBackWrapper>
+            <div></div>
+        </Flow>
     </div>
 }

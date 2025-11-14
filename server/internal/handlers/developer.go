@@ -18,12 +18,12 @@ type ApiDeveloperListing struct {
 }
 
 type AddListingRequest struct {
-	Title       string `json:"title" validate:"required"`
-	Description string `json:"description" validate:"required"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 type ListingRequest struct {
-	ID          string  `json:"id" validate:"required"`
+	ID          string  `json:"id"`
 	Title       *string `json:"title,omitempty"`
 	Description *string `json:"description,omitempty"`
 	AccessMode  *int    `json:"accessMode,omitempty"`
@@ -76,10 +76,6 @@ func (app *App) DeveloperAddListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	if err := c.Validate(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-
 	listing, err := user.CreateListing(req.Title, req.Description)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
@@ -98,10 +94,6 @@ func (app *App) DeveloperAlterListingHandler(c echo.Context) error {
 	var req ListingRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
-	}
-
-	if err := c.Validate(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	listing, err := user.GetListing(req.ID)
@@ -136,10 +128,6 @@ func (app *App) DeveloperDeleteListingHandler(c echo.Context) error {
 	var req ListingRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
-	}
-
-	if err := c.Validate(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	if err := user.DeleteListing(req.ID); err != nil {

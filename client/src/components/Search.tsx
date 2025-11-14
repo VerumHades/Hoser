@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import debounce from "lodash.debounce"
 import LoadingIcon from "./prefabs/LoadingIcon";
+import {Search as SearchIcon} from "lucide-react"
 
 interface SearchProps<T> {
     children?: React.ReactNode,
@@ -59,8 +60,9 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
                     placeholder="Search..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="flex-1 px-6 py-3 focus:outline-none bg-gray-300 dark:bg-gray-800 sm:w-auto sm:flex-1 w-full text-gray-900 dark:text-gray-100"
+                    className="flex-1 px-6 py-3 focus:outline-none sm:w-auto sm:flex-1 w-full text-gray-900 dark:text-gray-100"
                 />
+                <SearchIcon className="text-gray-900 dark:text-gray-100" />
                 {children}
             </div>
 
