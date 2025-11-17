@@ -3,12 +3,14 @@ import { toast, Toaster } from 'react-hot-toast';
 import { useNavigate } from "react-router-dom";
 
 import backend_constants from "../backend_constants";
+import { useUserSession } from "../components/UserSession";
 
 export default function LoginForm() {
     const [username, setUsername] = useState<string>("");
     const [password, setPassword] = useState<string>("");
 
-    const navigate = useNavigate();
+    const session = useUserSession()
+    const navigate = useNavigate()
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -24,7 +26,8 @@ export default function LoginForm() {
             });
 
             if (response.ok) {
-                navigate("/user_logged_in");
+                session.refresh()
+                navigate("/")
             } else {
                 const text = await response.text();
                 toast.error(text)

@@ -1,25 +1,30 @@
 import backend_constants from "./backend_constants";
 
-async function backend_request(endpoint: string, type: string, body: any) {
-    let response = await fetch(`${backend_constants.address}${endpoint}`, {
+async function backend_request(endpoint: string, type: string, body?: any): Promise<APIResult> {
+
+    let request_body: RequestInit = {
         method: type,
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify(body),
         credentials: "include"
-    });
+    }
+    if (body)
+        request_body.body = JSON.stringify(body);
+
+    const response = await fetch(`${backend_constants.address}${endpoint}`, request_body);
 
     return {
         response,
+        ok: response.ok,
         json: await response.json()
     }
 }
 
 
 export const ListingAccessModes = {
-    0: {label: 'Private', description: "Private, only available to you."},
-    1: {label: 'Public', description: "Available to everyone."},
+    0: { label: 'Private', description: "Private, only available to you." },
+    1: { label: 'Public', description: "Available to everyone." },
 }
 
 interface DeveloperListingUpdateData {
@@ -29,41 +34,38 @@ interface DeveloperListingUpdateData {
     accessMode?: keyof typeof ListingAccessModes
 }
 
+
+export type User = {
+    username: string
+    isDeveloper: boolean
+}
+
 interface APIResult {
     ok: boolean,
+    response: Response,
     json: any
 }
 
 export const API = {
+    user: {
+        async getData(): Promise<User | undefined> {
+            let response = await backend_request("/user/data", "GET");
+            return response.ok ? (response.json as User) : undefined
+        }
+    },
     developer: {
-        deleteListing: async (id: string): Promise<APIResult> => {
-            let request = (await backend_request("/developer/listing", "DELETE", {id}));
-
-            return {
-                ok: request.response.ok,
-                json: request.json
-            }
+        async deleteListing(id: string): Promise<APIResult> {
+            return await backend_request("/developer/listing", "DELETE", { id });
         },
-        editListing: async (id: string, data: DeveloperListingUpdateData) => {
-            let request = (await backend_request("/developer/listing", "PUT", {...data, id}))
-
-            return {
-                ok: request.response.ok,
-                json: request.json
-            }
+        async editListing(id: string, data: DeveloperListingUpdateData) {
+            return await backend_request("/developer/listing", "PUT", { ...data, id })
         },
-        createListing: async (title: string = "My New Listing", description: string = "This is a description of my listing.") => {
+        async createListing(title: string = "My New Listing", description: string = "This is a description of my listing.") {
             const data = {
                 title,
                 description
             };
-
-            let request = (await backend_request(`/developer/listing`, "POST", data))
-
-            return {
-                ok: request.response.ok,
-                json: request.json
-            }
+            return await backend_request(`/developer/listing`, "POST", data)
         },
     }
 }

@@ -140,7 +140,7 @@ export default function PublicListingSearch() {
 
     const queryBuilder = (query: string) => { return { q: query } }
 
-    return <div className="w-full h-full flex flex-col items-center bg-slate-100">
+    return <div className="w-full h-full flex flex-col items-center bg-slate-100 dark:bg-slate-950">
         <Flow>
             <Search itemBuilder={itemBuilder} queryBuilder={queryBuilder} endpoint={`${backend_constants.address}/rentals/public`} />
             <FlowTopBackWrapper>

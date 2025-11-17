@@ -1,9 +1,10 @@
 // src/components/Navbar.tsx
-import React, { useEffect, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { clearCachedUser, getUser, type User } from "./user";
-import { Menu, X, User as UserIcon } from "lucide-react"; // Lucide icons
+import React, { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { Menu, X } from "lucide-react"; // Lucide icons
 import Logo from "./components/prefabs/Logo";
+import { UserSessionDisplay, useUserSession } from "./components/UserSession";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface NavigationLinkProps {
     to: string,
@@ -22,50 +23,38 @@ function NavigationLink({ children, to, onClick, className }: NavigationLinkProp
     </NavLink>
 }
 
-const Navbar: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [user, setUser] = useState<User | undefined>(undefined);
-    const navigate = useNavigate();
-    const location = useLocation();
+interface DevLinkProps {
+    onClick?: () => void,
+    className?: string,
+    children?: React.ReactNode
+}
 
-    const refreshUser = () => {
-        async function fetchUser() {
-            const u = await getUser();
-            setUser(u);
+function DeveloperLink({ className, children, onClick }: DevLinkProps) {
+    const navigate = useNavigate()
+    const { user } = useUserSession()
+    const go = () => {
+        onClick?.()
+        if (user?.isDeveloper) {
+            navigate("/account", { state: { dashpage: "Listings" } })
+            return
         }
-        fetchUser();
-    };
+
+        navigate("/developer/join")
+    }
+    return <div onClick={go} className={className}>{children}</div>
+}
+
+interface NavbarProps {
+    children?: React.ReactNode,
+    className?: string
+}
+
+function Navbar({ children, className }: NavbarProps) {
+    const [open, setIsOpen] = useState(false);
 
     const close = () => {
         setIsOpen(false)
     }
-
-    useEffect(refreshUser, []);
-
-    useEffect(() => {
-        if (location.pathname === "/user_logged_out") {
-            setUser(undefined);
-            clearCachedUser()
-            navigate("/");
-        } else if (location.pathname === "/user_logged_in") {
-            clearCachedUser()
-            refreshUser();
-            navigate("/");
-        }
-    }, [location, navigate]);
-
-    const accountButton = (
-        <NavLink
-            to={user ? "/account" : "/login"}
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-2 p-2 m-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        >
-            <UserIcon size={20} className="text-gray-700 dark:text-gray-300" />
-            <span className="font-medium text-gray-900 dark:text-gray-100">
-                {user ? user.username : "Login"}
-            </span>
-        </NavLink>
-    );
 
     const links = <>
         <NavigationLink to="/explore/public" onClick={close} className="navigation-link">
@@ -74,11 +63,11 @@ const Navbar: React.FC = () => {
         <NavigationLink to="/explore/listings" onClick={close} className="navigation-link">
             Listings
         </NavigationLink>
-        <NavigationLink to="/developer/dashboard" onClick={close} className="navigation-link">Develop</NavigationLink>
+        <DeveloperLink onClick={close} className="navigation-link">Develop</DeveloperLink>
     </>
 
     return (
-        <div className="fixed inset-x-0 top-0 flex flex-col pointer-events-none z-50">
+        <div className={"md:relative fixed inset-0 top-0 flex flex-col pointer-events-none z-50"}>
             <nav className="bg-white dark:bg-gray-900 shadow-md w-full pointer-events-auto">
                 <div className="flex justify-between items-center h-16 px-5 relative">
                     {/* Logo + links */}
@@ -90,28 +79,36 @@ const Navbar: React.FC = () => {
                     </div>
 
                     {/* Account button desktop */}
-                    <div className="hidden sm:flex">{accountButton}</div>
+                    <div className="hidden sm:flex"><UserSessionDisplay></UserSessionDisplay></div>
 
                     {/* Mobile menu toggle */}
                     <div className="sm:hidden flex items-center">
                         <button
-                            onClick={() => setIsOpen(!isOpen)}
-                            className="p-2 focus:outline-none rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                            onClick={() => setIsOpen(!open)}
+                            className="p-2 focus:outline-none rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition text-slate-800 dark:text-gray-200"
                         >
-                            {isOpen ? <X size={24} /> : <Menu size={24} />}
+                            {open ? <X size={24} /> : <Menu size={24} />}
                         </button>
                     </div>
                 </div>
             </nav>
 
             {/* Mobile dropdown */}
-            <div
-                className={`sm:hidden transition-all overflow-hidden ${isOpen ? "max-h-screen" : "max-h-0"
-                    } flex flex-col bg-white dark:bg-gray-900 pointer-events-auto`}
-            >
-                <div className="flex flex-col px-2 py-2">{links}</div>
-                {accountButton}
-            </div>
+            <AnimatePresence>
+                {open && <motion.nav
+                    initial={{ y: -10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -10, opacity: 0 }}
+                    transition={{ type: "tween", duration: 0.3 }}
+                    className="flex flex-1 flex-col justify-between bg-white dark:bg-gray-900 pointer-events-auto md:hidden"
+                >
+                    <div className="flex flex-col px-2 py-2 pointer-events-auto">{links}</div>
+                    <div className="flex-1">
+                        {children}
+                    </div>
+                    <UserSessionDisplay></UserSessionDisplay>
+                </motion.nav>}
+            </AnimatePresence> 
         </div>
     );
 };

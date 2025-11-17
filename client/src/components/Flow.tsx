@@ -28,26 +28,23 @@ export function Flow({ children }: FlowProps) {
 
     return (
         <FlowContext.Provider value={{ page, next, prev, setPage }}>
-            <div className="relative w-full h-full">
-                <AnimatePresence mode="wait">
-                    {childArray.map((child, i) => {
-                        if (i !== page) return null;
+            <AnimatePresence mode="wait">
+                {childArray.map((child, i) => {
+                    if (i !== page) return null;
 
-                        return (
-                            <motion.div
-                                key={i} // important for AnimatePresence to detect changes
-                                initial={{ opacity: 0, x: 50 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -50 }}
-                                transition={{ duration: 0.3 }}
-                                className="absolute inset-0"
-                            >
-                                {child}
-                            </motion.div>
-                        );
-                    })}
-                </AnimatePresence>
-            </div>
+                    return (
+                        <motion.div
+                            key={i} // important for AnimatePresence to detect changes
+                            initial={{ opacity: 0, x: 50 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -50 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            {child}
+                        </motion.div>
+                    );
+                })}
+            </AnimatePresence>
         </FlowContext.Provider>
     );
 }

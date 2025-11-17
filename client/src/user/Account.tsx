@@ -1,52 +1,32 @@
 // src/components/AccountPage.tsx
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { getUser, type User } from "../user";
+import React from "react";
 import backend_constants from "../backend_constants";
 import UserRentalList from "./Rentals";
 import RequireLogin from "../components/RequireLogin";
 import Dashboard, { Page } from "../components/Dashboard";
-import { ShoppingCart, User as UserIcon} from "lucide-react";
-import LoadingIcon from "../components/prefabs/LoadingIcon";
+import { BarChart3, Images, ShoppingCart, User as UserIcon } from "lucide-react";
 import Logo from "../components/prefabs/Logo";
+import { useUserSession } from "../components/UserSession";
+import DeveloperListings from "../developer/DeveloperListings";
+import { useNavigate } from "react-router-dom";
 
 const AccountPage: React.FC = () => {
-    const [user, setUser] = useState<User | undefined>(undefined);
-    const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        async function fetchUser() {
-            const u = await getUser();
-            setUser(u);
-            setLoading(false);
-        }
-
-        fetchUser();
-    }, []);
+    const session = useUserSession()
+    const navigate = useNavigate()
 
     const handleLogout = async () => {
         try {
             await fetch(`${backend_constants.address}/logout`, { method: "POST", credentials: "include" });
-            setUser(undefined);
-            navigate("/user_logged_out");
+            session.refresh()
+            navigate("/")
         } catch (err) {
             console.error("Logout failed", err);
         }
     };
-
-    if (loading) return <LoadingIcon></LoadingIcon>
-
-    if (!user)
-        return (
-            <div className="p-5">
-                <p>You are not logged in.</p>
-            </div>
-        );
-
+    console.log(session.user?.isDeveloper)
     return (
         <RequireLogin>
-            <div className="w-full h-full">
+            <div className="w-full h-full flex flex-col">
                 <Dashboard logo={<Logo></Logo>}>
                     <Page name="Account Information" icon={<UserIcon />}>
                         <div className="md:max-w-md w-full mx-auto p-6 bg-white dark:bg-gray-800">
@@ -54,7 +34,7 @@ const AccountPage: React.FC = () => {
                                 Account Details
                             </h1>
                             <p className="mb-2 text-gray-700 dark:text-gray-300">
-                                <strong>Username:</strong> {user.Username}
+                                <strong>Username:</strong> {session.user?.Username}
                             </p>
                             <button
                                 onClick={handleLogout}
@@ -67,12 +47,18 @@ const AccountPage: React.FC = () => {
                     <Page name="My Rentals" icon={<ShoppingCart />}>
                         <UserRentalList></UserRentalList>
                     </Page>
-                    <Page name="Developer" icon={<ShoppingCart />}>
-                        <UserRentalList></UserRentalList>
-                    </Page>
-                    <Page name="My Listings" subpage_of="Developer" icon={<ShoppingCart />}>
-                        <UserRentalList></UserRentalList>
-                    </Page>
+                    {session.user?.isDeveloper && <>
+                        <Page name="Developer" icon={<ShoppingCart />} children={undefined}>
+
+                        </Page>,
+                        <Page name="Listings" subpage_of="Developer" icon={<Images />}>
+                            <DeveloperListings></DeveloperListings>
+                        </Page>,
+                        <Page name="Earnings" subpage_of="Developer" icon={<BarChart3 />}>
+                            <div>Earnings content goes here</div>
+                        </Page>
+                    </>
+                    }
                 </Dashboard>
             </div>
         </RequireLogin>
