@@ -1,8 +1,9 @@
 // src/components/Navbar.tsx
-import React, {  useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { clearCachedUser, getUser, type User } from "./user";
 import { Menu, X, User as UserIcon } from "lucide-react"; // Lucide icons
+import Logo from "./components/prefabs/Logo";
 
 interface NavigationLinkProps {
     to: string,
@@ -10,7 +11,7 @@ interface NavigationLinkProps {
     className?: string,
     children?: React.ReactNode
 }
-function NavigationLink({children, to, onClick, className}: NavigationLinkProps){
+function NavigationLink({ children, to, onClick, className }: NavigationLinkProps) {
     return <NavLink
         to={to}
         end
@@ -81,11 +82,8 @@ const Navbar: React.FC = () => {
             <nav className="bg-white dark:bg-gray-900 shadow-md w-full pointer-events-auto">
                 <div className="flex justify-between items-center h-16 px-5 relative">
                     {/* Logo + links */}
-                    <div className="flex items-center space-x-4">
-                        <img src="/ghost_logo.svg" className="h-8 w-auto" alt="Logo" />
-                        <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                            gHost
-                        </span>
+                    <div className="flex flex-row">
+                        <Logo></Logo>
                         <div className="hidden sm:flex space-x-2">
                             {links}
                         </div>

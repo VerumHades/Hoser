@@ -8,6 +8,7 @@ import RequireLogin from "../components/RequireLogin";
 import Dashboard, { Page } from "../components/Dashboard";
 import { ShoppingCart, User as UserIcon} from "lucide-react";
 import LoadingIcon from "../components/prefabs/LoadingIcon";
+import Logo from "../components/prefabs/Logo";
 
 const AccountPage: React.FC = () => {
     const [user, setUser] = useState<User | undefined>(undefined);
@@ -46,7 +47,7 @@ const AccountPage: React.FC = () => {
     return (
         <RequireLogin>
             <div className="w-full h-full">
-                <Dashboard>
+                <Dashboard logo={<Logo></Logo>}>
                     <Page name="Account Information" icon={<UserIcon />}>
                         <div className="md:max-w-md w-full mx-auto p-6 bg-white dark:bg-gray-800">
                             <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
@@ -64,6 +65,12 @@ const AccountPage: React.FC = () => {
                         </div>
                     </Page>
                     <Page name="My Rentals" icon={<ShoppingCart />}>
+                        <UserRentalList></UserRentalList>
+                    </Page>
+                    <Page name="Developer" icon={<ShoppingCart />}>
+                        <UserRentalList></UserRentalList>
+                    </Page>
+                    <Page name="My Listings" subpage_of="Developer" icon={<ShoppingCart />}>
                         <UserRentalList></UserRentalList>
                     </Page>
                 </Dashboard>

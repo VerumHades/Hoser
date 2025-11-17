@@ -29,7 +29,7 @@ export default function ElementList<T>({ queryBuilder, itemBuilder, itemViewBuil
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-4 flex flex-col w-full h-full text-gray-900 dark:text-gray-100 bg-slate-100 dark:bg-slate-800"
+                className="space-y-4 flex flex-col w-full h-full text-gray-900 dark:text-gray-100"
             >
                 <div
                     className="my-3 py-2 flex flex-row items-center hover:bg-slate-200 dark:hover:bg-gray-700 rounded-md transition-all"

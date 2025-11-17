@@ -38,7 +38,7 @@ export default function DeveloperListingDisplay({ listing, onShouldClose }: List
   }   
 
   return (
-    <div className="w-full h-full p-6  shadow-md rounded-lg">
+    <div className="w-full h-full p-6">
       <div className="flex flex-row justify-between mb-10">
         <SelectBox options={ListingAccessModes} onSelected={onSelectedAccessMode} defaultValue={""+listing.accessMode}></SelectBox>
         <PromptButton
