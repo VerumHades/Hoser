@@ -1,9 +1,18 @@
 // src/components/DashboardApp.tsx
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, ChevronLeft, Menu } from "lucide-react";
-import React, { Children, useEffect, useState, type ReactNode } from "react";
-import { useLocation } from "react-router";
-import Navbar from "../Navbar";
+import React, { Children, createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router";
+import MainNavbar, { useNavbar } from "./prefabs/MainNavbar";
+import Navbar from "./Navbar";
+
+interface DashboardContextType {
+    setPage: (page: string) => void,
+    page: string,
+}
+
+const DashboardContext = createContext<DashboardContextType>({ setPage: () => { }, page: "" })
+
 
 interface PageProps {
     name: string;
@@ -40,12 +49,12 @@ function buildPageMap(pages: PageProps[]) {
             if (!(subpage_of in hold))
                 throw Error(`Pages is a subpage of non existent page: ${subpage_of}. Did you declare it before this one?`)
 
-            hold[name] = { props: page, children: {} }
+            hold[name] = { name: page.name, icon: page.icon, children: {} }
             hold[subpage_of].children[name] = hold[name]
             continue
         }
 
-        map[name] = { props: page, children: {} }
+        map[name] = { name: page.name, icon: page.icon, children: {} }
         hold[name] = map[name]
     }
 
@@ -53,23 +62,44 @@ function buildPageMap(pages: PageProps[]) {
 }
 
 interface DashboardLinkProps extends PageProps {
-    setPage: (name: string) => void,
-    cathegory: boolean
+    cathegory: boolean,
+    childMap: Record<string, any>
 }
+
+function hasNestedKeyValue(obj: any, key: string, value: any): boolean {
+    if (obj && typeof obj === "object") {
+        for (const k in obj) {
+            if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+
+            if (k === key && obj[k] === value) return true;
+
+            if (typeof obj[k] === "object") {
+                if(k == "icon") continue;
+                if (hasNestedKeyValue(obj[k], key, value)) return true;
+            }
+        }
+    }
+    return false;
+}
+
 function DashboardLink(props: DashboardLinkProps) {
-    const [open, setOpen] = useState<boolean>(false);
+    const dashcontext = useContext(DashboardContext);
+
+    const hasActiveChild = hasNestedKeyValue(props.childMap, "name",  dashcontext.page);
+    const [open, setOpen] = useState<boolean>(hasActiveChild);
 
     const clickHandler = () => {
         if (!props.cathegory)
-            props.setPage(props.name)
+            dashcontext.setPage(props.name)
         else
             setOpen(!open)
     }
 
+
     return <div
-        className="flex flex-col transition-all md:justify-between justify-center md:flex-0 flex-1 text-center ml-5"
+        className="flex flex-col transition-all md:justify-between justify-center md:flex-0 flex-1 text-center"
     >
-        <div className="flex flex-row justify-between  px-4 py-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded" onClick={clickHandler}>
+        <div className={"flex flex-row justify-between px-4 py-2 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors duration-300 " + (props.name == dashcontext.page ? "bg-slate-100 border-r-slate-200 border-r-4" : "")} onClick={clickHandler}>
             <button>{props.name}</button>
             {props.cathegory ? (open ? <ChevronDown /> : <ChevronLeft />) : props.icon}
         </div>
@@ -82,7 +112,7 @@ function DashboardLink(props: DashboardLinkProps) {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -10, opacity: 0 }}
                     transition={{ type: "tween", duration: 0.3 }}
-                    className="flex flex-col"
+                    className="flex flex-col ml-5"
                 >
                     {props.children}
                 </motion.aside>
@@ -93,17 +123,16 @@ function DashboardLink(props: DashboardLinkProps) {
 
 interface PageLinksProps {
     linkMap: Record<string, any>,
-    setPage: (name: string) => void
 }
 
-function PageLinks({ linkMap, setPage }: PageLinksProps) {
-    return Object.values(linkMap).map(({ props, children }) => {
-        return <DashboardLink icon={props.icon} name={props.name} cathegory={Object.values(children).length != 0} setPage={setPage}>
-            <PageLinks linkMap={children} setPage={setPage} ></PageLinks>
+function PageLinks({ linkMap }: PageLinksProps) {
+    return Object.values(linkMap).map(({ name, icon, children }) => {
+        return <DashboardLink childMap={children} icon={icon} name={name} cathegory={Object.values(children).length != 0}>
+            <PageLinks linkMap={children} ></PageLinks>
         </DashboardLink>
     })
 }
-export function flattenChildren(
+function flattenChildren(
     children: React.ReactNode
 ): React.ReactElement[] {
     const result: React.ReactElement[] = [];
@@ -134,11 +163,13 @@ export function flattenChildren(
 
     return result;
 }
-
 export default function Dashboard({ children, logo }: DashboardProps) {
-    const [current_page, setPage] = useState<string>("listings");
-    const [open, setOpen] = useState<boolean>(false)
+    const [navbar_open, setNavbarOpen] = useState<boolean>(false);
 
+    const location = useLocation()
+    const navigate = useNavigate()
+    const current_page = location.state?.dashpage ?? "listings"
+    
     const pages = flattenChildren(children).map((child) => {
         if (!React.isValidElement<PageProps>(child)) {
             throw new Error("<Dashboard> children must be <Page> components");
@@ -146,42 +177,39 @@ export default function Dashboard({ children, logo }: DashboardProps) {
 
         return child.props;
     })
+
     const { map: linkMap, flatMap } = buildPageMap(pages)
 
-    const location = useLocation()
-
-    useEffect(() => {
-        if (location.state?.dashpage) {
-            const name = location.state?.dashpage
-            if (name in flatMap) {
-                setPage(name)
-                return;
-            }
-        }
-        setPage(pages[0].name)
-    }, [])
+    const setPageHandler = (page: string) => {
+        navigate(location.pathname, { state: { dashpage: page } })
+        setNavbarOpen(false)
+    }
 
     return (
-        <div className="flex flex-col w-full h-full bg-white dark:bg-gray-900 pointer-events-auto">
-            <Navbar>
-                <div className="text-indigo-700 dark:text-gray-300 px-4 py-2 rounded transition-colors">
-                    <PageLinks linkMap={linkMap} setPage={setPage} />
-                </div>
-            </Navbar>
-            <div className="flex md:flex-row flex-col flex-1 bg-slate-50 dark:bg-gray-950 text-slate-800 dark:text-gray-200">
-                <aside className="hidden md:flex md:flex-col md:w-64 md:relative md:border-r md:border-slate-100 md:bg-white dark:md:bg-gray-900 dark:md:border-gray-800">
-                    <nav className="mt-4 flex flex-col space-y-2 text-slate-700 dark:text-gray-300 h-full overflow-y-auto">
-                        <PageLinks linkMap={linkMap} setPage={setPage} />
-                    </nav>
-                </aside>
+        <DashboardContext.Provider value={{ setPage: setPageHandler, page: current_page }}>
+            <div className="flex flex-col w-full h-full bg-white dark:bg-gray-900 pointer-events-auto">
+                <Navbar className="z-60 bg-white dark:bg-gray-900 shadow-md w-full pointer-events-auto" open={navbar_open} onToggleOpen={() => setNavbarOpen(!navbar_open)}>
+                    {navbar_open && (
+                        <div className="space-y-2 text-slate-700 dark:text-gray-300 h-full overflow-y-auto">
+                            <PageLinks linkMap={linkMap} />
+                        </div>
+                    )}
+                </Navbar>
+                <div className="flex md:flex-row flex-col flex-1 bg-slate-50 dark:bg-gray-950 text-slate-800 dark:text-gray-200">
+                    <aside className="hidden md:flex md:flex-col md:w-64 md:relative md:border-r md:border-slate-100 md:bg-white dark:md:bg-gray-900 dark:md:border-gray-800">
+                        <nav className="mt-4 flex flex-col space-y-2 text-slate-700 dark:text-gray-300 h-full overflow-y-auto">
+                            <PageLinks linkMap={linkMap} />
+                        </nav>
+                    </aside>
 
-                <main className="flex-1 p-6 overflow-auto">
-                    {pages.map(page => {
-                        if (page.name == current_page) return page.children
-                        return null
-                    })}
-                </main>
+                    <main className="flex-1 p-6 overflow-auto">
+                        {pages.map(page => {
+                            if (page.name == current_page) return page.children
+                            return null
+                        })}
+                    </main>
+                </div>
             </div>
-        </div>
+        </DashboardContext.Provider>
     );
 }
