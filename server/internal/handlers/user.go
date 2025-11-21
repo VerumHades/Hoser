@@ -32,13 +32,13 @@ func (app *App) LoginHandler(c echo.Context) error {
 	}
 
 	user, err := app.DatabaseInteractor.GetUserByName(req.Username)
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(user.GetPasswordHash()), []byte(req.Password)) != nil {
+	if err != nil || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash()), []byte(req.Password)) != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
 	}
 
 	// Create JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.GetID(),
+		"user_id": user.ID(),
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	})
 
@@ -89,7 +89,7 @@ func (app *App) UserDataHandler(c echo.Context) error {
 		Username    string `json:"username"`
 		IsDeveloper bool   `json:"isDeveloper"`
 	}{
-		Username:    user.GetUsername(),
+		Username:    user.Username(),
 		IsDeveloper: user.IsDeveloper(),
 	})
 }

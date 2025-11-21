@@ -195,14 +195,14 @@ export default function Dashboard({ children, logo }: DashboardProps) {
                         </div>
                     )}
                 </Navbar>
-                <div className="flex md:flex-row flex-col flex-1 bg-slate-50 dark:bg-gray-950 text-slate-800 dark:text-gray-200">
+                <div className="flex md:flex-row flex-col flex-1 min-h-0 bg-slate-50 dark:bg-gray-950 text-slate-800 dark:text-gray-200">
                     <aside className="hidden md:flex md:flex-col md:w-64 md:relative md:border-r md:border-slate-100 md:bg-white dark:md:bg-gray-900 dark:md:border-gray-800">
                         <nav className="mt-4 flex flex-col space-y-2 text-slate-700 dark:text-gray-300 h-full overflow-y-auto">
                             <PageLinks linkMap={linkMap} />
                         </nav>
                     </aside>
 
-                    <main className="flex-1 p-6 overflow-auto">
+                    <main className="flex-1 min-h-0">
                         {pages.map(page => {
                             if (page.name == current_page) return page.children
                             return null

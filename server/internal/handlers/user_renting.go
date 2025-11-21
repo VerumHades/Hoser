@@ -16,7 +16,7 @@ type ApiUserRental struct {
 }
 
 type RentalRequest struct {
-	ID string `json:"id" validate:"required"`
+	ID string `json:"id"`
 }
 
 // =================== HANDLERS ===================
@@ -28,7 +28,7 @@ func (app *App) UserRentalsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized)
 	}
 
-	dbRentals, dbErr := user.GetRentals()
+	dbRentals, dbErr := user.Rentals()
 	if dbErr != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
 	}
@@ -36,17 +36,14 @@ func (app *App) UserRentalsHandler(c echo.Context) error {
 	rentals := make([]ApiUserRental, len(dbRentals))
 	for i, rental := range dbRentals {
 		rentals[i] = ApiUserRental{
-			ID:              rental.GetUUID(),
-			Title:           rental.GetTitle(),
-			Description:     rental.GetDescription(),
-			SourceListingID: rental.GetSourceListingUUID(),
+			ID:              rental.UUID(),
+			SourceListingID: rental.SourceListingUUID(),
 		}
 	}
 
 	return c.JSON(http.StatusOK, rentals)
 }
 
-// UserRentHandler allows a user to rent a listing
 func (app *App) UserRentHandler(c echo.Context) error {
 	user, err := app.GetUserFromContext(c)
 	if err != nil {
@@ -56,10 +53,6 @@ func (app *App) UserRentHandler(c echo.Context) error {
 	var req RentalRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
-	}
-
-	if err := c.Validate(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	_, dbErr := app.DatabaseInteractor.GetPublicListing(req.ID)

@@ -16,7 +16,6 @@ interface ElementListProps<T> {
 }
 
 export default function ElementList<T>({ queryBuilder, itemBuilder, itemViewBuilder, element, endpoint, onResetElement }: ElementListProps<T>) {
-
     const builder = (element: T) => {
         return itemBuilder(element)
     }
@@ -38,7 +37,7 @@ export default function ElementList<T>({ queryBuilder, itemBuilder, itemViewBuil
                     <ChevronLeft size={32} />
                     <label>Back</label>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-h-0">
                     {itemViewBuilder(element)}
                 </div>
             </motion.div>

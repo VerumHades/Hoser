@@ -10,34 +10,100 @@ import (
 // =================== TYPES ===================
 
 type ApiDeveloperListing struct {
-	Author      string                     `json:"author"`
-	ID          string                     `json:"id"`
-	Title       string                     `json:"title"`
-	Description string                     `json:"description"`
-	AccessMode  database.ListingAccessMode `json:"accessMode"`
+	ID          string          `json:"id"`
+	Title       *string         `json:"title,omitempty"`
+	Description *string         `json:"description,omitempty"`
+	AccessMode  *int            `json:"accessMode,omitempty"`
+	Prices      *PricesRequest  `json:"prices,omitempty"`
+	Hardware    *HardwareUpdate `json:"hardware,omitempty"`
+	Author      string          `json:"author"` // kept for reference
 }
-
 type AddListingRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 }
 
 type ListingRequest struct {
-	ID          string  `json:"id"`
-	Title       *string `json:"title,omitempty"`
-	Description *string `json:"description,omitempty"`
-	AccessMode  *int    `json:"accessMode,omitempty"`
+	ID          string          `json:"id"`
+	Title       *string         `json:"title,omitempty"`
+	Description *string         `json:"description,omitempty"`
+	AccessMode  *int            `json:"accessMode,omitempty"`
+	Prices      *PricesRequest  `json:"prices,omitempty"`
+	Hardware    *HardwareUpdate `json:"hardware,omitempty"`
+}
+
+type PricesRequest struct {
+	SinglePurchase      *CurrencyRequest `json:"singlePurchase,omitempty"`
+	MonthlySubscription *CurrencyRequest `json:"monthlySubscription,omitempty"`
+	MonthlyHardware     *CurrencyRequest `json:"monthlyHardware,omitempty"`
+}
+
+type CurrencyRequest struct {
+	Value float32 `json:"value"`
+	Name  string  `json:"name"`
+	Short string  `json:"short"`
+}
+
+type HardwareUpdate struct {
+	CPU  *int   `json:"cpu,omitempty"`
+	RAM  *int64 `json:"ramBytes,omitempty"`
+	Disk *int64 `json:"diskBytes,omitempty"`
 }
 
 // =================== HELPERS ===================
 
 func makeApiDeveloperListing(author string, l database.Listing) ApiDeveloperListing {
+	// Map hardware requirements
+	hwSpec := l.HardwareRequirements()
+	cpu := hwSpec.CPUCount()
+	ram := hwSpec.RAMBytes()
+	disk := hwSpec.DiskBytes()
+	hardware := &HardwareUpdate{
+		CPU:  &cpu,
+		RAM:  &ram,
+		Disk: &disk,
+	}
+
+	// Map prices
+	prices := &PricesRequest{
+		SinglePurchase:      mapCurrency(l.SinglePurchasePrice()),
+		MonthlySubscription: mapCurrency(l.MonthlySubscriptionPrice()),
+		MonthlyHardware:     mapCurrency(l.MonthlyHardwarePrice()),
+	}
+
+	// Map access mode
+	access := int(l.AccessMode())
+
+	// Title & description
+	title := l.Title()
+	description := l.Description()
+
 	return ApiDeveloperListing{
 		Author:      author,
-		ID:          l.GetUUID(),
-		Title:       l.GetTitle(),
-		Description: l.GetDescription(),
-		AccessMode:  l.GetAccessMode(),
+		ID:          l.UUID(),
+		Title:       &title,
+		Description: &description,
+		AccessMode:  &access,
+		Prices:      prices,
+		Hardware:    hardware,
+	}
+}
+
+// Map Currency interface to *CurrencyRequest
+func mapCurrency(c database.Currency) *CurrencyRequest {
+	return &CurrencyRequest{
+		Value: c.AsNumber(),
+		Name:  c.Name(),
+		Short: c.Short(),
+	}
+}
+
+func parseAccessMode(i int) (database.ListingAccessMode, error) {
+	switch database.ListingAccessMode(i) {
+	case database.Private, database.Public:
+		return database.ListingAccessMode(i), nil
+	default:
+		return database.Private, echo.NewHTTPError(http.StatusBadRequest, "Invalid access mode")
 	}
 }
 
@@ -50,13 +116,14 @@ func (app *App) DeveloperListingsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized)
 	}
 
-	dbListings, err := user.GetListings()
+	dbListings, err := user.Listings()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
 	}
 
 	listings := make([]ApiDeveloperListing, len(dbListings))
-	username := user.GetUsername()
+	username := user.Username()
+
 	for i, l := range dbListings {
 		listings[i] = makeApiDeveloperListing(username, l)
 	}
@@ -81,7 +148,7 @@ func (app *App) DeveloperAddListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
 	}
 
-	return c.JSON(http.StatusOK, makeApiDeveloperListing(user.GetUsername(), listing))
+	return c.JSON(http.StatusOK, makeApiDeveloperListing(user.Username(), listing))
 }
 
 // DeveloperAlterListingHandler modifies an existing listing
@@ -96,26 +163,69 @@ func (app *App) DeveloperAlterListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	listing, err := user.GetListing(req.ID)
+	listing, err := user.Listing(req.ID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
 	}
 
+	// Update title/description/access mode
 	if req.Title != nil {
-		listing.SetTitle(*req.Title)
+		if err := listing.SetTitle(*req.Title); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
 	}
 	if req.Description != nil {
-		listing.SetDescription(*req.Description)
+		if err := listing.SetDescription(*req.Description); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
 	}
 	if req.AccessMode != nil {
-		mode, err := database.ListingAccessModeFromInt(*req.AccessMode)
+		mode, err := parseAccessMode(*req.AccessMode)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "Invalid access mode")
+			return err
 		}
-		listing.SetAccessMode(mode)
+		if err := listing.SetAccessMode(mode); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
 	}
 
-	return c.JSON(http.StatusOK, makeApiDeveloperListing(user.GetUsername(), listing))
+	// Update prices (currency objects always exist)
+	if req.Prices != nil {
+		if req.Prices.SinglePurchase != nil {
+			cp := listing.SinglePurchasePrice()
+			cp.SetValue(req.Prices.SinglePurchase.Value)
+			cp.SetName(req.Prices.SinglePurchase.Name)
+			cp.SetShort(req.Prices.SinglePurchase.Short)
+		}
+		if req.Prices.MonthlySubscription != nil {
+			cp := listing.MonthlySubscriptionPrice()
+			cp.SetValue(req.Prices.MonthlySubscription.Value)
+			cp.SetName(req.Prices.MonthlySubscription.Name)
+			cp.SetShort(req.Prices.MonthlySubscription.Short)
+		}
+		if req.Prices.MonthlyHardware != nil {
+			cp := listing.MonthlyHardwarePrice()
+			cp.SetValue(req.Prices.MonthlyHardware.Value)
+			cp.SetName(req.Prices.MonthlyHardware.Name)
+			cp.SetShort(req.Prices.MonthlyHardware.Short)
+		}
+	}
+
+	// Update hardware requirements
+	if req.Hardware != nil {
+		hw := listing.HardwareRequirements()
+		if req.Hardware.CPU != nil {
+			_ = hw.SetCPUCount(*req.Hardware.CPU)
+		}
+		if req.Hardware.RAM != nil {
+			_ = hw.SetRAMBytes(*req.Hardware.RAM)
+		}
+		if req.Hardware.Disk != nil {
+			_ = hw.SetDiskBytes(*req.Hardware.Disk)
+		}
+	}
+
+	return c.JSON(http.StatusOK, makeApiDeveloperListing(user.Username(), listing))
 }
 
 // DeveloperDeleteListingHandler deletes a listing

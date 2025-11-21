@@ -70,13 +70,9 @@ function MainNavbar({ children, className }: NavbarProps) {
     }
 
     const links = <>
-        <NavigationLink to="/explore/public" onClick={close} className="navigation-link">
-            Public Servers
-        </NavigationLink>
         <NavigationLink to="/explore/listings" onClick={close} className="navigation-link">
             Listings
         </NavigationLink>
-        <DeveloperLink onClick={close} className="navigation-link">Develop</DeveloperLink>
     </>
 
     return (
@@ -94,8 +90,8 @@ function MainNavbar({ children, className }: NavbarProps) {
 
                         {/* Account button desktop */}
                         <div className="hidden sm:flex"><UserSessionDisplay></UserSessionDisplay></div>
-
                         {/* Mobile menu toggle */}
+
                         <div className="sm:hidden flex items-center">
                             <button
                                 onClick={() => setOpen(!open)}

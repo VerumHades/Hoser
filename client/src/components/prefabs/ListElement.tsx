@@ -14,7 +14,7 @@ export default function ListElement({children, icon, onClick}: ListElementProps)
     
     return (
         <div
-            className="flex items-center gap-4 p-4 shadow-lg text-gray-800 dark:text-gray-10
+            className="flex min-h-0 items-center gap-4 p-4 shadow-lg text-gray-800 dark:text-gray-10
                 bg-slate-200 hover:bg-slate-300 dark:bg-gray-900 dark:hover:bg-gray-800 transition-all hover:translate-x-2 mx-2 mb-5"
         >
             {

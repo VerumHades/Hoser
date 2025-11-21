@@ -1,4 +1,5 @@
 import backend_constants from "./backend_constants";
+import type { Listing } from "./developer/DeveloperListing";
 
 async function backend_request(endpoint: string, type: string, body?: any): Promise<APIResult> {
 
@@ -27,13 +28,42 @@ export const ListingAccessModes = {
     1: { label: 'Public', description: "Available to everyone." },
 }
 
-interface DeveloperListingUpdateData {
-    id?: string,
-    title?: string,
-    description?: string,
-    accessMode?: keyof typeof ListingAccessModes
+export interface CurrencyRequest {
+    value: number;      // corresponds to Go Value
+    name: string;       // corresponds to Go Name
+    short: string;      // corresponds to Go Short
 }
 
+export interface PricesRequest {
+    singlePurchase?: CurrencyRequest;
+    monthlySubscription?: CurrencyRequest;
+    monthlyHardware?: CurrencyRequest;
+}
+
+export interface HardwareUpdate {
+    cpu?: number;   // corresponds to Go CPU
+    ram?: number;   // corresponds to Go RAM (ramBytes)
+    disk?: number;  // corresponds to Go Disk (diskBytes)
+}
+
+export interface ListingRequest {
+    id: string;
+    title?: string;
+    description?: string;
+    accessMode?: number;
+    prices?: PricesRequest;
+    hardware?: HardwareUpdate;
+}
+
+export interface Listing {
+    id: string;
+    title?: string;
+    description?: string;
+    author: string;
+    accessMode?: number;
+    prices?: PricesRequest;
+    hardware?: HardwareUpdate;
+}
 
 export type User = {
     username: string
@@ -51,14 +81,17 @@ export const API = {
         async getData(): Promise<User | undefined> {
             let response = await backend_request("/user/data", "GET");
             return response.ok ? (response.json as User) : undefined
+        },
+        async rentListing(id: string) {
+            return await backend_request("/user/rent", "POST", { id });
         }
     },
     developer: {
         async deleteListing(id: string): Promise<APIResult> {
             return await backend_request("/developer/listing", "DELETE", { id });
         },
-        async editListing(id: string, data: DeveloperListingUpdateData) {
-            return await backend_request("/developer/listing", "PUT", { ...data, id })
+        async editListing(data: ListingRequest) {
+            return await backend_request("/developer/listing", "PUT", data)
         },
         async createListing(title: string = "My New Listing", description: string = "This is a description of my listing.") {
             const data = {

@@ -2,47 +2,37 @@
 import { useState } from "react";
 import backend_constants from "../backend_constants";
 import { ChevronLeft, Plus } from "lucide-react";
-import DeveloperListingDisplay, { type Listing } from "./DeveloperListing";
-import ElementList from "../components/ElementList";
-import { API } from "../backend";
+import DeveloperListingDisplay from "./DeveloperListing";
+import { API, type Listing } from "../backend";
 import ListElement from "../components/prefabs/ListElement";
+import { Flow, FlowSwitch } from "../components/Flow";
+import Search from "../components/Search";
 
 
 export default function DeveloperListings() {
     const [listing, setListing] = useState<undefined | Listing>(undefined);
 
-    const itemViewBuilder = (listing: Listing) => 
-        <DeveloperListingDisplay listing={listing} onShouldClose={() => setListing(undefined)}></DeveloperListingDisplay>
-
     const itemBuilder = (item: Listing) => {
-        return <ListElement onClick={() => setListing(item)}>
-            <h3 className="font-semibold text-lg">{item.title}</h3>
-            <p className="text-sm text-gray-600">{item.description}</p>
-        </ListElement>
+        return <FlowSwitch direction="next">
+            <ListElement onClick={() => setListing(item)}>
+                <h3 className="font-semibold text-lg">{item.title}</h3>
+                <p className="text-sm text-gray-600">{item.description}</p>
+            </ListElement>
+        </FlowSwitch>
     }
 
     const queryBuilder = (query: string) => { return { q: query } }
 
     const createListing = async () => {
         const response = await API.developer.createListing()
-        if(response.ok) setListing(response.json)
+        if (response.ok) setListing(response.json)
     }
 
-    return <div className="w-full h-full flex flex-col items-center">
-        <ElementList
-            element={listing}
-            itemBuilder={itemBuilder} 
-            queryBuilder={queryBuilder} 
-            endpoint={`${backend_constants.address}/developer/listings`}
-            itemViewBuilder={itemViewBuilder}
-            onResetElement={() => setListing(undefined)}
-        >
+    return <div className="w-full h-full flex flex-col items-center min-h-0">
+        <Flow>
+            <Search itemBuilder={itemBuilder} queryBuilder={queryBuilder} endpoint={`${backend_constants.address}/developer/listings`} />
+            {listing ? <DeveloperListingDisplay listing={listing} onShouldClose={() => setListing(undefined)}></DeveloperListingDisplay> : <></>}
+        </Flow>
 
-        </ElementList>
-        <div className="flex flex-row justify-end w-full">
-            <div className="p-5 bg-slate-300 hover:bg-slate-400 dark:bg-gray-700 rounded-2xl dark:hover:bg-gray-600 transition-all" onClick={createListing}>
-                <Plus size={32} />
-            </div>
-        </div>
     </div>
 }

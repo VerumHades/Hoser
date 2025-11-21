@@ -23,7 +23,7 @@ const AccountPage: React.FC = () => {
             console.error("Logout failed", err);
         }
     };
-    console.log(session.user?.isDeveloper)
+
     return (
         <RequireLogin>
             <div className="w-full h-full flex flex-col">

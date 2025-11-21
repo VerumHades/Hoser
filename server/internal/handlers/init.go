@@ -10,14 +10,14 @@ import (
 )
 
 type App struct {
-	DatabaseInteractor   database.Interactor
+	DatabaseInteractor   database.Store
 	RunningConfiguration *configuration.Configuration
 	JWTSecret            []byte
 }
 
 // =================== APP INIT ===================
 
-func NewApp(db database.Interactor, cfg *configuration.Configuration, jwtSecret []byte) *App {
+func NewApp(db database.Store, cfg *configuration.Configuration, jwtSecret []byte) *App {
 	return &App{
 		DatabaseInteractor:   db,
 		RunningConfiguration: cfg,

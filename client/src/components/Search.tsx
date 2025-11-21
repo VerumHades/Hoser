@@ -30,7 +30,7 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
                 if (!res.ok) throw new Error("Failed to fetch results");
 
                 const data: T[] = await res.json();
-                console.log(data)
+
                 setResults(data || []);
             } catch (err) {
                 if (err instanceof DOMException && err.name === "AbortError") return;

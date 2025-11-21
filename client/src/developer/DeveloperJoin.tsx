@@ -16,7 +16,6 @@ const DeveloperJoin: React.FC = () => {
 						</h1>
 
 						<MultiForm onSubmit={() => {
-							console.log(handler.data)
 							setSubmitted(true);
 						}}>
 							<FormPart>

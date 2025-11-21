@@ -6,15 +6,17 @@ interface Price {
 
 interface PriceTagProps {
     prices: Price[],
-    rate?: string
+    rate?: string,
+    onClick?: () => void
 }
 
-export function PriceTag({ prices, rate }: PriceTagProps) {
+export function PriceTag({ prices, rate, onClick }: PriceTagProps) {
     const totalValue = prices.reduce((sum, p) => sum + p.value, 0);
     const currency = prices[0]?.currency_short || "";
 
     return (
         <div
+            onClick={onClick}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg
                 bg-slate-100 dark:bg-slate-800
                 border border-slate-300 dark:border-slate-700

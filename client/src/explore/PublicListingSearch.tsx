@@ -6,6 +6,8 @@ import { PriceTag } from "../components/prefabs/PriceTag";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
 import { Flow, FlowSwitch, FlowTopBackWrapper } from "../components/Flow";
 import Search from "../components/Search";
+import { API } from "../backend";
+import { useNavigate } from "react-router-dom";
 interface CurrencyValue {
     Name: string,
     Short: string,
@@ -13,7 +15,7 @@ interface CurrencyValue {
 }
 
 interface SearchItem {
-    ID: string | number;
+    ID: string;
     Title: string;
     Description: string;
     MonthlyHardwarePrice?: CurrencyValue
@@ -44,18 +46,21 @@ interface SearchItem {
 
 interface PublicListingDisplayProps {
     item: SearchItem;
+    onClick?: () => void;
 }
-function CreateSinglePurchasePriceTag(item: SearchItem) {
+
+
+function SinglePurchasePriceTag({ item, onClick }: PublicListingDisplayProps) {
     return item.SinglePurchasePrice ?
-        <PriceTag prices={[{
+        <PriceTag onClick={onClick} prices={[{
             name: "One Time",
             currency_short: item.SinglePurchasePrice.Short,
             value: item.SinglePurchasePrice.Value
-        }]}></PriceTag> : undefined
+        }]}></PriceTag> : null
 }
-function CreateMonthlySubscriptionPriceTag(item: SearchItem) {
+function MonthlySubscriptionPriceTag({ item, onClick }: PublicListingDisplayProps) {
     return item.MonthlySubscriptionPrice && item.MonthlyHardwarePrice ?
-        <PriceTag prices={[{
+        <PriceTag onClick={onClick} prices={[{
             name: "Author",
             currency_short: item.MonthlySubscriptionPrice.Short,
             value: item.MonthlySubscriptionPrice.Value
@@ -63,51 +68,49 @@ function CreateMonthlySubscriptionPriceTag(item: SearchItem) {
             name: "Hardware",
             currency_short: item.MonthlyHardwarePrice.Short,
             value: item.MonthlyHardwarePrice.Value
-        }]} rate="monthly"></PriceTag> : <></>
+        }]} rate="monthly"></PriceTag> : null
+}
+
+interface PriceDisplayProps {
+    onClickMonthly?: () => void,
+    onClickOneTime?: () => void,
+    item: SearchItem
+}
+function PriceDisplay({ item, onClickMonthly, onClickOneTime }: PriceDisplayProps) {
+    return <div className="flex flex-row items-center text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap md:mt-0 mt-5">
+        <SinglePurchasePriceTag item={item} onClick={onClickOneTime}></SinglePurchasePriceTag>
+        {
+            item.SinglePurchasePrice &&
+            item.MonthlySubscriptionPrice &&
+            item.MonthlyHardwarePrice && <label className="mx-2">or</label>
+        }
+        <MonthlySubscriptionPriceTag item={item} onClick={onClickMonthly}></MonthlySubscriptionPriceTag>
+    </div>
 }
 
 function PublicListingDisplay({ item }: PublicListingDisplayProps) {
-    const singlePurchaseTag = CreateSinglePurchasePriceTag(item)
-    const monthlyPurchaseTag = CreateMonthlySubscriptionPriceTag(item)
+    const navigate = useNavigate()
+    const handleRent = () => {
+        API.user.rentListing("" + item.ID)
+        navigate("/account", { state: { dashpage: "My Rentals" } })
+    }
 
     return (
-        <div className="w-full h-full flex flex-col p-6 shadow-md rounded-lg">
-            <div>
+        <div className="w-full h-full flex flex-col p-6">
+            <div className="flex flex-row justify-between items-end">
                 <TitleAndDescription
                     title={item.Title}
                     description={item.Description}
                     titleClassname="text-7xl">
 
                 </TitleAndDescription>
+                <div className="text-slate-500 dark:text-slate-400 text-sm">
+                    <label className="">Purchase:</label>
+                    <PriceDisplay item={item} onClickMonthly={handleRent} onClickOneTime={handleRent}></PriceDisplay>
+                </div>
             </div>
             <div className="flex flex-col">
-                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                    Purchase:
-                </h2>
-                <div className="flex flex-col">
-                    <FlowSwitch direction="next">
-                        {singlePurchaseTag ? <ListElement>
-                            <div className="flex flex-row items-center">
-                                <TitleAndDescription
-                                    className="flex-1"
-                                    title={"One time"}
-                                    description={"Pay once, rent only hardware"}>
-                                </TitleAndDescription>
-                                <div>{singlePurchaseTag}</div>
-                            </div>
-                        </ListElement> : <></>}
-                    </FlowSwitch>
-                    {monthlyPurchaseTag ? <ListElement>
-                        <div className="flex flex-row items-center">
-                            <TitleAndDescription
-                                className="flex-1"
-                                title={"Monthly Subscription"}
-                                description={"Pay monthly rent, with hardware"}>
-                            </TitleAndDescription>
-                            <div>{monthlyPurchaseTag}</div>
-                        </div>
-                    </ListElement> : <></>}
-                </div>
+
             </div>
         </div>
     );
@@ -117,10 +120,6 @@ export default function PublicListingSearch() {
     const [item, setItem] = useState<undefined | SearchItem>(undefined);
 
     const itemBuilder = (item: SearchItem) => {
-        const singlePurchaseTag = CreateSinglePurchasePriceTag(item)
-        const monthlyPurchaseTag = CreateMonthlySubscriptionPriceTag(item)
-
-        const showOr = singlePurchaseTag && monthlyPurchaseTag;
 
         return <FlowSwitch direction="next">
             <ListElement onClick={() => setItem(item)}>
@@ -130,9 +129,7 @@ export default function PublicListingSearch() {
                         <p className="text-sm">{item.Description}</p>
                         <p className="text-xs mt-1">By {item.author}</p>
                     </div>
-                    <div className="flex flex-row items-center text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap md:mt-0 mt-5">
-                        {singlePurchaseTag}{showOr ? <label className="mx-5">or</label> : <></>}{monthlyPurchaseTag}
-                    </div>
+                    <PriceDisplay item={item}></PriceDisplay>
                 </div>
             </ListElement>
         </FlowSwitch>
