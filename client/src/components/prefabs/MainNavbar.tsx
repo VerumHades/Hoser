@@ -70,7 +70,7 @@ function MainNavbar({ children, className }: NavbarProps) {
     }
 
     const links = <>
-        <NavigationLink to="/explore/listings" onClick={close} className="navigation-link">
+        <NavigationLink to="/explore/listing" onClick={close} className="navigation-link">
             Listings
         </NavigationLink>
     </>

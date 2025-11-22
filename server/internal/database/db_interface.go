@@ -1,16 +1,39 @@
 package database
 
-// Currency represents any currency value your system supports.
 type Currency interface {
-	// Getters
-	Name() string      // e.g., "US Dollar"
-	Short() string     // e.g., "USD"
-	AsNumber() float32 // numeric value, no formatting
+	Name() string  // e.g., "US Dollar"
+	Short() string // e.g., "USD"
 
-	// Setters
+	Value() float32    // numeric value, no formatting
+	AsNumber() float32 // identical to Value
+
 	SetName(name string)
 	SetShort(short string)
 	SetValue(value float32)
+}
+
+type PricingType int
+
+const (
+	OneTime PricingType = iota
+	Monthly
+	Yearly
+)
+
+type Pricing interface {
+	UUID() string
+	Type() PricingType
+	Amount() Currency
+
+	SetType(value PricingType) error
+	SetAmount(amount Currency) error
+}
+
+type PricingList interface {
+	AddPricing(pricing_type PricingType, amount Currency) (Pricing, error)
+	GetPricing(id string) Pricing
+	RemovePricing(id string) error
+	All() []Pricing
 }
 
 // HardwareSpecification represents hardware configuration requirements.
@@ -45,12 +68,7 @@ type Listing interface {
 	SetDescription(desc string) error
 	SetAccessMode(mode ListingAccessMode) error
 
-	SinglePurchasePrice() Currency
-	MonthlySubscriptionPrice() Currency
-
-	ClearSinglePurchasePrice() error
-	ClearSubscriptionPrice() error
-
+	Pricing() PricingList
 	HardwareRequirements() HardwareSpecification
 }
 
@@ -90,6 +108,8 @@ type ListingQueryOptions struct {
 
 // Store defines all operations for retrieving users and public listings.
 type Store interface {
+	NewCurrency(name string, short string, value float32) Currency
+
 	GetUserByID(id string) (User, error)
 	GetUserByName(username string) (User, error)
 

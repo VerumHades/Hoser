@@ -9,34 +9,34 @@ import (
 )
 
 // =================== TYPES ===================
-
 type ApiDeveloperListing struct {
-	ID          string          `json:"id"`
-	Title       *string         `json:"title,omitempty"`
-	Description *string         `json:"description,omitempty"`
-	AccessMode  *int            `json:"accessMode,omitempty"`
-	Prices      *PricesRequest  `json:"prices,omitempty"`
-	Hardware    *HardwareUpdate `json:"hardware,omitempty"`
-	Author      string          `json:"author"` // kept for reference
+	ID          string            `json:"id"`
+	Title       *string           `json:"title,omitempty"`
+	Description *string           `json:"description,omitempty"`
+	AccessMode  *int              `json:"accessMode,omitempty"`
+	Prices      []ApiPricingEntry `json:"prices"`
+	Hardware    *HardwareUpdate   `json:"hardware,omitempty"`
+	Author      string            `json:"author"`
 }
-type AddListingRequest struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
+
+type ApiPricingEntry struct {
+	ID       string          `json:"id"`   // "0", "1", etc
+	Type     int             `json:"type"` // 0 = OneTime, 1 = Monthly
+	Currency CurrencyRequest `json:"currency"`
 }
 
 type ListingRequest struct {
-	ID          string          `json:"id"`
-	Title       *string         `json:"title,omitempty"`
-	Description *string         `json:"description,omitempty"`
-	AccessMode  *int            `json:"accessMode,omitempty"`
-	Prices      *PricesRequest  `json:"prices,omitempty"`
-	Hardware    *HardwareUpdate `json:"hardware,omitempty"`
+	ID          string            `json:"id"`
+	Title       *string           `json:"title,omitempty"`
+	Description *string           `json:"description,omitempty"`
+	AccessMode  *int              `json:"accessMode,omitempty"`
+	Prices      []ApiPricingEntry `json:"prices,omitempty"`
+	Hardware    *HardwareUpdate   `json:"hardware,omitempty"`
 }
 
-type PricesRequest struct {
-	SinglePurchase      *CurrencyRequest `json:"singlePurchase,omitempty"`
-	MonthlySubscription *CurrencyRequest `json:"monthlySubscription,omitempty"`
-	MonthlyHardware     *CurrencyRequest `json:"monthlyHardware,omitempty"`
+type AddListingRequest struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 type CurrencyRequest struct {
@@ -53,53 +53,29 @@ type HardwareUpdate struct {
 
 // =================== HELPERS ===================
 
-func makeApiDeveloperListing(author string, l database.Listing) ApiDeveloperListing {
-	// Map hardware requirements
+func (app *App) makeApiDeveloperListing(author string, l database.Listing) ApiDeveloperListing {
+	// Hardware
 	hwSpec := l.HardwareRequirements()
 	cpu := hwSpec.CPUCount()
 	ram := hwSpec.RAMBytes()
 	disk := hwSpec.DiskBytes()
-	hardware := &HardwareUpdate{
-		CPU:  &cpu,
-		RAM:  &ram,
-		Disk: &disk,
-	}
+	hardware := &HardwareUpdate{CPU: &cpu, RAM: &ram, Disk: &disk}
 
-	// Map prices
-	prices := &PricesRequest{
-		SinglePurchase:      mapCurrency(l.SinglePurchasePrice()),
-		MonthlySubscription: mapCurrency(l.MonthlySubscriptionPrice()),
-		MonthlyHardware:     mapCurrency(l.HardwareRequirements().MonthlyPrice()),
-	}
-
-	// Map access mode
+	priceEntries := app.ConvertPricingListToAPI(l.Pricing())
+	fmt.Println(priceEntries)
+	// Access mode
 	access := int(l.AccessMode())
-
-	// Title & description
 	title := l.Title()
 	description := l.Description()
 
-	listing := ApiDeveloperListing{
-		Author:      author,
+	return ApiDeveloperListing{
 		ID:          l.UUID(),
+		Author:      author,
 		Title:       &title,
 		Description: &description,
 		AccessMode:  &access,
-		Prices:      prices,
+		Prices:      priceEntries,
 		Hardware:    hardware,
-	}
-
-	fmt.Println(listing)
-
-	return listing
-}
-
-// Map Currency interface to *CurrencyRequest
-func mapCurrency(c database.Currency) *CurrencyRequest {
-	return &CurrencyRequest{
-		Value: c.AsNumber(),
-		Name:  c.Name(),
-		Short: c.Short(),
 	}
 }
 
@@ -130,7 +106,7 @@ func (app *App) DeveloperListingsHandler(c echo.Context) error {
 	username := user.Username()
 
 	for i, l := range dbListings {
-		listings[i] = makeApiDeveloperListing(username, l)
+		listings[i] = app.makeApiDeveloperListing(username, l)
 	}
 
 	return c.JSON(http.StatusOK, listings)
@@ -153,7 +129,7 @@ func (app *App) DeveloperAddListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
 	}
 
-	return c.JSON(http.StatusOK, makeApiDeveloperListing(user.Username(), listing))
+	return c.JSON(http.StatusOK, app.makeApiDeveloperListing(user.Username(), listing))
 }
 
 // DeveloperAlterListingHandler modifies an existing listing
@@ -193,27 +169,6 @@ func (app *App) DeveloperAlterListingHandler(c echo.Context) error {
 		}
 	}
 
-	if req.Prices != nil {
-		if req.Prices.SinglePurchase != nil {
-			cp := listing.SinglePurchasePrice()
-			cp.SetValue(req.Prices.SinglePurchase.Value)
-			cp.SetName(req.Prices.SinglePurchase.Name)
-			cp.SetShort(req.Prices.SinglePurchase.Short)
-		}
-		if req.Prices.MonthlySubscription != nil {
-			cp := listing.MonthlySubscriptionPrice()
-			cp.SetValue(req.Prices.MonthlySubscription.Value)
-			cp.SetName(req.Prices.MonthlySubscription.Name)
-			cp.SetShort(req.Prices.MonthlySubscription.Short)
-		}
-		if req.Prices.MonthlyHardware != nil {
-			cp := listing.HardwareRequirements().MonthlyPrice()
-			cp.SetValue(req.Prices.MonthlyHardware.Value)
-			cp.SetName(req.Prices.MonthlyHardware.Name)
-			cp.SetShort(req.Prices.MonthlyHardware.Short)
-		}
-	}
-
 	// Update hardware requirements
 	if req.Hardware != nil {
 		hw := listing.HardwareRequirements()
@@ -228,7 +183,128 @@ func (app *App) DeveloperAlterListingHandler(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, makeApiDeveloperListing(user.Username(), listing))
+	return c.JSON(http.StatusOK, app.makeApiDeveloperListing(user.Username(), listing))
+}
+
+type AddPricingRequest struct {
+	ListingID string          `json:"listingId"`
+	Type      int             `json:"type"` // 0 = OneTime, 1 = Monthly
+	Currency  CurrencyRequest `json:"currency"`
+}
+
+type UpdatePricingRequest struct {
+	ListingID string          `json:"listingId"`
+	PricingID string          `json:"pricingId"`
+	Type      int             `json:"type"`
+	Currency  CurrencyRequest `json:"currency"`
+}
+
+type DeletePricingRequest struct {
+	ListingID string `json:"listingId"`
+	PricingID string `json:"pricingId"`
+}
+
+func (app *App) DeveloperAddListingPricingHandler(c echo.Context) error {
+	user, err := app.GetUserFromContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	var req AddPricingRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
+	}
+	if req.ListingID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "listingId required")
+	}
+
+	listing, err := user.Listing(req.ListingID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
+	}
+
+	pl := listing.Pricing()
+	newPricing, err := pl.AddPricing(
+		database.PricingType(req.Type),
+		app.DatabaseInteractor.NewCurrency(req.Currency.Name, req.Currency.Short, req.Currency.Value))
+
+	return c.JSON(http.StatusCreated, ApiPricingEntry{
+		ID:   newPricing.UUID(),
+		Type: int(newPricing.Type()),
+		Currency: CurrencyRequest{
+			Value: newPricing.Amount().AsNumber(),
+			Name:  newPricing.Amount().Name(),
+			Short: newPricing.Amount().Short(),
+		},
+	})
+}
+
+func (app *App) DeveloperUpdateListingPricingHandler(c echo.Context) error {
+	user, err := app.GetUserFromContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	var req UpdatePricingRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
+	}
+
+	if req.ListingID == "" || req.PricingID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "listingId and pricingId required")
+	}
+
+	listing, err := user.Listing(req.ListingID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
+	}
+
+	pl := listing.Pricing()
+	p := pl.GetPricing(req.PricingID)
+	if p == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Pricing not found")
+	}
+
+	// update the pricing
+	p.SetType(database.PricingType(req.Type))
+	p.Amount().SetValue(req.Currency.Value)
+	p.Amount().SetName(req.Currency.Name)
+	p.Amount().SetShort(req.Currency.Short)
+
+	// return updated entry
+	return c.JSON(http.StatusOK, ApiPricingEntry{
+		ID:   req.PricingID,
+		Type: int(p.Type()),
+		Currency: CurrencyRequest{
+			Value: p.Amount().AsNumber(),
+			Name:  p.Amount().Name(),
+			Short: p.Amount().Short(),
+		},
+	})
+}
+
+func (app *App) DeveloperDeleteListingPriceHandler(c echo.Context) error {
+	user, err := app.GetUserFromContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	var req DeletePricingRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest)
+	}
+
+	listing, err := user.Listing(req.ListingID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
+	}
+
+	err = listing.Pricing().RemovePricing(req.PricingID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Pricing not found")
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
 
 // DeveloperDeleteListingHandler deletes a listing

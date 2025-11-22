@@ -6,52 +6,6 @@ import (
 	"strings"
 )
 
-type StubHardwareSpecification struct {
-	CPUCountVal  int
-	RAMBytesVal  int64
-	DiskBytesVal int64
-
-	SetCPUCountErr  error
-	SetRAMBytesErr  error
-	SetDiskBytesErr error
-}
-
-func (s *StubHardwareSpecification) CPUCount() int {
-	return s.CPUCountVal
-}
-
-func (s *StubHardwareSpecification) RAMBytes() int64 {
-	return s.RAMBytesVal
-}
-
-func (s *StubHardwareSpecification) DiskBytes() int64 {
-	return s.DiskBytesVal
-}
-
-func (s *StubHardwareSpecification) SetCPUCount(count int) error {
-	if s.SetCPUCountErr != nil {
-		return s.SetCPUCountErr
-	}
-	s.CPUCountVal = count
-	return nil
-}
-
-func (s *StubHardwareSpecification) SetRAMBytes(bytes int64) error {
-	if s.SetRAMBytesErr != nil {
-		return s.SetRAMBytesErr
-	}
-	s.RAMBytesVal = bytes
-	return nil
-}
-
-func (s *StubHardwareSpecification) SetDiskBytes(bytes int64) error {
-	if s.SetDiskBytesErr != nil {
-		return s.SetDiskBytesErr
-	}
-	s.DiskBytesVal = bytes
-	return nil
-}
-
 //
 // =========================
 // Currency
@@ -66,11 +20,20 @@ type DummyCurrency struct {
 
 func (c *DummyCurrency) Name() string      { return c.name }
 func (c *DummyCurrency) Short() string     { return c.short }
+func (c *DummyCurrency) Value() float32    { return c.value }
 func (c *DummyCurrency) AsNumber() float32 { return c.value }
 
 func (c *DummyCurrency) SetName(name string)    { c.name = name }
 func (c *DummyCurrency) SetShort(short string)  { c.short = short }
 func (c *DummyCurrency) SetValue(value float32) { c.value = value }
+
+func (i *DummyStore) NewCurrency(name string, short string, value float32) Currency {
+	return &DummyCurrency{
+		name:  name,
+		short: short,
+		value: value,
+	}
+}
 
 //
 // =========================
@@ -220,22 +183,85 @@ func (h *DummyHardwareSpec) MonthlyPrice() Currency {
 	}
 }
 
-//
+// =========================
+// Pricing
+// =========================
+
+type DummyPricing struct {
+	IDVal     string
+	TypeVal   PricingType
+	AmountVal Currency
+}
+
+func (p *DummyPricing) UUID() string                { return p.IDVal }
+func (p *DummyPricing) Type() PricingType           { return p.TypeVal }
+func (p *DummyPricing) Amount() Currency            { return p.AmountVal }
+func (p *DummyPricing) SetType(v PricingType) error { p.TypeVal = v; return nil }
+func (p *DummyPricing) SetAmount(a Currency) error  { p.AmountVal = a; return nil }
+
+// =========================
+// PricingList
+// =========================
+
+type DummyPricingList struct {
+	pricings map[string]Pricing
+	counter  int // pricing IDs local to listing
+}
+
+func NewDummyPricingList() *DummyPricingList {
+	return &DummyPricingList{
+		pricings: map[string]Pricing{},
+		counter:  0,
+	}
+}
+
+func (pl *DummyPricingList) nextID() string {
+	id := strconv.Itoa(pl.counter)
+	pl.counter++
+	return id
+}
+
+func (pl *DummyPricingList) AddPricing(pt PricingType, amount Currency) (Pricing, error) {
+	id := pl.nextID()
+	pl.pricings[id] = &DummyPricing{
+		IDVal:     id,
+		TypeVal:   pt,
+		AmountVal: amount,
+	}
+	return pl.pricings[id], nil
+}
+
+func (pl *DummyPricingList) GetPricing(id string) Pricing {
+	return pl.pricings[id]
+}
+
+func (pl *DummyPricingList) RemovePricing(id string) error {
+	if _, ok := pl.pricings[id]; !ok {
+		return errors.New("pricing not found")
+	}
+	delete(pl.pricings, id)
+	return nil
+}
+func (pl *DummyPricingList) All() []Pricing {
+	list := make([]Pricing, 0, len(pl.pricings))
+	for _, p := range pl.pricings {
+		list = append(list, p)
+	}
+	return list
+}
+
 // =========================
 // Listing
 // =========================
-//
-
 type DummyListing struct {
 	IDVal    int
 	TitleStr string
 	DescStr  string
 	Access   ListingAccessMode
 
-	SinglePrice     Currency
-	MonthlySubPrice Currency
-	MonthlyHWPrice  Currency
-	HardwareSpec    *DummyHardwareSpec
+	HardwareSpec *DummyHardwareSpec
+
+	PricingList *DummyPricingList
 }
 
 func (l *DummyListing) UUID() string                  { return strconv.Itoa(l.IDVal) }
@@ -243,49 +269,19 @@ func (l *DummyListing) Title() string                 { return l.TitleStr }
 func (l *DummyListing) Description() string           { return l.DescStr }
 func (l *DummyListing) AccessMode() ListingAccessMode { return l.Access }
 
-func (l *DummyListing) SetTitle(title string) error {
-	l.TitleStr = title
-	return nil
-}
-func (l *DummyListing) SetDescription(description string) error {
-	l.DescStr = description
-	return nil
-}
-func (l *DummyListing) SetAccessMode(mode ListingAccessMode) error {
-	l.Access = mode
+func (l *DummyListing) SetTitle(t string) error       { l.TitleStr = t; return nil }
+func (l *DummyListing) SetDescription(d string) error { l.DescStr = d; return nil }
+func (l *DummyListing) SetAccessMode(m ListingAccessMode) error {
+	l.Access = m
 	return nil
 }
 
-func (l *DummyListing) SinglePurchasePrice() Currency      { return l.SinglePrice }
-func (l *DummyListing) MonthlySubscriptionPrice() Currency { return l.MonthlySubPrice }
-func (l *DummyListing) MonthlyHardwarePrice() Currency     { return l.MonthlyHWPrice }
-
-func (l *DummyListing) SetSinglePurchasePrice(price Currency) error {
-	l.SinglePrice = price
-	return nil
-}
-func (l *DummyListing) SetMonthlySubscriptionPrice(price Currency) error {
-	l.MonthlySubPrice = price
-	return nil
-}
-func (l *DummyListing) SetMonthlyHardwarePrice(price Currency) error {
-	l.MonthlyHWPrice = price
-	return nil
+func (l *DummyListing) Pricing() PricingList {
+	return l.PricingList
 }
 
 func (l *DummyListing) HardwareRequirements() HardwareSpecification {
-	// Dummy implementation — your real implementation goes here
 	return l.HardwareSpec
-}
-
-func (l *DummyListing) ClearSinglePurchasePrice() error {
-	l.SinglePrice = nil
-	return nil
-}
-
-func (l *DummyListing) ClearSubscriptionPrice() error {
-	l.MonthlySubPrice = nil
-	return nil
 }
 
 // -----------------------
@@ -362,45 +358,43 @@ func (r *DummyRental) SetDescription(desc string) error {
 //
 
 var dummyUsers = map[string]*DummyUser{
-	"alice": {IDVal: 1, UsernameStr: "alice", PasswordStr: "hash", Dev: true},
-	"bob":   {IDVal: 2, UsernameStr: "bob", PasswordStr: "hash", Dev: false},
-	"carol": {IDVal: 3, UsernameStr: "carol", PasswordStr: "hash", Dev: true},
+	"alice": {IDVal: 1, UsernameStr: "alice", PasswordStr: "$2a$12$lMgdt2I6sY7wrd/cJtUN1ecjdtSiqIAuiMOuYKwMPiyZck068uGU6", Dev: true},
+	"bob":   {IDVal: 2, UsernameStr: "bob", PasswordStr: "$2a$12$lMgdt2I6sY7wrd/cJtUN1ecjdtSiqIAuiMOuYKwMPiyZck068uGU6", Dev: false},
+	"carol": {IDVal: 3, UsernameStr: "carol", PasswordStr: "$2a$12$lMgdt2I6sY7wrd/cJtUN1ecjdtSiqIAuiMOuYKwMPiyZck068uGU6", Dev: true},
 }
 
 var globalListings []Listing = []Listing{
 	&DummyListing{
-		IDVal:           0,
-		TitleStr:        "Node.js Dev Stack",
-		DescStr:         "Node.js",
-		Access:          Public,
-		SinglePrice:     &DummyCurrency{name: "Credits", short: "CR", value: 10},
-		MonthlySubPrice: &DummyCurrency{name: "Credits", short: "CR", value: 2},
-		MonthlyHWPrice:  &DummyCurrency{name: "Credits", short: "CR", value: 1},
-		HardwareSpec: &DummyHardwareSpec{
-			CPU:  2,
-			RAM:  4 * 1024 * 1024 * 1024,  // 4GB
-			Disk: 20 * 1024 * 1024 * 1024, // 20GB
-		},
+		IDVal:        0,
+		TitleStr:     "Node.js Dev Stack",
+		DescStr:      "Node.js",
+		Access:       Public,
+		HardwareSpec: &DummyHardwareSpec{CPU: 2, RAM: 4 * 1024 * 1024 * 1024, Disk: 20 * 1024 * 1024 * 1024},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(OneTime, &DummyCurrency{name: "Credits", short: "CR", value: 10})
+			pl.AddPricing(Monthly, &DummyCurrency{name: "Credits", short: "CR", value: 2})
+			return pl
+		}(),
 	},
 	&DummyListing{
-		IDVal:           1,
-		TitleStr:        "Go Microservices",
-		DescStr:         "Go + Kafka",
-		Access:          Public,
-		MonthlySubPrice: &DummyCurrency{name: "Credits", short: "CR", value: 3},
-		MonthlyHWPrice:  &DummyCurrency{name: "Credits", short: "CR", value: 1},
-		HardwareSpec: &DummyHardwareSpec{
-			CPU:  2,
-			RAM:  4 * 1024 * 1024 * 1024,  // 4GB
-			Disk: 20 * 1024 * 1024 * 1024, // 20GB
-		},
+		IDVal:        1,
+		TitleStr:     "Go Microservices",
+		DescStr:      "Go + Kafka",
+		Access:       Public,
+		HardwareSpec: &DummyHardwareSpec{CPU: 2, RAM: 4 * 1024 * 1024 * 1024, Disk: 20 * 1024 * 1024 * 1024},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(Monthly, &DummyCurrency{name: "Credits", short: "CR", value: 3})
+			return pl
+		}(),
 	},
 }
 
 var userListingMap = map[int][]int{
-	1: {0},
+	1: {0, 1},
 	2: {},
-	3: {1},
+	3: {},
 }
 
 var dummyRentals = map[int][]Rental{

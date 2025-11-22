@@ -1,7 +1,7 @@
 // src/components/AccountPage.tsx
 import React, { use, useRef, useState } from "react";
 import EditableText from "../components/EditableText";
-import { API, ListingAccessModes, type HardwareUpdate, type Listing, type PricesRequest } from "../backend";
+import { API, ListingAccessModes, type CurrencyRequest, type HardwareUpdate, type Listing, type PricesRequest, type PricingEntry } from "../backend";
 import { ChevronLeft, Delete } from "lucide-react";
 import PromptButton from "../components/PromptButton";
 import SelectBox from "../components/SelectBox";
@@ -38,12 +38,20 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
     };
 
     const deleteThisListing = async () => {
-        if (!(await API.developer.deleteListing(listing.id)).ok)
+        if (!(await API.developer.listing.delete(listing.id)).ok)
             onShouldClose?.()
     }
 
     const onSelectedAccessMode = (mode: string) => {
-        API.developer.editListing({ id: listing.id, accessMode: parseInt(mode) as (0 | 1) })
+        API.developer.listing.update({ id: listing.id, accessMode: parseInt(mode) as (0 | 1) })
+    }
+
+    const reset = () => {
+        setTitle(listing.title ?? "");
+        setDescription(listing.description ?? "");
+        setHardware(listing.hardware ?? {});
+        setPrices(listing.prices ?? []);
+        setHasUnsavedChanges(false);
     }
 
     return (
@@ -64,10 +72,23 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                         <button
                             className="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600"
                             onClick={async () => {
-                                const changes = { title, description, hardware, prices };
-                                let updated_listing = (await API.developer.editListing({ id: listing.id, ...changes })).json as Listing;
-                                console.log(updated_listing)
-                                setListing(  updated_listing );
+                                const changes = { title, description, hardware };
+                                
+                                if(prices){
+                                    for(let price of prices){
+                                        if(price.currency == null) 
+                                            API.developer.listing.prices.delete(listing.id, price.id)
+                                        else 
+                                            API.developer.listing.prices.update(listing.id, price)
+                                    }
+                                }
+
+                                let {json, ok} = (await API.developer.listing.update({ id: listing.id, ...changes }));
+                                if(!ok){
+                                    reset()
+                                    return
+                                }
+                                setListing(json as Listing);
                                 setHasUnsavedChanges(false);
                             }}
                         >
@@ -75,13 +96,7 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                         </button>
                         <button
                             className="px-3 py-1 bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-white rounded hover:bg-slate-400"
-                            onClick={() => {
-                                setTitle(listing.title ?? "");
-                                setDescription(listing.description ?? "");
-                                setHardware(listing.hardware ?? {});
-                                setPrices(listing.prices ?? {});
-                                setHasUnsavedChanges(false);
-                            }}
+                            onClick={reset}
                         >
                             Cancel
                         </button>
@@ -138,9 +153,14 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                     }} />
 
                     {/* Prices menu */}
-                    <PricesMenu prices={prices ?? {}} onChange={(newPrices) => {
-                        console.log(newPrices)
-                        setPrices(newPrices);
+                    <PricesMenu listing={listing} onChange={(id: string, entry: CurrencyRequest | null) => {
+                        for(let i in prices){
+                            const price = prices[i]
+                            if(price.id == id){
+                                prices[i].currency = entry
+                                break
+                            }
+                        }
                         changeListing()
                     }} />
                 </div>

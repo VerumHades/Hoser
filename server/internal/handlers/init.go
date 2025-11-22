@@ -59,6 +59,85 @@ func (app *App) GetUserFromContext(c echo.Context) (database.User, error) {
 	return user, nil
 }
 
+type HardwareDTO struct {
+	CPU  int   `json:"cpu"`
+	RAM  int64 `json:"ram"`
+	Disk int64 `json:"disk"`
+}
+
+type PublicListing struct {
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Hardware    *HardwareDTO      `json:"hardware,omitempty"`
+	Prices      []ApiPricingEntry `json:"prices,omitempty"`
+}
+
+type CurrencyDTO struct {
+	Name  string  `json:"name"`
+	Short string  `json:"short"`
+	Value float32 `json:"value"`
+}
+
+func (app *App) ConvertPricingListToAPI(pl database.PricingList) []ApiPricingEntry {
+	var priceEntries []ApiPricingEntry
+	if pl == nil {
+		return priceEntries
+	}
+
+	list := pl.All() // assume All() returns []Pricing
+	for i := range list {
+		pricing := list[i]
+		amount := pricing.Amount()
+
+		priceEntries = append(priceEntries, ApiPricingEntry{
+			ID:   pricing.UUID(),
+			Type: int(pricing.Type()),
+			Currency: CurrencyRequest{
+				Name:  amount.Name(),
+				Short: amount.Short(),
+				Value: amount.Value(),
+			},
+		})
+	}
+
+	return priceEntries
+}
+
+func (app *App) ConvertListingToPublic(l database.Listing) *PublicListing {
+	return &PublicListing{
+		ID:          l.UUID(),
+		Title:       l.Title(),
+		Description: l.Description(),
+		Hardware: &HardwareDTO{
+			CPU:  l.HardwareRequirements().CPUCount(),
+			RAM:  l.HardwareRequirements().RAMBytes(),
+			Disk: l.HardwareRequirements().DiskBytes(),
+		},
+		Prices: app.ConvertPricingListToAPI(l.Pricing()),
+	}
+}
+
+func (app *App) PublicListingsHandler(c echo.Context) error {
+	options := database.ListingQueryOptions{}
+	if q := c.QueryParam("q"); q != "" {
+		options.Text = q
+	}
+
+	listings, err := app.DatabaseInteractor.QueryPublicListings(&options)
+	if err != nil {
+		return c.NoContent(http.StatusInternalServerError)
+	}
+
+	// Convert to API response DTOs
+	response := make([]*PublicListing, 0, len(listings))
+	for _, l := range listings {
+		response = append(response, app.ConvertListingToPublic(l))
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
 // =================== TEST APP ===================
 
 func NewTestApp() *App {

@@ -1,23 +1,27 @@
-import type { PricesRequest } from "../../backend";
+import type { CurrencyRequest, Listing, PricingEntry } from "../../backend";
 import CurrencyInput from "../CurrencyInput";
 
 // --- Prices Menu Component ---
 interface PricesMenuProps {
-    prices: PricesRequest;
-    onChange: (prices: PricesRequest) => void;
+    listing: Listing;
+    onChange: (id: string, pricing: CurrencyRequest | null) => void;
 }
 
-export default function PricesMenu({ prices, onChange }: PricesMenuProps) {
+export default function PricesMenu({ listing, onChange }: PricesMenuProps) {
     return (
         <div className="flex flex-col gap-4">
-            <CurrencyInput
-                value={prices.singlePurchase}
-                onChange={(v) => onChange({ ...prices, singlePurchase: v })}
-            />
-            <CurrencyInput
-                value={prices.monthlySubscription}
-                onChange={(v) => onChange({ ...prices, monthlySubscription: v })}
-            />
+            {
+                 listing.prices?.map?.((x: PricingEntry) => 
+                    x.currency == undefined ? <></> :
+                    <CurrencyInput
+                        value={x.currency}
+                        text=""
+                        onChange={(v) => {
+                            onChange(x.id, v)
+                        }}
+                    />
+                )
+            }
         </div>
     );
 };

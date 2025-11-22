@@ -17,7 +17,7 @@ async function backend_request(endpoint: string, type: string, body?: any): Prom
     try {
         json = await response.json();
     }
-    catch(err){
+    catch (err) {
 
     }
 
@@ -40,10 +40,10 @@ export interface CurrencyRequest {
     short: string;      // corresponds to Go Short
 }
 
-export interface PricesRequest {
-    singlePurchase?: CurrencyRequest;
-    monthlySubscription?: CurrencyRequest;
-    monthlyHardware?: CurrencyRequest;
+export interface PricingEntry {
+    id: string;          // "0", "1", etc
+    type: 0 | 1;         // 0 = OneTime, 1 = Monthly
+    currency: CurrencyRequest;
 }
 
 export interface HardwareUpdate {
@@ -57,7 +57,6 @@ export interface ListingRequest {
     title?: string;
     description?: string;
     accessMode?: number;
-    prices?: PricesRequest;
     hardware?: HardwareUpdate;
 }
 
@@ -67,7 +66,7 @@ export interface Listing {
     description?: string;
     author: string;
     accessMode?: number;
-    prices?: PricesRequest;
+    prices?: PricingEntry[];
     hardware?: HardwareUpdate;
 }
 
@@ -93,18 +92,38 @@ export const API = {
         }
     },
     developer: {
-        async deleteListing(id: string): Promise<APIResult> {
-            return await backend_request("/developer/listing", "DELETE", { id });
-        },
-        async editListing(data: ListingRequest) {
-            return await backend_request("/developer/listing", "PUT", data)
-        },
-        async createListing(title: string = "My New Listing", description: string = "This is a description of my listing.") {
-            const data = {
-                title,
-                description
-            };
-            return await backend_request(`/developer/listing`, "POST", data)
-        },
+        listing: {
+            async delete(id: string): Promise<APIResult> {
+                return await backend_request("/developer/listing", "DELETE", { id });
+            },
+            async update(data: ListingRequest) {
+                return await backend_request("/developer/listing", "PUT", data)
+            },
+            async create(title: string = "My New Listing", description: string = "This is a description of my listing.") {
+                const data = {
+                    title,
+                    description
+                };
+
+                return await backend_request(`/developer/listing`, "POST", data)
+            },
+            prices: {
+                async delete(listing_id: string, price_id: string) {
+                    return await backend_request("/developer/listing/price", "DELETE", {
+                        listingId: listing_id,
+                        pricingId: price_id,
+                    })
+                },
+                async update(listing_id: string, price: PricingEntry) {
+                    return await backend_request("/developer/listing/price", "PUT", {
+                        listingId: listing_id,
+                        pricingId: price.id,
+                        ...price
+                    })
+                },
+            }
+        }
+
+
     }
 }

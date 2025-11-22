@@ -25,13 +25,13 @@ export default function DeveloperListings() {
     const queryBuilder = (query: string) => { return { q: query } }
 
     const createListing = async () => {
-        const response = await API.developer.createListing()
+        const response = await API.developer.listing.create()
         if (response.ok) setListing(response.json)
     }
 
     return <div className="w-full h-full flex flex-col items-center min-h-0">
         <Flow>
-            <Search itemBuilder={itemBuilder} queryBuilder={queryBuilder} endpoint={`${backend_constants.address}/developer/listings`} />
+            <Search itemBuilder={itemBuilder} queryBuilder={queryBuilder} endpoint={`${backend_constants.address}/developer/listing`} />
             {listing ? <DeveloperListingDisplay listing={listing} onShouldClose={() => setListing(undefined)}></DeveloperListingDisplay> : <></>}
         </Flow>
 

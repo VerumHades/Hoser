@@ -14,7 +14,7 @@ function App() {
                 <Router>
                     <Routes>
                         <Route path="/login" element={<LoginForm />} />
-                        <Route path="/explore/listings" element={<WithNavbar><PublicListingSearch /></WithNavbar>} />
+                        <Route path="/explore/listing" element={<WithNavbar><PublicListingSearch /></WithNavbar>} />
                         <Route path="/account" element={<AccountPage />} />
                         <Route path="/developer/join" element={<DeveloperJoin />} />
                         <Route path="/" element={<WithNavbar><Home /></WithNavbar>} />

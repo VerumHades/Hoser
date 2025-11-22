@@ -4,7 +4,8 @@ import type { CurrencyRequest } from "../backend";
 
 interface CurrencyInputProps {
     value?: CurrencyRequest;
-    onChange: (value: CurrencyRequest | undefined) => void;
+    text?: string,
+    onChange: (value: CurrencyRequest | null) => void;
 }
 
 const currencyPresets: CurrencyRequest[] = [
@@ -13,20 +14,20 @@ const currencyPresets: CurrencyRequest[] = [
     { value: 0, name: "British Pound", short: "GBP" },
 ];
 
-export default function CurrencyInput({ value, onChange }: CurrencyInputProps) {
+export default function CurrencyInput({ value, onChange, text }: CurrencyInputProps) {
     const [enabled, setEnabled] = useState<boolean>(value !== undefined);
 
     // If user disables the control → send undefined upward
     useEffect(() => {
-        if (!enabled) onChange(undefined);
+        if (!enabled) onChange(null);
     }, [enabled]);
 
     return (
-        <div className="flex flex-col gap-2 mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg shadow-md">
+        <div className="flex flex-col gap-2 mb-4 p-">
             <label className="flex items-center justify-between text-slate-700 dark:text-slate-300 mb-1">
                 <span className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5" />
-                    Currency
+                    {text ?? "Currency"}
                 </span>
 
                 {/* Enable/Disable checkbox */}

@@ -1,9 +1,8 @@
 // src/components/DashboardApp.tsx
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronLeft, Menu } from "lucide-react";
-import React, { Children, createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router";
-import MainNavbar, { useNavbar } from "./prefabs/MainNavbar";
+import { ChevronDown, ChevronLeft } from "lucide-react";
+import React, { createContext, useContext, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router";
 import Navbar from "./Navbar";
 
 interface DashboardContextType {
@@ -12,7 +11,6 @@ interface DashboardContextType {
 }
 
 const DashboardContext = createContext<DashboardContextType>({ setPage: () => { }, page: "" })
-
 
 interface PageProps {
     name: string;
@@ -99,14 +97,14 @@ function DashboardLink(props: DashboardLinkProps) {
     return <div
         className="flex flex-col transition-all md:justify-between justify-center md:flex-0 flex-1 text-center"
     >
-        <div className={"flex flex-row justify-between px-4 py-2 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors duration-300 " + (props.name == dashcontext.page ? "bg-slate-100 border-r-slate-200 border-r-4" : "")} onClick={clickHandler}>
+        <div className={"flex flex-row justify-between px-4 py-2 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors duration-300 " + (props.name == dashcontext.page ? "bg-slate-100 border-r-slate-200 dark:bg-slate-700 dark:border-r-indigo-600 border-r-4" : "")} onClick={clickHandler}>
             <button>{props.name}</button>
             {props.cathegory ? (open ? <ChevronDown /> : <ChevronLeft />) : props.icon}
         </div>
 
         <AnimatePresence>
             {open && (
-                <motion.aside
+                <motion.div
                     key="sidebar"
                     initial={{ y: -10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -115,7 +113,7 @@ function DashboardLink(props: DashboardLinkProps) {
                     className="flex flex-col ml-5"
                 >
                     {props.children}
-                </motion.aside>
+                </motion.div>
             )}
         </AnimatePresence>
     </div>
