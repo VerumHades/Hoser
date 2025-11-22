@@ -22,6 +22,8 @@ type HardwareSpecification interface {
 	SetCPUCount(count int) error
 	SetRAMBytes(bytes int64) error
 	SetDiskBytes(bytes int64) error
+
+	MonthlyPrice() Currency
 }
 
 type ListingAccessMode int
@@ -45,7 +47,9 @@ type Listing interface {
 
 	SinglePurchasePrice() Currency
 	MonthlySubscriptionPrice() Currency
-	MonthlyHardwarePrice() Currency
+
+	ClearSinglePurchasePrice() error
+	ClearSubscriptionPrice() error
 
 	HardwareRequirements() HardwareSpecification
 }

@@ -1,8 +1,6 @@
 import backend_constants from "./backend_constants";
-import type { Listing } from "./developer/DeveloperListing";
 
 async function backend_request(endpoint: string, type: string, body?: any): Promise<APIResult> {
-
     let request_body: RequestInit = {
         method: type,
         headers: {
@@ -15,10 +13,18 @@ async function backend_request(endpoint: string, type: string, body?: any): Prom
 
     const response = await fetch(`${backend_constants.address}${endpoint}`, request_body);
 
+    let json = undefined
+    try {
+        json = await response.json();
+    }
+    catch(err){
+
+    }
+
     return {
         response,
         ok: response.ok,
-        json: await response.json()
+        json
     }
 }
 

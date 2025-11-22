@@ -13,6 +13,7 @@ export default function DeveloperListings() {
     const [listing, setListing] = useState<undefined | Listing>(undefined);
 
     const itemBuilder = (item: Listing) => {
+        console.log(item)
         return <FlowSwitch direction="next">
             <ListElement onClick={() => setListing(item)}>
                 <h3 className="font-semibold text-lg">{item.title}</h3>

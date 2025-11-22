@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"server/internal/database"
 
@@ -68,7 +69,7 @@ func makeApiDeveloperListing(author string, l database.Listing) ApiDeveloperList
 	prices := &PricesRequest{
 		SinglePurchase:      mapCurrency(l.SinglePurchasePrice()),
 		MonthlySubscription: mapCurrency(l.MonthlySubscriptionPrice()),
-		MonthlyHardware:     mapCurrency(l.MonthlyHardwarePrice()),
+		MonthlyHardware:     mapCurrency(l.HardwareRequirements().MonthlyPrice()),
 	}
 
 	// Map access mode
@@ -78,7 +79,7 @@ func makeApiDeveloperListing(author string, l database.Listing) ApiDeveloperList
 	title := l.Title()
 	description := l.Description()
 
-	return ApiDeveloperListing{
+	listing := ApiDeveloperListing{
 		Author:      author,
 		ID:          l.UUID(),
 		Title:       &title,
@@ -87,6 +88,10 @@ func makeApiDeveloperListing(author string, l database.Listing) ApiDeveloperList
 		Prices:      prices,
 		Hardware:    hardware,
 	}
+
+	fmt.Println(listing)
+
+	return listing
 }
 
 // Map Currency interface to *CurrencyRequest
@@ -167,7 +172,6 @@ func (app *App) DeveloperAlterListingHandler(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
 	}
-
 	// Update title/description/access mode
 	if req.Title != nil {
 		if err := listing.SetTitle(*req.Title); err != nil {
@@ -189,7 +193,6 @@ func (app *App) DeveloperAlterListingHandler(c echo.Context) error {
 		}
 	}
 
-	// Update prices (currency objects always exist)
 	if req.Prices != nil {
 		if req.Prices.SinglePurchase != nil {
 			cp := listing.SinglePurchasePrice()
@@ -204,7 +207,7 @@ func (app *App) DeveloperAlterListingHandler(c echo.Context) error {
 			cp.SetShort(req.Prices.MonthlySubscription.Short)
 		}
 		if req.Prices.MonthlyHardware != nil {
-			cp := listing.MonthlyHardwarePrice()
+			cp := listing.HardwareRequirements().MonthlyPrice()
 			cp.SetValue(req.Prices.MonthlyHardware.Value)
 			cp.SetName(req.Prices.MonthlyHardware.Name)
 			cp.SetShort(req.Prices.MonthlyHardware.Short)

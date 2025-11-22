@@ -62,7 +62,7 @@ func (app *App) GetUserFromContext(c echo.Context) (database.User, error) {
 // =================== TEST APP ===================
 
 func NewTestApp() *App {
-	db := &database.DummyInteractor{}
+	db := &database.DummyStore{}
 	cfg := &configuration.Configuration{
 		AllowedOrigins: []string{"http://localhost"},
 	}

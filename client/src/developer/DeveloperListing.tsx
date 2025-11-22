@@ -7,7 +7,6 @@ import PromptButton from "../components/PromptButton";
 import SelectBox from "../components/SelectBox";
 import HardwareSettings from "../components/prefabs/HardwareSettings";
 import PricesMenu from "../components/prefabs/PricesMenu";
-import toast, { Toaster } from "react-hot-toast";
 import { FlowSwitch } from "../components/Flow";
 
 interface ListingDisplayProps {
@@ -23,8 +22,8 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
     const deleteKeyword = "Delete"
     const isDeleteLocked = currentText != deleteKeyword
 
-    const [hardware, setHardware] = useState<HardwareUpdate | undefined>({});
-    const [prices, setPrices] = useState<PricesRequest | undefined>({});
+    const [hardware, setHardware] = useState<HardwareUpdate | undefined>(sourceListing.hardware);
+    const [prices, setPrices] = useState<PricesRequest | undefined>(sourceListing.prices);
 
     const [title, setTitle] = useState<string | undefined>(listing.title)
     const [description, setDescription] = useState<string | undefined>(listing.description)
@@ -64,10 +63,11 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                     <div className="flex gap-2">
                         <button
                             className="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600"
-                            onClick={() => {
+                            onClick={async () => {
                                 const changes = { title, description, hardware, prices };
-                                API.developer.editListing({ id: listing.id, ...changes });
-                                setListing({ ...listing, ...changes });
+                                let updated_listing = (await API.developer.editListing({ id: listing.id, ...changes })).json as Listing;
+                                console.log(updated_listing)
+                                setListing(  updated_listing );
                                 setHasUnsavedChanges(false);
                             }}
                         >
@@ -139,6 +139,7 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
 
                     {/* Prices menu */}
                     <PricesMenu prices={prices ?? {}} onChange={(newPrices) => {
+                        console.log(newPrices)
                         setPrices(newPrices);
                         changeListing()
                     }} />

@@ -6,6 +6,52 @@ import (
 	"strings"
 )
 
+type StubHardwareSpecification struct {
+	CPUCountVal  int
+	RAMBytesVal  int64
+	DiskBytesVal int64
+
+	SetCPUCountErr  error
+	SetRAMBytesErr  error
+	SetDiskBytesErr error
+}
+
+func (s *StubHardwareSpecification) CPUCount() int {
+	return s.CPUCountVal
+}
+
+func (s *StubHardwareSpecification) RAMBytes() int64 {
+	return s.RAMBytesVal
+}
+
+func (s *StubHardwareSpecification) DiskBytes() int64 {
+	return s.DiskBytesVal
+}
+
+func (s *StubHardwareSpecification) SetCPUCount(count int) error {
+	if s.SetCPUCountErr != nil {
+		return s.SetCPUCountErr
+	}
+	s.CPUCountVal = count
+	return nil
+}
+
+func (s *StubHardwareSpecification) SetRAMBytes(bytes int64) error {
+	if s.SetRAMBytesErr != nil {
+		return s.SetRAMBytesErr
+	}
+	s.RAMBytesVal = bytes
+	return nil
+}
+
+func (s *StubHardwareSpecification) SetDiskBytes(bytes int64) error {
+	if s.SetDiskBytesErr != nil {
+		return s.SetDiskBytesErr
+	}
+	s.DiskBytesVal = bytes
+	return nil
+}
+
 //
 // =========================
 // Currency
@@ -164,6 +210,16 @@ func (h *DummyHardwareSpec) SetCPUCount(c int) error    { h.CPU = c; return nil 
 func (h *DummyHardwareSpec) SetRAMBytes(b int64) error  { h.RAM = b; return nil }
 func (h *DummyHardwareSpec) SetDiskBytes(b int64) error { h.Disk = b; return nil }
 
+func (h *DummyHardwareSpec) MonthlyPrice() Currency {
+	return &DummyCurrency{
+		name:  "Credits",
+		short: "CR",
+		value: float32(h.CPU)*1 +
+			float32(h.RAM)/(1024*1024*1024)*0.5 +
+			float32(h.Disk)/(1024*1024*1024)*0.1, // arbitrary example
+	}
+}
+
 //
 // =========================
 // Listing
@@ -179,6 +235,7 @@ type DummyListing struct {
 	SinglePrice     Currency
 	MonthlySubPrice Currency
 	MonthlyHWPrice  Currency
+	HardwareSpec    *DummyHardwareSpec
 }
 
 func (l *DummyListing) UUID() string                  { return strconv.Itoa(l.IDVal) }
@@ -218,6 +275,16 @@ func (l *DummyListing) SetMonthlyHardwarePrice(price Currency) error {
 
 func (l *DummyListing) HardwareRequirements() HardwareSpecification {
 	// Dummy implementation — your real implementation goes here
+	return l.HardwareSpec
+}
+
+func (l *DummyListing) ClearSinglePurchasePrice() error {
+	l.SinglePrice = nil
+	return nil
+}
+
+func (l *DummyListing) ClearSubscriptionPrice() error {
+	l.MonthlySubPrice = nil
 	return nil
 }
 
@@ -250,7 +317,7 @@ type DummyRental struct {
 	Title              string
 	Description        string
 
-	Hardware  HardwareSpecification
+	Hardware  *DummyHardwareSpec
 	StateSpec *DummyStateSpecification
 }
 
@@ -309,6 +376,11 @@ var globalListings []Listing = []Listing{
 		SinglePrice:     &DummyCurrency{name: "Credits", short: "CR", value: 10},
 		MonthlySubPrice: &DummyCurrency{name: "Credits", short: "CR", value: 2},
 		MonthlyHWPrice:  &DummyCurrency{name: "Credits", short: "CR", value: 1},
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  2,
+			RAM:  4 * 1024 * 1024 * 1024,  // 4GB
+			Disk: 20 * 1024 * 1024 * 1024, // 20GB
+		},
 	},
 	&DummyListing{
 		IDVal:           1,
@@ -317,6 +389,11 @@ var globalListings []Listing = []Listing{
 		Access:          Public,
 		MonthlySubPrice: &DummyCurrency{name: "Credits", short: "CR", value: 3},
 		MonthlyHWPrice:  &DummyCurrency{name: "Credits", short: "CR", value: 1},
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  2,
+			RAM:  4 * 1024 * 1024 * 1024,  // 4GB
+			Disk: 20 * 1024 * 1024 * 1024, // 20GB
+		},
 	},
 }
 

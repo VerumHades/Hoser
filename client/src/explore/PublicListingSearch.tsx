@@ -9,19 +9,31 @@ import Search from "../components/Search";
 import { API } from "../backend";
 import { useNavigate } from "react-router-dom";
 interface CurrencyValue {
-    Name: string,
-    Short: string,
-    Value: number
+    name: string,
+    short: string,
+    value: number
+}
+
+interface HardwareDTO {
+    cpu: number;
+    ram: number;
+    disk: number;
+}
+
+interface ListingPrices {
+    singlePurchase?: CurrencyValue;
+    monthlySubscription?: CurrencyValue;
+    monthlyHardware?: CurrencyValue;
 }
 
 interface SearchItem {
-    ID: string;
-    Title: string;
-    Description: string;
-    MonthlyHardwarePrice?: CurrencyValue
-    MonthlySubscriptionPrice?: CurrencyValue
-    SinglePurchasePrice?: CurrencyValue
-    author: string;
+    id: string;
+    title: string;
+    description: string;
+    images?: string[];
+    hardware?: HardwareDTO;
+    prices?: ListingPrices;
+    author?: string;
 }
 
 /*
@@ -51,47 +63,75 @@ interface PublicListingDisplayProps {
 
 
 function SinglePurchasePriceTag({ item, onClick }: PublicListingDisplayProps) {
-    return item.SinglePurchasePrice ?
-        <PriceTag onClick={onClick} prices={[{
-            name: "One Time",
-            currency_short: item.SinglePurchasePrice.Short,
-            value: item.SinglePurchasePrice.Value
-        }]}></PriceTag> : null
+    const price = item.prices?.singlePurchase;
+    if (!price) return null;
+
+    return (
+        <PriceTag
+            onClick={onClick}
+            prices={[{
+                name: "One Time",
+                currency_short: price.short,
+                value: price.value
+            }]}
+        />
+    );
 }
+
 function MonthlySubscriptionPriceTag({ item, onClick }: PublicListingDisplayProps) {
-    return item.MonthlySubscriptionPrice && item.MonthlyHardwarePrice ?
-        <PriceTag onClick={onClick} prices={[{
-            name: "Author",
-            currency_short: item.MonthlySubscriptionPrice.Short,
-            value: item.MonthlySubscriptionPrice.Value
-        }, {
-            name: "Hardware",
-            currency_short: item.MonthlyHardwarePrice.Short,
-            value: item.MonthlyHardwarePrice.Value
-        }]} rate="monthly"></PriceTag> : null
+    const subscription = item.prices?.monthlySubscription;
+    const hardware = item.prices?.monthlyHardware;
+
+    if (!subscription || !hardware) return null;
+
+    return (
+        <PriceTag
+            onClick={onClick}
+            prices={[
+                {
+                    name: "Author",
+                    currency_short: subscription.short,
+                    value: subscription.value
+                },
+                {
+                    name: "Hardware",
+                    currency_short: hardware.short,
+                    value: hardware.value
+                }
+            ]}
+            rate="monthly"
+        />
+    );
 }
 
 interface PriceDisplayProps {
-    onClickMonthly?: () => void,
-    onClickOneTime?: () => void,
-    item: SearchItem
+    onClickMonthly?: () => void;
+    onClickOneTime?: () => void;
+    item: SearchItem;
 }
+
 function PriceDisplay({ item, onClickMonthly, onClickOneTime }: PriceDisplayProps) {
-    return <div className="flex flex-row items-center text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap md:mt-0 mt-5">
-        <SinglePurchasePriceTag item={item} onClick={onClickOneTime}></SinglePurchasePriceTag>
-        {
-            item.SinglePurchasePrice &&
-            item.MonthlySubscriptionPrice &&
-            item.MonthlyHardwarePrice && <label className="mx-2">or</label>
-        }
-        <MonthlySubscriptionPriceTag item={item} onClick={onClickMonthly}></MonthlySubscriptionPriceTag>
-    </div>
+    const hasOneTime = !!item.prices?.singlePurchase;
+    const hasMonthly = !!item.prices?.monthlySubscription && !!item.prices?.monthlyHardware;
+
+    return (
+        <div className="flex flex-row items-center text-slate-500 dark:text-slate-400 text-sm whitespace-nowrap md:mt-0 mt-5">
+            {hasOneTime && <SinglePurchasePriceTag item={item} onClick={onClickOneTime} />}
+            {hasOneTime && hasMonthly && <label className="mx-2">or</label>}
+            {hasMonthly && <MonthlySubscriptionPriceTag item={item} onClick={onClickMonthly} />}
+        </div>
+    );
 }
+
+interface PublicListingDisplayProps {
+    item: SearchItem;
+}
+
 
 function PublicListingDisplay({ item }: PublicListingDisplayProps) {
     const navigate = useNavigate()
     const handleRent = () => {
-        API.user.rentListing("" + item.ID)
+        API.user.rentListing("" + item.id)
         navigate("/account", { state: { dashpage: "My Rentals" } })
     }
 
@@ -99,8 +139,8 @@ function PublicListingDisplay({ item }: PublicListingDisplayProps) {
         <div className="w-full h-full flex flex-col p-6">
             <div className="flex flex-row justify-between items-end">
                 <TitleAndDescription
-                    title={item.Title}
-                    description={item.Description}
+                    title={item.title}
+                    description={item.description}
                     titleClassname="text-7xl">
 
                 </TitleAndDescription>
@@ -120,13 +160,13 @@ export default function PublicListingSearch() {
     const [item, setItem] = useState<undefined | SearchItem>(undefined);
 
     const itemBuilder = (item: SearchItem) => {
-
+        console.log(item)
         return <FlowSwitch direction="next">
             <ListElement onClick={() => setItem(item)}>
                 <div className="flex flex-col md:flex-row w-full">
                     <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{item.Title}</h3>
-                        <p className="text-sm">{item.Description}</p>
+                        <h3 className="font-semibold text-lg">{item.title}</h3>
+                        <p className="text-sm">{item.description}</p>
                         <p className="text-xs mt-1">By {item.author}</p>
                     </div>
                     <PriceDisplay item={item}></PriceDisplay>
