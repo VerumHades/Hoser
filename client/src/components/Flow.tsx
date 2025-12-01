@@ -72,7 +72,7 @@ interface FlowTopBackWrapperProps {
 }
 
 export function FlowTopBackWrapper({ children }: FlowTopBackWrapperProps) {
-    return <div className="space-y-4 flex flex-col w-full h-full text-gray-900 dark:text-gray-100 bg-slate-100 dark:bg-slate-800">
+    return <div className="space-y-4 flex flex-col w-full h-full">
         <FlowSwitch
             className="my-3 py-2 flex flex-row items-center hover:bg-slate-200 dark:hover:bg-gray-700 transition-all"
             direction="back"

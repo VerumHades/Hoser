@@ -1,7 +1,7 @@
 // src/components/DashboardApp.tsx
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, ChevronLeft } from "lucide-react";
-import React, { createContext, useContext, useState, type ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import Navbar from "./Navbar";
 
@@ -72,7 +72,7 @@ function hasNestedKeyValue(obj: any, key: string, value: any): boolean {
             if (k === key && obj[k] === value) return true;
 
             if (typeof obj[k] === "object") {
-                if(k == "icon") continue;
+                if (k == "icon") continue;
                 if (hasNestedKeyValue(obj[k], key, value)) return true;
             }
         }
@@ -83,7 +83,7 @@ function hasNestedKeyValue(obj: any, key: string, value: any): boolean {
 function DashboardLink(props: DashboardLinkProps) {
     const dashcontext = useContext(DashboardContext);
 
-    const hasActiveChild = hasNestedKeyValue(props.childMap, "name",  dashcontext.page);
+    const hasActiveChild = hasNestedKeyValue(props.childMap, "name", dashcontext.page);
     const [open, setOpen] = useState<boolean>(hasActiveChild);
 
     const clickHandler = () => {
@@ -161,13 +161,13 @@ function flattenChildren(
 
     return result;
 }
-export default function Dashboard({ children, logo }: DashboardProps) {
+export default function Dashboard({ children }: DashboardProps) {
     const [navbar_open, setNavbarOpen] = useState<boolean>(false);
 
     const location = useLocation()
     const navigate = useNavigate()
-    const current_page = location.state?.dashpage ?? "listings"
-    
+    const current_page = location.state?.dashpage ?? ""
+
     const pages = flattenChildren(children).map((child) => {
         if (!React.isValidElement<PageProps>(child)) {
             throw new Error("<Dashboard> children must be <Page> components");
@@ -177,6 +177,13 @@ export default function Dashboard({ children, logo }: DashboardProps) {
     })
 
     const { map: linkMap, flatMap } = buildPageMap(pages)
+
+    useEffect(
+        () => {
+            if (!(current_page in flatMap) && Object.keys(flatMap).length != 0) {
+                navigate(location.pathname, { state: { dashpage: Object.keys(flatMap)[0] } })
+            }
+        })
 
     const setPageHandler = (page: string) => {
         navigate(location.pathname, { state: { dashpage: page } })

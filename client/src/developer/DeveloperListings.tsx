@@ -1,26 +1,18 @@
 // src/components/DashboardApp.tsx
 import { useState } from "react";
 import backend_constants from "../backend_constants";
-import { ChevronLeft, Plus } from "lucide-react";
 import DeveloperListingDisplay from "./DeveloperListing";
-import { API, type Listing } from "../backend";
+import { API, ListingAccessModes, type Listing } from "../backend";
 import ListElement from "../components/prefabs/ListElement";
 import { Flow, FlowSwitch } from "../components/Flow";
-import Search from "../components/Search";
+import Query from "../components/querying/Query";
+import Table from "../components/table/Table";
+import TableRow from "../components/table/TableRow";
+import { Earth, EarthLock } from "lucide-react";
 
 
 export default function DeveloperListings() {
     const [listing, setListing] = useState<undefined | Listing>(undefined);
-
-    const itemBuilder = (item: Listing) => {
-        console.log(item)
-        return <FlowSwitch direction="next">
-            <ListElement onClick={() => setListing(item)}>
-                <h3 className="font-semibold text-lg">{item.title}</h3>
-                <p className="text-sm text-gray-600">{item.description}</p>
-            </ListElement>
-        </FlowSwitch>
-    }
 
     const queryBuilder = (query: string) => { return { q: query } }
 
@@ -31,9 +23,26 @@ export default function DeveloperListings() {
 
     return <div className="w-full h-full flex flex-col items-center min-h-0">
         <Flow>
-            <Search itemBuilder={itemBuilder} queryBuilder={queryBuilder} endpoint={`${backend_constants.address}/developer/listing`} />
+            <Query
+                bodyBuilder={(listings?: Listing[]) =>
+                    <Table>
+                        {listings && listings.map((listing) =>
+                            <FlowSwitch direction="next">
+                                <TableRow onClick={() => setListing(listing)}>
+                                    <h3 className="font-semibold text-lg">{listing.title}</h3>
+                                    <p className="text-sm text-gray-600">{listing.description}</p>
+                                    <div className="flex flex-row justify-between">
+                                        {listing.accessMode == 1 ? <>Public < Earth /></> : <>Private < EarthLock /></>}
+                                    </div>
+                                </TableRow>
+                            </FlowSwitch>)
+                        }
+                    </Table>
+                }
+                queryBuilder={queryBuilder}
+                endpoint={`${backend_constants.address}/developer/listing`}
+            />
             {listing ? <DeveloperListingDisplay listing={listing} onShouldClose={() => setListing(undefined)}></DeveloperListingDisplay> : <></>}
         </Flow>
-
     </div>
 }

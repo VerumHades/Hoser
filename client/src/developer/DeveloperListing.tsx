@@ -1,5 +1,5 @@
 // src/components/AccountPage.tsx
-import React, { use, useRef, useState } from "react";
+import React, { useState } from "react";
 import EditableText from "../components/EditableText";
 import { API, ListingAccessModes, type CurrencyRequest, type HardwareUpdate, type Listing, type PricesRequest, type PricingEntry } from "../backend";
 import { ChevronLeft, Delete } from "lucide-react";
@@ -131,20 +131,18 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                             Delete <Delete></Delete>
                         </PromptButton>
                     </div>
-                    <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                        <EditableText
-                            text={title ?? "No Title"}
-                            onChange={(name: string) => { setTitle(name); changeListing() }}>
+                    <EditableText
+                        text={title ?? "No Title"}
+                        label="Title: "
+                        onChange={(name: string) => { setTitle(name); changeListing() }}>
 
-                        </EditableText>
-                    </h1>
-                    <p className="mb-2 text-gray-700 dark:text-gray-300">
-                        <EditableText
-                            text={description ?? "No Description"}
-                            onChange={(name: string) => { setDescription(name); changeListing() }}>
+                    </EditableText>
+                    <EditableText
+                        text={description ?? "No Description"}
+                        label="Description: "
+                        onChange={(name: string) => { setDescription(name); changeListing() }}>
 
-                        </EditableText>
-                    </p>
+                    </EditableText>
 
                     {/* Hardware sliders */}
                     <HardwareSettings hardware={hardware ?? {}} onChange={(newHardware) => {

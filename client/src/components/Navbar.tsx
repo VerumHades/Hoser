@@ -21,10 +21,10 @@ function Navbar({ children, className, onToggleOpen, open }: NavbarProps) {
                 <Logo></Logo>
 
                 {/* Account button desktop */}
-                <div className="hidden sm:flex"><UserSessionDisplay></UserSessionDisplay></div>
+                <div className="hidden md:flex"><UserSessionDisplay></UserSessionDisplay></div>
 
                 {/* Mobile menu toggle */}
-                <div className="sm:hidden flex items-center">
+                <div className="md:hidden flex items-center">
                     <button
                         onClick={onToggleOpen}
                         className="p-2 focus:outline-none rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition text-slate-800 dark:text-gray-200"

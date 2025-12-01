@@ -1,5 +1,5 @@
 import type { CurrencyRequest, Listing, PricingEntry } from "../../backend";
-import CurrencyInput from "../CurrencyInput";
+import CurrencyInput from "../pricing/CurrencyInput";
 
 // --- Prices Menu Component ---
 interface PricesMenuProps {

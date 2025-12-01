@@ -4,20 +4,11 @@ import (
 	"fmt"
 	"net/http"
 
-	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 // =================== MIDDLEWARE ===================
-
-func (app *App) JWTMiddleware() echo.MiddlewareFunc {
-	return echojwt.WithConfig(echojwt.Config{
-		SigningKey:  app.JWTSecret,
-		ContextKey:  "user",
-		TokenLookup: "header:Authorization",
-	})
-}
 
 func (app *App) DeveloperOnlyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
@@ -37,7 +28,7 @@ func (app *App) CORSMiddleware() echo.MiddlewareFunc {
 	return middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins:     app.RunningConfiguration.AllowedOrigins,
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
-		AllowHeaders:     []string{echo.HeaderAuthorization, echo.HeaderContentType},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
 		AllowCredentials: true,
 	})
 }

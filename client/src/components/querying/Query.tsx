@@ -1,21 +1,20 @@
 import { useEffect, useState, useCallback } from "react";
 import debounce from "lodash.debounce"
-import LoadingIcon from "./prefabs/LoadingIcon";
-import {Search as SearchIcon} from "lucide-react"
+import LoadingIcon from "../prefabs/LoadingIcon";
+import {Search} from "lucide-react"
 
-interface SearchProps<T> {
+interface QueryProps<T> {
     children?: React.ReactNode,
-    itemBuilder: (item: T) => React.ReactElement,
-    queryBuilder: (query: string) => {},
+    bodyBuilder: (item?: T) => React.ReactElement,
+    queryBuilder: (query: string) => Record<string,string>,
     endpoint: string
     debounceDelay?: number
 }
 
 const DEBOUNCE_DELAY = 300;
-
-export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounceDelay, children }: SearchProps<T>) {
+export default function Query<T>({ bodyBuilder, endpoint, queryBuilder, debounceDelay, children }: QueryProps<T>) {
     const [query, setQuery] = useState("");
-    const [results, setResults] = useState<T[]>([]);
+    const [results, setResults] = useState<T | undefined>(undefined);
     const [loading, setLoading] = useState(false);
 
     const fetchResultsDebounced = useCallback(
@@ -29,9 +28,8 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
                 });
                 if (!res.ok) throw new Error("Failed to fetch results");
 
-                const data: T[] = await res.json();
-
-                setResults(data || []);
+                const data: T = await res.json();
+                setResults(data);
             } catch (err) {
                 if (err instanceof DOMException && err.name === "AbortError") return;
                 console.error("Fetch error:", err);
@@ -53,28 +51,22 @@ export default function Search<T>({ itemBuilder, endpoint, queryBuilder, debounc
     }, [query, fetchResultsDebounced]);
 
     return (
-        <div className="relative max-w-7xl flex flex-col p-6 w-full h-full ">
+        <div className="relative flex flex-col p-6 w-full h-full ">
             <div className="flex flex-col sm:flex-row gap-3 items-center w-full mb-3">
                 <input
                     type="text"
-                    placeholder="Search..."
+                    placeholder="Query..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="flex-1 px-6 py-3 focus:outline-none sm:w-auto sm:flex-1 w-full text-gray-900 dark:text-gray-100"
                 />
-                <SearchIcon className="text-gray-900 dark:text-gray-100" />
+                <Search className="text-gray-900 dark:text-gray-100" />
                 {children}
             </div>
 
             {loading ? (
                 <LoadingIcon></LoadingIcon>
-            ) : results.length === 0 ? (
-                <p className="text-center text-gray-400">No results found.</p>
-            ) : (
-                <div className="flex flex-col overflow-y-auto flex-1">
-                    {Array.isArray(results) ? results.map((item) => itemBuilder(item)) : <p className="text-center text-gray-400">No results found.</p>}
-                </div>
-            )}
+            ) : bodyBuilder(results)}
         </div>
     );
 }

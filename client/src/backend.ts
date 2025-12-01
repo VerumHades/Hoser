@@ -34,6 +34,21 @@ export const ListingAccessModes = {
     1: { label: 'Public', description: "Available to everyone." },
 }
 
+export const BillingFrequency = {
+  OneTime: 0,
+  Monthly: 1,
+  Yearly: 2,
+} as const;
+
+export const BillingFrequencyName: Record<BillingFrequency, string> = {
+  0: "OneTime",
+  1: "Monthly",
+  2: "Yearly",
+};
+
+export type BillingFrequency =
+  (typeof BillingFrequency)[keyof typeof BillingFrequency];
+
 export interface CurrencyRequest {
     value: number;      // corresponds to Go Value
     name: string;       // corresponds to Go Name

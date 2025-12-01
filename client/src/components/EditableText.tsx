@@ -4,10 +4,11 @@ import { useState, type ChangeEvent } from "react";
 
 interface EditableTextProps {
     text: string;
+    label?: string;
     onChange: (newText: string) => void;
 }
 
-export default function EditableText({ text, onChange }: EditableTextProps) {
+export default function EditableText({ text, onChange, label }: EditableTextProps) {
     const [editing, setEditing] = useState<boolean>(false);
 
     const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -25,25 +26,31 @@ export default function EditableText({ text, onChange }: EditableTextProps) {
     };
 
     return (
-        <div className="flex flex-row justify-between items-baseline" onDoubleClick={() => setEditing(true)}>
-            {editing ? (
-                <>
-                    <input
-                        value={text}
-                        autoFocus
-                        onChange={handleChange}
-                        onBlur={stopEditing}
-                        onKeyDown={handleKeyDown}
-                        className="border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white px-1"
-                    />
-                    <PenOff className="cursor-pointer" onClick={stopEditing} />
-                </>
-            ) : (
-                <>
-                    <span>{text}</span>
-                    <Pencil className="cursor-pointer" onClick={() => setEditing(true)} />
-                </>
+        <div className="flex flex-row">
+            {label && (
+                <label className="mr-5 font-bold">{label}</label>
             )}
+            <div className="flex flex-row justify-between w-full" onDoubleClick={() => setEditing(true)}>
+                {editing ? (
+                    <>
+                        <input
+                            value={text}
+                            autoFocus
+                            onChange={handleChange}
+                            onBlur={stopEditing}
+                            onKeyDown={handleKeyDown}
+                            className="border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white px-1 max-w-full"
+                        />
+                        <PenOff className="cursor-pointer" onClick={stopEditing} />
+                    </>
+                ) : (
+                    <>
+                        <label className="h-full">{text}</label>
+                        <Pencil className="cursor-pointer" onClick={() => setEditing(true)} />
+                    </>
+                )}
+            </div>
         </div>
+
     );
 };

@@ -365,34 +365,184 @@ var dummyUsers = map[string]*DummyUser{
 
 var globalListings []Listing = []Listing{
 	&DummyListing{
-		IDVal:        0,
-		TitleStr:     "Node.js Dev Stack",
-		DescStr:      "Node.js",
-		Access:       Public,
-		HardwareSpec: &DummyHardwareSpec{CPU: 2, RAM: 4 * 1024 * 1024 * 1024, Disk: 20 * 1024 * 1024 * 1024},
+		IDVal:    0,
+		TitleStr: "Node.js Full-Stack Environment",
+		DescStr:  "Production-ready Node.js 20 environment with Express, Redis, and PM2 preconfigured.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  2,
+			RAM:  8 * 1024 * 1024 * 1024,
+			Disk: 40 * 1024 * 1024 * 1024,
+		},
 		PricingList: func() *DummyPricingList {
 			pl := NewDummyPricingList()
-			pl.AddPricing(OneTime, &DummyCurrency{name: "Credits", short: "CR", value: 10})
-			pl.AddPricing(Monthly, &DummyCurrency{name: "Credits", short: "CR", value: 2})
+			pl.AddPricing(OneTime, &DummyCurrency{name: "USD", short: "USD", value: 12})
+			pl.AddPricing(Monthly, &DummyCurrency{name: "USD", short: "USD", value: 3})
+			pl.AddPricing(Yearly, &DummyCurrency{name: "USD", short: "USD", value: 30})
 			return pl
 		}(),
 	},
+
 	&DummyListing{
-		IDVal:        1,
-		TitleStr:     "Go Microservices",
-		DescStr:      "Go + Kafka",
-		Access:       Public,
-		HardwareSpec: &DummyHardwareSpec{CPU: 2, RAM: 4 * 1024 * 1024 * 1024, Disk: 20 * 1024 * 1024 * 1024},
+		IDVal:    1,
+		TitleStr: "Go Microservices Platform",
+		DescStr:  "Optimized Go 1.22 microservice playground with built-in metrics, tracing, and Kafka connectors.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  2,
+			RAM:  4 * 1024 * 1024 * 1024,
+			Disk: 20 * 1024 * 1024 * 1024,
+		},
 		PricingList: func() *DummyPricingList {
 			pl := NewDummyPricingList()
-			pl.AddPricing(Monthly, &DummyCurrency{name: "Credits", short: "CR", value: 3})
+			pl.AddPricing(Monthly, &DummyCurrency{name: "EUR", short: "€", value: 4})
+			return pl
+		}(),
+	},
+
+	&DummyListing{
+		IDVal:    2,
+		TitleStr: "Rust High-Performance Backend",
+		DescStr:  "A blazing-fast Rust environment with Tokio, Axum, SQLx and optimized debug tooling.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  4,
+			RAM:  8 * 1024 * 1024 * 1024,
+			Disk: 30 * 1024 * 1024 * 1024,
+		},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(Monthly, &DummyCurrency{name: "USD", short: "USD", value: 6})
+			pl.AddPricing(Yearly, &DummyCurrency{name: "USD", short: "USD", value: 60})
+			return pl
+		}(),
+	},
+
+	&DummyListing{
+		IDVal:    3,
+		TitleStr: "Python Data Science Lab",
+		DescStr:  "JupyterLab with Python 3.12, Pandas, NumPy, scikit-learn, and GPU-ready environment.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  4,
+			RAM:  16 * 1024 * 1024 * 1024,
+			Disk: 60 * 1024 * 1024 * 1024,
+		},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(OneTime, &DummyCurrency{name: "EUR", short: "€", value: 15})
+			pl.AddPricing(Monthly, &DummyCurrency{name: "EUR", short: "€", value: 5})
+			return pl
+		}(),
+	},
+
+	&DummyListing{
+		IDVal:    4,
+		TitleStr: "DevOps Sandbox",
+		DescStr:  "Kubernetes-in-a-box with Docker, Helm, Grafana, and logging stack prewired.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  4,
+			RAM:  8 * 1024 * 1024 * 1024,
+			Disk: 50 * 1024 * 1024 * 1024,
+		},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(Monthly, &DummyCurrency{name: "Credits", short: "CR", value: 5})
+			return pl
+		}(),
+	},
+
+	&DummyListing{
+		IDVal:    5,
+		TitleStr: "AI / LLM Experimentation Rig",
+		DescStr:  "Environment tailored for ML tests, including PyTorch, Transformers, and CUDA support.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  8,
+			RAM:  32 * 1024 * 1024 * 1024,
+			Disk: 120 * 1024 * 1024 * 1024,
+		},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(OneTime, &DummyCurrency{name: "USD", short: "USD", value: 20})
+			pl.AddPricing(Monthly, &DummyCurrency{name: "USD", short: "USD", value: 10})
+			return pl
+		}(),
+	},
+
+	&DummyListing{
+		IDVal:    6,
+		TitleStr: "PHP + MySQL Legacy Stack",
+		DescStr:  "Stable LAMP environment ideal for legacy apps or migrations.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  2,
+			RAM:  2 * 1024 * 1024 * 1024,
+			Disk: 15 * 1024 * 1024 * 1024,
+		},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(Monthly, &DummyCurrency{name: "EUR", short: "€", value: 2})
+			return pl
+		}(),
+	},
+
+	&DummyListing{
+		IDVal:    7,
+		TitleStr: "C# .NET Cloud API Environment",
+		DescStr:  "ASP.NET Core 8 project runner with EF Core, Redis cache, and OpenAPI tools.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  4,
+			RAM:  8 * 1024 * 1024 * 1024,
+			Disk: 40 * 1024 * 1024 * 1024,
+		},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(Yearly, &DummyCurrency{name: "USD", short: "USD", value: 45})
+			return pl
+		}(),
+	},
+
+	&DummyListing{
+		IDVal:    8,
+		TitleStr: "Elixir Phoenix Realtime Platform",
+		DescStr:  "Optimized BEAM VM system for concurrent workloads, perfect for chat apps or live updates.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  2,
+			RAM:  4 * 1024 * 1024 * 1024,
+			Disk: 25 * 1024 * 1024 * 1024,
+		},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(Monthly, &DummyCurrency{name: "Credits", short: "CR", value: 4})
+			return pl
+		}(),
+	},
+
+	&DummyListing{
+		IDVal:    9,
+		TitleStr: "Blockchain Solidity Playground",
+		DescStr:  "Smart contract development VM with Foundry, Hardhat, and test networks included.",
+		Access:   Public,
+		HardwareSpec: &DummyHardwareSpec{
+			CPU:  2,
+			RAM:  4 * 1024 * 1024 * 1024,
+			Disk: 30 * 1024 * 1024 * 1024,
+		},
+		PricingList: func() *DummyPricingList {
+			pl := NewDummyPricingList()
+			pl.AddPricing(OneTime, &DummyCurrency{name: "USD", short: "USD", value: 14})
+			pl.AddPricing(Monthly, &DummyCurrency{name: "USD", short: "USD", value: 4})
 			return pl
 		}(),
 	},
 }
 
 var userListingMap = map[int][]int{
-	1: {0, 1},
+	1: {0, 1, 2, 3, 4, 5},
 	2: {},
 	3: {},
 }

@@ -1,7 +1,7 @@
 interface Price {
     name: string,
     value: number,
-    currency_short: string
+    short: string
 }
 
 interface PriceTagProps {
@@ -12,7 +12,7 @@ interface PriceTagProps {
 
 export function PriceTag({ prices, rate, onClick }: PriceTagProps) {
     const totalValue = prices.reduce((sum, p) => sum + p.value, 0);
-    const currency = prices[0]?.currency_short || "";
+    const currency = prices[0]?.short || "";
 
     return (
         <div
