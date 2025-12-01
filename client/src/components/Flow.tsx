@@ -39,7 +39,7 @@ export function Flow({ children }: FlowProps) {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -50 }}
                             transition={{ duration: 0.3 }}
-                            className="w-full h-full max-w-5xl"
+                            className="w-full h-full"
                         >
                             {child}
                         </motion.div>
@@ -74,7 +74,7 @@ interface FlowTopBackWrapperProps {
 export function FlowTopBackWrapper({ children }: FlowTopBackWrapperProps) {
     return <div className="space-y-4 flex flex-col w-full h-full">
         <FlowSwitch
-            className="my-3 py-2 flex flex-row items-center hover:bg-slate-200 dark:hover:bg-gray-700 transition-all"
+            className="my-3 py-2 flex text-slate-800 dark:text-slate-100 flex-row items-center hover:bg-slate-200 dark:hover:bg-gray-700 transition-all"
             direction="back"
         >
             <ChevronLeft size={32} />

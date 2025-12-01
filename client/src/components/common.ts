@@ -5,3 +5,7 @@ export interface HasChildren {
 export interface Clickable {
     onClick: () => void
 }
+
+export interface HasClassname {
+    className?: string
+}

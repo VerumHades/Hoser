@@ -10,7 +10,7 @@ import { UserSession } from "./components/UserSession";
 function App() {
     return (
         <UserSession>
-            <div className="absolute inset-0 max-h-screen max-w-screen">
+            <div className="absolute inset-0 max-h-screen max-w-screen bg-slate-50 dark:bg-gray-950">
                 <Router>
                     <Routes>
                         <Route path="/login" element={<LoginForm />} />

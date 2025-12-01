@@ -115,16 +115,16 @@ export default function PublicListingSearch() {
 
     const queryBuilder = (query: string) => { return { q: query } }
 
-    return <div className="w-full h-full justify-center flex flex-colitems-center bg-slate-100 dark:bg-slate-950">
+    return <div className="w-full h-full max-w-7xl justify-center flex flex-col items-center">
         <Flow>
             <Query
                 bodyBuilder={(items?: SearchItem[]) =>
-                    <Table>
+                    <Table className="overflow-y-auto">
                         {items && items.map(item => <FlowSwitch direction="next">
                             <TableRow onClick={() => setItem(item)}>
                                 <div className="flex flex-col justify-between h-full">
-                                    <h3 className="font-semibold text-lg">{item.title}</h3>
-                                    <p className="text-xs mt-1 text-slate-500">By {item.author}</p>
+                                    <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-300">{item.title}</h3>
+                                    <p className="text-xs mt-1 text-slate-700 dark:text-slate-500">By {item.author}</p>
                                 </div>
                                 <p className="text-sm text-slate-500">{item.description}</p>
                                 <PriceDisplay item={item}></PriceDisplay>

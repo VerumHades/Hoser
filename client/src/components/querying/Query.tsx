@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import debounce from "lodash.debounce"
 import LoadingIcon from "../prefabs/LoadingIcon";
 import {Search} from "lucide-react"
+import type { HasClassname } from "../common";
 
-interface QueryProps<T> {
+interface QueryProps<T> extends HasClassname{
     children?: React.ReactNode,
     bodyBuilder: (item?: T) => React.ReactElement,
     queryBuilder: (query: string) => Record<string,string>,
@@ -12,7 +13,7 @@ interface QueryProps<T> {
 }
 
 const DEBOUNCE_DELAY = 300;
-export default function Query<T>({ bodyBuilder, endpoint, queryBuilder, debounceDelay, children }: QueryProps<T>) {
+export default function Query<T>({ bodyBuilder, endpoint, queryBuilder, debounceDelay, children, className}: QueryProps<T>) {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<T | undefined>(undefined);
     const [loading, setLoading] = useState(false);
@@ -51,14 +52,16 @@ export default function Query<T>({ bodyBuilder, endpoint, queryBuilder, debounce
     }, [query, fetchResultsDebounced]);
 
     return (
-        <div className="relative flex flex-col p-6 w-full h-full ">
-            <div className="flex flex-col sm:flex-row gap-3 items-center w-full mb-3">
+        <div className={"relative flex flex-col p-6 w-full h-full " + className}>
+            <div className="flex flex-col sm:flex-row gap-3 items-center w-full mb-3 
+                dark:bg-slate-800 px-5 shadow-md">
                 <input
                     type="text"
                     placeholder="Query..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="flex-1 px-6 py-3 focus:outline-none sm:w-auto sm:flex-1 w-full text-gray-900 dark:text-gray-100"
+                    className="flex-1 px-6 py-3 focus:outline-none sm:w-auto sm:flex-1 w-full 
+                                text-gray-900 dark:text-gray-100 transition-all dark:focus:bg-slate-600 focus:bg-slate-200"
                 />
                 <Search className="text-gray-900 dark:text-gray-100" />
                 {children}
