@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 import React from "react";
 import { createContext, useContext, useState } from "react";
+import type { Clickable } from "../common";
 
 interface FlowContextType {
     page: number,
@@ -50,18 +51,18 @@ export function Flow({ children }: FlowProps) {
     );
 }
 
-interface FlowSwitchProps {
+interface FlowSwitchProps extends Clickable {
     children?: React.ReactNode
     direction: string
-    className?: string
+    className?: string,
 }
 
-export function FlowSwitch({ direction, children, className }: FlowSwitchProps) {
+export function FlowSwitch({ direction, children, className, onClick }: FlowSwitchProps) {
     const { next, prev } = useContext(FlowContext);
     const action = direction === "next" ? next : prev;
 
     return (
-        <div onClick={action} className={className}>
+        <div onClick={() => {onClick?.(); action()}} className={className}>
             {children}
         </div>
     );

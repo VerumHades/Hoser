@@ -1,4 +1,4 @@
-import MainNavbar from "./MainNavbar"
+import MainNavbar from "../navigation/MainNavbar"
 
 interface WithNavbarProps {
     children: React.ReactNode

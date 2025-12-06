@@ -60,6 +60,8 @@ const (
 type Listing interface {
 	UUID() string
 
+	Author() User
+
 	Title() string
 	Description() string
 	AccessMode() ListingAccessMode
@@ -80,7 +82,7 @@ type StateSpecification interface {
 // Rental is an instance of a user renting a listing.
 type Rental interface {
 	UUID() string
-	SourceListingUUID() string
+	SourceListing() Listing
 	HardwareSetup() HardwareSpecification
 	Specification() StateSpecification
 }

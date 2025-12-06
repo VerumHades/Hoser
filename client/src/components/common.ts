@@ -3,7 +3,7 @@ export interface HasChildren {
 }
 
 export interface Clickable {
-    onClick: () => void
+    onClick?: () => void
 }
 
 export interface HasClassname {

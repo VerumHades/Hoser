@@ -2,8 +2,8 @@
 import React from "react";
 import { Menu, X } from "lucide-react"; // Lucide icons
 import { motion } from "framer-motion";
-import Logo from "./prefabs/Logo";
-import { UserSessionDisplay } from "./UserSession";
+import Logo from "../prefabs/Logo";
+import { UserSessionDisplay } from "../restriction/UserSession";
 
 
 interface NavbarProps {

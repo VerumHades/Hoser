@@ -44,7 +44,7 @@ export default function SelectBox({
             {open ?
                 <Prompt cancel={
                     <button
-                        onClick={(e) => { setOpen(false); e }}
+                        onClick={() => { setOpen(false); }}
                         className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded
                         dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
                         Cancel

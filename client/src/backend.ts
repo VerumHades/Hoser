@@ -1,7 +1,7 @@
 import backend_constants from "./backend_constants";
 
-async function backend_request(endpoint: string, type: string, body?: any): Promise<APIResult> {
-    let request_body: RequestInit = {
+async function backend_request<T>(endpoint: string, type: string, body?: unknown): Promise<APIResult<T>> {
+    const request_body: RequestInit = {
         method: type,
         headers: {
             "Content-Type": "application/json",
@@ -18,7 +18,7 @@ async function backend_request(endpoint: string, type: string, body?: any): Prom
         json = await response.json();
     }
     catch (err) {
-
+        console.error(err)
     }
 
     return {
@@ -81,7 +81,7 @@ export interface Listing {
     description?: string;
     author: string;
     accessMode?: number;
-    prices?: PricingEntry[];
+    prices: PricingEntry[];
     hardware?: HardwareUpdate;
 }
 
@@ -90,16 +90,16 @@ export type User = {
     isDeveloper: boolean
 }
 
-interface APIResult {
+interface APIResult<T> {
     ok: boolean,
     response: Response,
-    json: any
+    json: T
 }
 
 export const API = {
     user: {
         async getData(): Promise<User | undefined> {
-            let response = await backend_request("/user/data", "GET");
+            const response = await backend_request("/user/data", "GET");
             return response.ok ? (response.json as User) : undefined
         },
         async rentListing(id: string) {
@@ -108,8 +108,11 @@ export const API = {
     },
     developer: {
         listing: {
-            async delete(id: string): Promise<APIResult> {
-                return await backend_request("/developer/listing", "DELETE", { id });
+            async get(id: string): Promise<APIResult<Listing>> {
+                return await backend_request("/developer/listing", "GET", {id});
+            },
+            async delete(id: string): Promise<APIResult<unknown>> {
+                return await backend_request("/developer/listing", "DELETE", {id});
             },
             async update(data: ListingRequest) {
                 return await backend_request("/developer/listing", "PUT", data)

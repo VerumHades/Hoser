@@ -3,7 +3,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import { useNavigate } from "react-router-dom";
 
 import backend_constants from "../backend_constants";
-import { useUserSession } from "../components/UserSession";
+import { useUserSession } from "../components/restriction/UserSession";
 
 export default function LoginForm() {
     const [username, setUsername] = useState<string>("");

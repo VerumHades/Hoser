@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -9,10 +10,8 @@ import (
 // =================== TYPES ===================
 
 type ApiUserRental struct {
-	ID              string `json:"id"`
-	Title           string `json:"title"`
-	Description     string `json:"description"`
-	SourceListingID string `json:"sourceListingID"`
+	ApiPublicListing
+	ID string `json:"id"`
 }
 
 type RentalRequest struct {
@@ -36,9 +35,10 @@ func (app *App) UserRentalsHandler(c echo.Context) error {
 	rentals := make([]ApiUserRental, len(dbRentals))
 	for i, rental := range dbRentals {
 		rentals[i] = ApiUserRental{
-			ID:              rental.UUID(),
-			SourceListingID: rental.SourceListingUUID(),
+			ID:               rental.UUID(),
+			ApiPublicListing: ApiPublicListing{app.MakeApiDeveloperListing(rental.SourceListing()).ApiListingBase},
 		}
+		fmt.Println(rentals[i])
 	}
 
 	return c.JSON(http.StatusOK, rentals)

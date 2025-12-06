@@ -1,8 +1,8 @@
 import { useState } from "react";
 import backend_constants from "../backend_constants";
-import { PriceTag } from "../components/pricing/PriceTag";
+import { PriceTag } from "../user/developer/prices/PriceTag";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
-import { Flow, FlowSwitch, FlowTopBackWrapper } from "../components/Flow";
+import { Flow, FlowSwitch, FlowTopBackWrapper } from "../components/navigation/Flow";
 import { API, BillingFrequency, BillingFrequencyName } from "../backend";
 import { useNavigate } from "react-router-dom";
 import Query from "../components/querying/Query";
@@ -120,8 +120,8 @@ export default function PublicListingSearch() {
             <Query
                 bodyBuilder={(items?: SearchItem[]) =>
                     <Table className="overflow-y-auto">
-                        {items && items.map(item => <FlowSwitch direction="next">
-                            <TableRow onClick={() => setItem(item)}>
+                        {items && items.map(item => <FlowSwitch direction="next" onClick={() => setItem(item)}>
+                            <TableRow>
                                 <div className="flex flex-col justify-between h-full">
                                     <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-300">{item.title}</h3>
                                     <p className="text-xs mt-1 text-slate-700 dark:text-slate-500">By {item.author}</p>

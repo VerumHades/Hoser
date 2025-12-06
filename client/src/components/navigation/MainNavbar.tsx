@@ -2,9 +2,9 @@
 import React, { createContext, useContext, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react"; // Lucide icons
-import Logo from "./Logo";
-import { UserSessionDisplay, useUserSession } from "../UserSession";
+import Logo from "../prefabs/Logo";
 import { AnimatePresence, motion } from "framer-motion";
+import { UserSessionDisplay, useUserSession } from "../restriction/UserSession";
 
 interface NavigationLinkProps {
     to: string,

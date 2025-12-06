@@ -17,6 +17,8 @@ func main() {
 	// ---------------------------
 	runningConfiguration := configuration.Load()
 
+	database.Init()
+
 	app := &handlers.App{
 		RunningConfiguration: &runningConfiguration,
 		DatabaseInteractor:   &database.DummyStore{},
@@ -54,7 +56,7 @@ func main() {
 	dev := e.Group("/developer/listing")
 	dev.Use(app.DeveloperOnlyMiddleware)
 
-	dev.GET("", app.DeveloperListingsHandler)
+	e.GET("/developer/listings", app.DeveloperListingsHandler)
 	dev.POST("", app.DeveloperAddListingHandler)
 	dev.PUT("", app.DeveloperAlterListingHandler)
 	dev.DELETE("", app.DeveloperDeleteListingHandler)

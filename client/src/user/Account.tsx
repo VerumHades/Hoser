@@ -1,14 +1,16 @@
 // src/components/AccountPage.tsx
 import React from "react";
 import backend_constants from "../backend_constants";
-import UserRentalList from "./Rentals";
-import RequireLogin from "../components/RequireLogin";
-import Dashboard, { Page } from "../components/Dashboard";
+
 import { BarChart3, Images, ShoppingCart, User as UserIcon } from "lucide-react";
 import Logo from "../components/prefabs/Logo";
-import { useUserSession } from "../components/UserSession";
-import DeveloperListings from "../developer/DeveloperListings";
+
 import { useNavigate } from "react-router-dom";
+import RequireLogin from "../components/restriction/RequireLogin";
+import Dashboard, { Page } from "../components/navigation/Dashboard";
+import UserRentalList from "./rentals/Rentals";
+import DeveloperListings from "./developer/DeveloperListings";
+import { useUserSession } from "../components/restriction/UserSession";
 
 const AccountPage: React.FC = () => {
     const session = useUserSession()

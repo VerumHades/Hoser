@@ -1,13 +1,13 @@
 // src/components/DashboardApp.tsx
 import { useState } from "react";
-import backend_constants from "../backend_constants";
+import backend_constants from "../../backend_constants";
 import DeveloperListingDisplay from "./DeveloperListing";
-import { API, ListingAccessModes, type Listing } from "../backend";
-import ListElement from "../components/prefabs/ListElement";
-import { Flow, FlowSwitch } from "../components/Flow";
-import Query from "../components/querying/Query";
-import Table from "../components/table/Table";
-import TableRow from "../components/table/TableRow";
+import { API, type Listing } from "../../backend";
+
+import { Flow, FlowSwitch } from "../../components/navigation/Flow";
+import Query from "../../components/querying/Query";
+import Table from "../../components/table/Table";
+import TableRow from "../../components/table/TableRow";
 import { Earth, EarthLock } from "lucide-react";
 
 
@@ -27,8 +27,8 @@ export default function DeveloperListings() {
                 bodyBuilder={(listings?: Listing[]) =>
                     <Table>
                         {listings && listings.map((listing) =>
-                            <FlowSwitch direction="next">
-                                <TableRow onClick={() => setListing(listing)}>
+                            <FlowSwitch direction="next" onClick={() => setListing(listing)}>
+                                <TableRow>
                                     <h3 className="font-semibold text-lg">{listing.title}</h3>
                                     <p className="text-sm text-gray-600">{listing.description}</p>
                                     <div className="flex flex-row justify-between">
@@ -40,7 +40,7 @@ export default function DeveloperListings() {
                     </Table>
                 }
                 queryBuilder={queryBuilder}
-                endpoint={`${backend_constants.address}/developer/listing`}
+                endpoint={`${backend_constants.address}/developer/listings`}
             />
             {listing ? <DeveloperListingDisplay listing={listing} onShouldClose={() => setListing(undefined)}></DeveloperListingDisplay> : <></>}
         </Flow>

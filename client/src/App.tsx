@@ -1,11 +1,10 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LoginForm from "./user/LoginForm";
-import Home from "./user/Home";
-import AccountPage from "./user/Account";
-import DeveloperJoin from "./developer/DeveloperJoin";
 import PublicListingSearch from "./explore/PublicListingSearch";
-import WithNavbar from "./components/prefabs/WithNavbar";
-import { UserSession } from "./components/UserSession";
+import WithNavbar from "./components/navigation/WithNavbar";
+import { Home } from "lucide-react";
+import { UserSession } from "./components/restriction/UserSession";
+import AccountPage from "./user/Account";
 
 function App() {
     return (
@@ -15,9 +14,8 @@ function App() {
                     <Routes>
                         <Route path="/login" element={<LoginForm />} />
                         <Route path="/explore/listing" element={<WithNavbar><PublicListingSearch /></WithNavbar>} />
-                        <Route path="/account" element={<AccountPage />} />
-                        <Route path="/developer/join" element={<DeveloperJoin />} />
                         <Route path="/" element={<WithNavbar><Home /></WithNavbar>} />
+                        <Route path="/account" element={<AccountPage></AccountPage>} />
                     </Routes>
                 </Router>
             </div>

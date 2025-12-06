@@ -1,8 +1,9 @@
 import { UserIcon } from "lucide-react";
 import React, { useEffect } from "react";
 import { createContext, useContext, useState } from "react";
-import { API, type User } from "../backend";
+
 import { NavLink } from "react-router-dom";
+import { API, type User } from "../../backend";
 
 interface UserSessionType {
     user: User | undefined,

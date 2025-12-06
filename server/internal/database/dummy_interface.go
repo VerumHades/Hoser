@@ -73,16 +73,16 @@ func (u *DummyUser) Rentals() ([]Rental, error) {
 
 func (u *DummyUser) CreateListing(title string, description string) (Listing, error) {
 	listing := &DummyListing{
-		IDVal:    len(globalListings),
-		TitleStr: title,
-		DescStr:  description,
-		Access:   Private,
+		IDVal:      len(globalListings),
+		TitleStr:   title,
+		DescStr:    description,
+		Access:     Private,
+		AuthorUser: u,
 	}
 	globalListings = append(globalListings, listing)
 	userListingMap[u.IDVal] = append(userListingMap[u.IDVal], listing.IDVal)
 	return listing, nil
 }
-
 func (u *DummyUser) Listing(uuid string) (Listing, error) {
 	index, err := uuidToIndex(uuid)
 	if err != nil {
@@ -146,13 +146,14 @@ func (u *DummyUser) Rent(listingUUID string) error {
 	}
 
 	rental := &DummyRental{
-		ID:                 len(dummyRentals[u.IDVal]) + 100,
-		_SourceListingUUID: listing.UUID(),
-		Title:              listing.Title(),
-		Description:        listing.Description(),
+		ID:             len(dummyRentals[u.IDVal]) + 100,
+		_SourceListing: listing,
 
-		Hardware:  &DummyHardwareSpec{},       // optional dummy hardware
-		StateSpec: &DummyStateSpecification{}, // new state spec
+		Title:       listing.Title(),
+		Description: listing.Description(),
+
+		Hardware:  &DummyHardwareSpec{},
+		StateSpec: &DummyStateSpecification{},
 	}
 
 	dummyRentals[u.IDVal] = append(dummyRentals[u.IDVal], rental)
@@ -259,9 +260,10 @@ type DummyListing struct {
 	DescStr  string
 	Access   ListingAccessMode
 
-	HardwareSpec *DummyHardwareSpec
+	AuthorUser *DummyUser
 
-	PricingList *DummyPricingList
+	HardwareSpec *DummyHardwareSpec
+	PricingList  *DummyPricingList
 }
 
 func (l *DummyListing) UUID() string                  { return strconv.Itoa(l.IDVal) }
@@ -274,6 +276,9 @@ func (l *DummyListing) SetDescription(d string) error { l.DescStr = d; return ni
 func (l *DummyListing) SetAccessMode(m ListingAccessMode) error {
 	l.Access = m
 	return nil
+}
+func (l *DummyListing) Author() User {
+	return l.AuthorUser
 }
 
 func (l *DummyListing) Pricing() PricingList {
@@ -308,10 +313,11 @@ func (s *DummyStateSpecification) SetRunning(state bool) error {
 //
 
 type DummyRental struct {
-	ID                 int
-	_SourceListingUUID string
-	Title              string
-	Description        string
+	ID             int
+	_SourceListing Listing
+
+	Title       string
+	Description string
 
 	Hardware  *DummyHardwareSpec
 	StateSpec *DummyStateSpecification
@@ -321,10 +327,9 @@ func (r *DummyRental) UUID() string {
 	return strconv.Itoa(r.ID)
 }
 
-func (r *DummyRental) SourceListingUUID() string {
-	return r._SourceListingUUID
+func (r *DummyRental) SourceListing() Listing {
+	return r._SourceListing
 }
-
 func (r *DummyRental) HardwareSetup() HardwareSpecification {
 	return r.Hardware
 }
@@ -550,8 +555,8 @@ var userListingMap = map[int][]int{
 var dummyRentals = map[int][]Rental{
 	1: {
 		&DummyRental{
-			ID:                 11,
-			_SourceListingUUID: "0",
+			ID:             11,
+			_SourceListing: globalListings[0],
 			Hardware: &DummyHardwareSpec{
 				CPU:  2,
 				RAM:  4 * 1024 * 1024 * 1024,  // 4GB
@@ -562,8 +567,8 @@ var dummyRentals = map[int][]Rental{
 			},
 		},
 		&DummyRental{
-			ID:                 12,
-			_SourceListingUUID: "3",
+			ID:             12,
+			_SourceListing: globalListings[3],
 			Hardware: &DummyHardwareSpec{
 				CPU:  4,
 				RAM:  8 * 1024 * 1024 * 1024,  // 8GB
@@ -577,8 +582,8 @@ var dummyRentals = map[int][]Rental{
 
 	2: {
 		&DummyRental{
-			ID:                 21,
-			_SourceListingUUID: "2",
+			ID:             21,
+			_SourceListing: globalListings[2],
 			Hardware: &DummyHardwareSpec{
 				CPU:  8,
 				RAM:  16 * 1024 * 1024 * 1024, // 16GB
@@ -592,8 +597,8 @@ var dummyRentals = map[int][]Rental{
 
 	3: {
 		&DummyRental{
-			ID:                 31,
-			_SourceListingUUID: "4",
+			ID:             31,
+			_SourceListing: globalListings[4],
 			Hardware: &DummyHardwareSpec{
 				CPU:  2,
 				RAM:  2 * 1024 * 1024 * 1024,  // 2GB
@@ -676,6 +681,29 @@ func (d *DummyStore) QueryPublicListings(opts *ListingQueryOptions) ([]Listing, 
 	}
 
 	return results, nil
+}
+
+func Init() {
+	for userID, listings := range userListingMap {
+		var user *DummyUser
+		for _, u := range dummyUsers {
+			if u.IDVal == userID {
+				user = u
+				break
+			}
+		}
+		if user == nil {
+			continue
+		}
+
+		for _, idx := range listings {
+			if idx >= 0 && idx < len(globalListings) {
+				if dl, ok := globalListings[idx].(*DummyListing); ok {
+					dl.AuthorUser = user
+				}
+			}
+		}
+	}
 }
 
 //

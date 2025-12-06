@@ -1,7 +1,7 @@
 // src/components/RequireLogin.tsx
 import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import type { User } from "../backend";
+import type { User } from "../../backend";
 import { useUserSession } from "./UserSession";
 
 interface RequireLoginProps {

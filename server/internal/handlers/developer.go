@@ -9,14 +9,22 @@ import (
 )
 
 // =================== TYPES ===================
-type ApiDeveloperListing struct {
+type ApiListingBase struct {
 	ID          string            `json:"id"`
 	Title       *string           `json:"title,omitempty"`
 	Description *string           `json:"description,omitempty"`
-	AccessMode  *int              `json:"accessMode,omitempty"`
 	Prices      []ApiPricingEntry `json:"prices"`
 	Hardware    *HardwareUpdate   `json:"hardware,omitempty"`
 	Author      string            `json:"author"`
+}
+
+type ApiDeveloperListing struct {
+	ApiListingBase
+	AccessMode *int `json:"accessMode,omitempty"`
+}
+
+type ApiPublicListing struct {
+	ApiListingBase
 }
 
 type ApiPricingEntry struct {
@@ -53,7 +61,7 @@ type HardwareUpdate struct {
 
 // =================== HELPERS ===================
 
-func (app *App) makeApiDeveloperListing(author string, l database.Listing) ApiDeveloperListing {
+func (app *App) MakeApiDeveloperListing(l database.Listing) ApiDeveloperListing {
 	// Hardware
 	hwSpec := l.HardwareRequirements()
 	cpu := hwSpec.CPUCount()
@@ -69,13 +77,20 @@ func (app *App) makeApiDeveloperListing(author string, l database.Listing) ApiDe
 	description := l.Description()
 
 	return ApiDeveloperListing{
-		ID:          l.UUID(),
-		Author:      author,
-		Title:       &title,
-		Description: &description,
-		AccessMode:  &access,
-		Prices:      priceEntries,
-		Hardware:    hardware,
+		ApiListingBase: ApiListingBase{
+			ID:          l.UUID(),
+			Author:      l.Author().Username(),
+			Title:       &title,
+			Description: &description,
+			Prices:      priceEntries,
+			Hardware:    hardware,
+		},
+		AccessMode: &access,
+	}
+}
+func DeveloperToPublicListing(dev ApiDeveloperListing) ApiPublicListing {
+	return ApiPublicListing{
+		ApiListingBase: dev.ApiListingBase,
 	}
 }
 
@@ -90,6 +105,20 @@ func parseAccessMode(i int) (database.ListingAccessMode, error) {
 
 // =================== HANDLERS ===================
 
+func (app *App) PublicGetListingHandler(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "listing id required")
+	}
+
+	listing, err := app.DatabaseInteractor.GetPublicListing(id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
+	}
+
+	return c.JSON(http.StatusOK, app.MakeApiDeveloperListing(listing).ApiListingBase)
+}
+
 // DeveloperListingsHandler returns all listings for the authenticated developer
 func (app *App) DeveloperListingsHandler(c echo.Context) error {
 	user, err := app.GetUserFromContext(c)
@@ -103,10 +132,9 @@ func (app *App) DeveloperListingsHandler(c echo.Context) error {
 	}
 
 	listings := make([]ApiDeveloperListing, len(dbListings))
-	username := user.Username()
 
 	for i, l := range dbListings {
-		listings[i] = app.makeApiDeveloperListing(username, l)
+		listings[i] = app.MakeApiDeveloperListing(l)
 	}
 
 	return c.JSON(http.StatusOK, listings)
@@ -129,7 +157,7 @@ func (app *App) DeveloperAddListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
 	}
 
-	return c.JSON(http.StatusOK, app.makeApiDeveloperListing(user.Username(), listing))
+	return c.JSON(http.StatusOK, app.MakeApiDeveloperListing(listing))
 }
 
 // DeveloperAlterListingHandler modifies an existing listing
@@ -183,7 +211,7 @@ func (app *App) DeveloperAlterListingHandler(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, app.makeApiDeveloperListing(user.Username(), listing))
+	return c.JSON(http.StatusOK, app.MakeApiDeveloperListing(listing))
 }
 
 type AddPricingRequest struct {
