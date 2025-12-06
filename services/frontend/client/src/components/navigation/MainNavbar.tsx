@@ -1,10 +1,10 @@
 // src/components/Navbar.tsx
 import React, { createContext, useContext, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { Menu, X } from "lucide-react"; // Lucide icons
 import Logo from "../prefabs/Logo";
 import { AnimatePresence, motion } from "framer-motion";
-import { UserSessionDisplay, useUserSession } from "../restriction/UserSession";
+import { UserSessionDisplay } from "../restriction/UserSession";
 
 interface NavigationLinkProps {
     to: string,
@@ -23,26 +23,6 @@ function NavigationLink({ children, to, onClick, className }: NavigationLinkProp
     </NavLink>
 }
 
-interface DevLinkProps {
-    onClick?: () => void,
-    className?: string,
-    children?: React.ReactNode
-}
-
-function DeveloperLink({ className, children, onClick }: DevLinkProps) {
-    const navigate = useNavigate()
-    const { user } = useUserSession()
-    const go = () => {
-        onClick?.()
-        if (user?.isDeveloper) {
-            navigate("/account", { state: { dashpage: "Listings" } })
-            return
-        }
-
-        navigate("/developer/join")
-    }
-    return <div onClick={go} className={className}>{children}</div>
-}
 
 interface NavbarProps {
     children?: React.ReactNode,
@@ -62,7 +42,7 @@ export function useNavbar() {
     return ctx;
 }
 
-function MainNavbar({ children, className }: NavbarProps) {
+function MainNavbar({ children }: NavbarProps) {
     const [open, setOpen] = useState(false);
 
     const close = () => {

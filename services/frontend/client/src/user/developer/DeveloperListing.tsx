@@ -43,8 +43,13 @@ function listingReducer(state: Listing, action: ListingAction): Listing {
         case "updatePrice":
             return {
                 ...state,
-                prices: state.prices.map((p) =>
-                    p.id === action.priceId ? { ...p, currency: action.currency } : p
+                prices: state.prices.map((p) => {
+                    if(p.id == action.priceId && action.currency != null) {
+                        p.currency = action.currency
+                        return p;
+                    }
+                    return p;
+                }
                 ),
             };
         case "deletePrice":

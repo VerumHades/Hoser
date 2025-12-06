@@ -26,12 +26,12 @@ def spawn_function_shell(function):
 # Example usage
 def start_go_server():
     print("A")
-    os.chdir("server")
+    os.chdir(os.path.join("services","api"))
     os.system("air")
     input()
 
 def start_vite():
-    os.chdir("client")
+    os.chdir(os.path.join("services", "frontend", "client"))
     os.system("npm run dev")
     input()
 

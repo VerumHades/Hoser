@@ -1,24 +1,24 @@
 # Logs
-client/logs
-client/*.log
-client/npm-debug.log*
-client/yarn-debug.log*
-client/yarn-error.log*
-client/pnpm-debug.log*
-client/lerna-debug.log*
+services/frontend/client/logs
+services/frontend/client/*.log
+services/frontend/client/npm-debug.log*
+services/frontend/client/yarn-debug.log*
+services/frontend/client/yarn-error.log*
+services/frontend/client/pnpm-debug.log*
+services/frontend/client/lerna-debug.log*
 
-client/node_modules
-client/dist
-client/dist-ssr
-client/*.local
+services/frontend/client/node_modules
+services/frontend/client/dist
+services/frontend/client/dist-ssr
+services/frontend/client/*.local
 
 # Editor directories and files
-client/.vscode/*
-client/!.vscode/extensions.json
-client/.idea
-client/.DS_Store
-client/*.suo
-client/*.ntvs*
-client/*.njsproj
-client/*.sln
-client/*.sw?
+services/frontend/client/.vscode/*
+services/frontend/client/!.vscode/extensions.json
+services/frontend/client/.idea
+services/frontend/client/.DS_Store
+services/frontend/client/*.suo
+services/frontend/client/*.ntvs*
+services/frontend/client/*.njsproj
+services/frontend/client/*.sln
+services/frontend/client/*.sw?

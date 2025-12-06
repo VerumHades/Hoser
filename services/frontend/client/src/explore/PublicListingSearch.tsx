@@ -3,8 +3,8 @@ import backend_constants from "../backend_constants";
 import { PriceTag } from "../user/developer/prices/PriceTag";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
 import { Flow, FlowSwitch, FlowTopBackWrapper } from "../components/navigation/Flow";
-import { API, BillingFrequency, BillingFrequencyName } from "../backend";
-import { useNavigate } from "react-router-dom";
+import { BillingFrequency, BillingFrequencyName } from "../backend";
+//import { useNavigate } from "react-router-dom";
 import Query from "../components/querying/Query";
 import TableRow from "../components/table/TableRow";
 import Table from "../components/table/Table";
@@ -82,11 +82,11 @@ interface PublicListingDisplayProps {
 
 
 function PublicListingDisplay({ item }: PublicListingDisplayProps) {
-    const navigate = useNavigate()
+    /*const navigate = useNavigate()
     const handleRent = () => {
         API.user.rentListing("" + item.id)
         navigate("/account", { state: { dashpage: "My Rentals" } })
-    }
+    }*/
 
     return (
         <div className="w-full h-full flex flex-col p-6">

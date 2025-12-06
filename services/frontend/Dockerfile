@@ -3,7 +3,6 @@
 # --------------------------
 FROM node:20-alpine AS client-builder
 
-# Set working directory
 WORKDIR /app
 
 # Copy package files and install dependencies
@@ -22,36 +21,34 @@ RUN npm run build
 # --------------------------
 FROM golang:1.25-alpine AS go-builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy Go modules files and download dependencies
-COPY server/go.mod server/go.sum ./
+# Copy Go module files and download dependencies
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the Go server source code
-COPY ./server/ ./
+# Copy Go source code
+COPY ./ ./
 
-# Copy the built client from the previous stage
+# Copy built client
 COPY --from=client-builder /app/dist ./client/dist
 
 # Build the Go server binary
-RUN go build server .
+RUN go build -o server main.go
 
 # --------------------------
 # Stage 3: Final minimal image
 # --------------------------
 FROM alpine:3.18
 
-# Install CA certificates (for HTTPS, etc.)
-# RUN apk add --no-cache ca-certificates
-
-# Set working directory
 WORKDIR /app
 
-# Copy the Go server binary and client
-COPY --from=go-builder /app/server ./
+# Copy Go binary and client dist
+COPY --from=go-builder /app/server ./server
 COPY --from=go-builder /app/client/dist ./client/dist
+
+# Optional: copy .env file if present
+# COPY .env ./
 
 # Expose port
 EXPOSE 8080

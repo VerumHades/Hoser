@@ -2,7 +2,7 @@
 import { useState } from "react";
 import backend_constants from "../../backend_constants";
 import DeveloperListingDisplay from "./DeveloperListing";
-import { API, type Listing } from "../../backend";
+import { type Listing } from "../../backend";
 
 import { Flow, FlowSwitch } from "../../components/navigation/Flow";
 import Query from "../../components/querying/Query";
@@ -16,10 +16,10 @@ export default function DeveloperListings() {
 
     const queryBuilder = (query: string) => { return { q: query } }
 
-    const createListing = async () => {
+    /*const createListing = async () => {
         const response = await API.developer.listing.create()
         if (response.ok) setListing(response.json)
-    }
+    }*/
 
     return <div className="w-full h-full flex flex-col items-center min-h-0">
         <Flow>

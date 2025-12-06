@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { DollarSign } from "lucide-react";
-import type { CurrencyRequest } from "../backend";
+import type { CurrencyRequest } from "../../../backend";
 
 interface CurrencyInputProps {
     value?: CurrencyRequest;

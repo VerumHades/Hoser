@@ -1,6 +1,6 @@
 // src/components/RequireLogin.tsx
-import React, { useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import React from "react";
+import { NavLink } from "react-router-dom";
 import type { User } from "../../backend";
 import { useUserSession } from "./UserSession";
 
@@ -11,7 +11,7 @@ interface RequireLoginProps {
     redirect?: string
 }
 
-const RequireLogin: React.FC<RequireLoginProps> = ({ children, condition, no_access_element, redirect }) => {
+const RequireLogin: React.FC<RequireLoginProps> = ({ children, condition, no_access_element }) => {
     const {user} = useUserSession()
 
     const default_required_login_component = <>

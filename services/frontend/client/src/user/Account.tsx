@@ -36,7 +36,7 @@ const AccountPage: React.FC = () => {
                                 Account Details
                             </h1>
                             <p className="mb-2 text-gray-700 dark:text-gray-300">
-                                <strong>Username:</strong> {session.user?.Username}
+                                <strong>Username:</strong> {session.user?.username}
                             </p>
                             <button
                                 onClick={handleLogout}
