@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"api/internal/database"
+	"common/pkg/configuration"
 	"net/http"
-	"server/internal/configuration"
-	"server/internal/database"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"

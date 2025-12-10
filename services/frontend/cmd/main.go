@@ -1,8 +1,9 @@
 package main
 
 import (
+	"common/pkg/configuration"
 	"fmt"
-	"frontend/internal/configuration"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -11,8 +12,10 @@ import (
 )
 
 func main() {
-	// Load configuration
-	config := configuration.Load()
+	config, err := configuration.Load[configuration.Configuration]()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	e := echo.New()
 

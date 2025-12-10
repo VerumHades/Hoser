@@ -34,7 +34,7 @@ COPY ./ ./
 COPY --from=client-builder /app/dist ./client/dist
 
 # Build the Go server binary
-RUN go build -o server main.go
+RUN go build -o server ./cmd/main.go
 
 # --------------------------
 # Stage 3: Final minimal image

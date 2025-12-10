@@ -1,12 +1,13 @@
 package main
 
 import (
+	"api/internal/database"
+	"api/internal/handlers"
+	"common/pkg/configuration"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
-	"server/internal/configuration"
-	"server/internal/database"
-	"server/internal/handlers"
 
 	"github.com/labstack/echo/v4"
 )
@@ -15,14 +16,17 @@ func main() {
 	// ---------------------------
 	// Load configuration
 	// ---------------------------
-	runningConfiguration := configuration.Load()
+	runningConfiguration, err := configuration.Load[configuration.Configuration]()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	database.Init()
 
 	app := &handlers.App{
 		RunningConfiguration: &runningConfiguration,
 		DatabaseInteractor:   &database.DummyStore{},
-		JWTSecret:            []byte(runningConfiguration.SessionSecret),
+		JWTSecret:            []byte(runningConfiguration.JWTSecret),
 	}
 
 	e := echo.New()

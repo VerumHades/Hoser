@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"api/internal/database"
 	"fmt"
 	"net/http"
-	"server/internal/database"
 
 	"github.com/labstack/echo/v4"
 )
