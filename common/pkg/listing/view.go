@@ -1,7 +1,7 @@
 package listing
 
 import (
-	"common/pkg/currency"
+	"common/pkg/billing/currency"
 	"common/pkg/hardware"
 )
 

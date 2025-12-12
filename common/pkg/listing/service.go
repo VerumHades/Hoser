@@ -1,7 +1,7 @@
 package listing
 
 import (
-	"common/pkg/currency"
+	"common/pkg/billing/currency"
 	"common/pkg/util"
 )
 
@@ -76,4 +76,30 @@ func (s *ListingService) GetListingView(listingID string) (*ListingView, error) 
 	}
 
 	return listing.ToView(), nil
+}
+
+// ListByAuthor returns all listings authored by the given user ID as views.
+func (s *ListingService) ListByAuthor(authorID string) ([]*ListingView, error) {
+	listings, err := s.repo.ListByAuthor(authorID)
+	if err != nil {
+		return nil, err
+	}
+
+	views := make([]*ListingView, len(listings))
+	for i, l := range listings {
+		views[i] = l.ToView()
+	}
+	return views, nil
+}
+
+// DeleteListing removes a listing by its ID.
+func (s *ListingService) DeleteListing(listingID string) error {
+	// Retrieve the listing first to ensure it exists
+	_, err := s.repo.GetByID(listingID)
+	if err != nil {
+		return err
+	}
+
+	// Delete the listing
+	return s.repo.Delete(listingID)
 }
