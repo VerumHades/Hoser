@@ -1,15 +1,16 @@
 package listing
 
 import (
-	"common/pkg/billing/currency"
 	"common/pkg/hardware"
+	"common/pkg/money"
+	"time"
 )
 
 // PricingView is a read-only representation of a Pricing entry.
 type PricingView struct {
 	ID     string
 	Type   PricingType
-	Amount currency.Money
+	Amount money.Money
 }
 
 // ListingView is a read-only representation of a Listing.
@@ -23,10 +24,10 @@ type ListingView struct {
 	HardwareSpecification *hardware.HardwareSpecificationView
 }
 
-// ToView converts a Listing to a read-only ListingView.
-func (l *Listing) ToView() *ListingView {
-	pricingViews := make([]*PricingView, len(l.pricing))
-	for i, p := range l.pricing {
+// ToView converts a Listing and its pricings to a read-only ListingView.
+func (l *Listing) ToView(pricings []*Pricing) *ListingView {
+	pricingViews := make([]*PricingView, len(pricings))
+	for i, p := range pricings {
 		pricingViews[i] = &PricingView{
 			ID:     p.id,
 			Type:   p.typ,
@@ -48,4 +49,15 @@ func (l *Listing) ToView() *ListingView {
 		Pricing:               pricingViews,
 		HardwareSpecification: hwView,
 	}
+}
+
+type OneTimePaymentMetadataView struct {
+	ListingID string
+	UserID    string
+}
+
+// SubscriptionPaymentMetadataView is a read-only representation of SubscriptionPaymentMetadata.
+type SubscriptionPaymentMetadataView struct {
+	InstanceID       string
+	CurrentPeriodEnd time.Time
 }

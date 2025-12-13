@@ -12,7 +12,7 @@ func (s *BillingAccountService) CreateAccount(
 	ownerID string,
 	paymentProvider payments.PaymentProvider,
 	providerAccountID string,
-) (*BillingAccount, error) {
+) (*BillingAccountView, error) {
 	account := NewBillingAccount(
 		ownerID,
 		paymentProvider,
@@ -24,7 +24,21 @@ func (s *BillingAccountService) CreateAccount(
 		return nil, err
 	}
 
-	return account, nil
+	return account.ToView(), nil
+}
+
+func (s *BillingAccountService) ListByOwner(ownerID string) ([]*BillingAccountView, error) {
+	accounts, err := s.accountRepository.ListByOwner(ownerID)
+	if err != nil {
+		return nil, err
+	}
+
+	views := make([]*BillingAccountView, len(accounts))
+	for i, acct := range accounts {
+		views[i] = acct.ToView()
+	}
+
+	return views, nil
 }
 
 func (s *BillingAccountService) GetAccountView(accountID string) (*BillingAccountView, error) {

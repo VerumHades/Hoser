@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"common/pkg/billing/account"
-	"common/pkg/billing/currency"
 	"common/pkg/billing/payments"
 	"common/pkg/billing/payments/payment"
+	"common/pkg/money"
 )
 
 type PaymentService struct {
@@ -38,14 +38,75 @@ func (s *PaymentService) CreateBillingAccount(
 	if err != nil {
 		return nil, err
 	}
-	return acct.ToView(), nil
+	return acct, nil
+}
+
+func (s *PaymentService) PaySubscription(
+	billingAccountID string,
+	amount money.Money,
+	metadata payment.SubscriptionPaymentMetadata,
+) (*payment.PaymentView, error) {
+
+	paymentView, err := s.Pay(billingAccountID, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.paymentService.AddSubscriptionPaymentMetadata(paymentView.ID, metadata); err != nil {
+		return paymentView, err
+	}
+
+	return paymentView, nil
+}
+
+func (s *PaymentService) HasUserBoughtListing(userID string, listingID string) (bool, error) {
+	accounts, err := s.billingAccountService.ListByOwner(userID)
+	if err != nil {
+		return false, err
+	}
+
+	for _, account := range accounts {
+		payments, err := s.paymentService.ListAllPaymentsByBillingAccount(account.ID)
+		if err != nil {
+			return false, err
+		}
+
+		for _, p := range payments {
+			metadata, err := s.paymentService.GetOneTimePaymentMetadata(p.ID)
+			if err != nil {
+				continue
+			}
+			if metadata.UserID == userID && metadata.ListingID == listingID {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func (s *PaymentService) PayOneTime(
+	billingAccountID string,
+	amount money.Money,
+	metadata payment.OneTimePaymentMetadata,
+) (*payment.PaymentView, error) {
+
+	paymentView, err := s.Pay(billingAccountID, amount)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.paymentService.AddOneTimePaymentMetadata(paymentView.ID, metadata); err != nil {
+		return paymentView, err
+	}
+
+	return paymentView, nil
 }
 
 // Pay initiates a payment for the given billing account and amount.
 func (s *PaymentService) Pay(
 	billingAccountID string,
-	amount currency.Money,
-	metadata map[string]string,
+	amount money.Money,
 ) (*payment.PaymentView, error) {
 	// Lookup billing account via the account service
 	acct, err := s.billingAccountService.GetAccountView(billingAccountID)
@@ -61,7 +122,7 @@ func (s *PaymentService) Pay(
 	provider := acct.PaymentProvider
 
 	// Create a pending payment using the payment service
-	pmt, err := s.paymentService.CreatePayment(billingAccountID, amount, metadata)
+	pmt, err := s.paymentService.CreatePayment(billingAccountID, amount)
 	if err != nil {
 		return nil, err
 	}

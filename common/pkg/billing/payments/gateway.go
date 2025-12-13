@@ -1,7 +1,7 @@
 package payments
 
 import (
-	"common/pkg/billing/currency"
+	"common/pkg/money"
 	"time"
 )
 
@@ -18,14 +18,14 @@ const (
 
 type PaymentReceipt struct {
 	PaymentID string
-	Amount    currency.Money
+	Amount    money.Money
 	PaidAt    time.Time
 }
 
 type RefundReceipt struct {
 	RefundID   string
 	PaymentID  string
-	Amount     currency.Money
+	Amount     money.Money
 	RefundedAt time.Time
 }
 
@@ -37,7 +37,7 @@ type PaymentAuthorization struct {
 type PaymentGateway interface {
 	AuthorizePayment(
 		billingAccountID string,
-		amount currency.Money,
+		amount money.Money,
 	) (*PaymentAuthorization, error)
 
 	CapturePayment(
@@ -46,6 +46,6 @@ type PaymentGateway interface {
 
 	RefundPayment(
 		paymentID string,
-		amount currency.Money,
+		amount money.Money,
 	) (*RefundReceipt, error)
 }

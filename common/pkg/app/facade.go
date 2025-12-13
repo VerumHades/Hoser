@@ -27,11 +27,11 @@ func (f *ListingFacadeService) CreateListing(authorID, title, description string
 		return nil, err
 	}
 
-	if err := f.searchService.IndexListing(listing.ToView()); err != nil {
+	if err := f.searchService.IndexListing(listing); err != nil {
 		return nil, err
 	}
 
-	return listing.ToView(), nil
+	return listing, nil
 }
 
 // ListByAuthor returns all listings authored by the given user ID
@@ -39,21 +39,20 @@ func (f *ListingFacadeService) ListByAuthor(authorID string) ([]*listing.Listing
 	return f.listingService.ListByAuthor(authorID)
 }
 
-// UpdateListing updates a listing's title and reindexes it
-func (f *ListingFacadeService) UpdateListing(listingID, newTitle string) error {
-	// Update title via service
-	if err := f.listingService.UpdateTitle(listingID, newTitle); err != nil {
-		return err
-	}
-
-	// Retrieve the public view of the updated listing
-	listingView, err := f.listingService.GetListingView(listingID)
+// UpdateListing updates a listing's fields and reindexes it.
+func (f *ListingFacadeService) UpdateListing(listingID string, update listing.ListingUpdate) error {
+	// Update listing via service
+	listingView, err := f.listingService.UpdateListing(listingID, update)
 	if err != nil {
 		return err
 	}
 
 	// Reindex using the view (only public/exported fields)
 	return f.searchService.IndexListing(listingView)
+}
+
+func (s *ListingFacadeService) GetListingView(listingID string) (*listing.ListingView, error) {
+	return s.listingService.GetListingView(listingID)
 }
 
 // DeleteListing deletes a listing and removes it from the search index

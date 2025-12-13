@@ -1,8 +1,8 @@
 package listing
 
 import (
-	"common/pkg/billing/currency"
 	"common/pkg/hardware"
+	"common/pkg/money"
 )
 
 type PricingType int
@@ -22,7 +22,7 @@ const (
 type Pricing struct {
 	id     string
 	typ    PricingType
-	amount currency.Money
+	amount money.Money
 }
 
 type Listing struct {
@@ -31,6 +31,5 @@ type Listing struct {
 	title                 string
 	description           string
 	accessMode            ListingAccessMode
-	pricing               []*Pricing
 	hardwareSpecification *hardware.HardwareSpecification
 }

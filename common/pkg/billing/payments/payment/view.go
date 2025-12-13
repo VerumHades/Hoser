@@ -1,28 +1,28 @@
 package payment
 
 import (
-	"common/pkg/billing/currency"
+	"common/pkg/money"
 	"time"
 )
 
 type PaymentView struct {
 	ID               string
 	BillingAccountID string
-	Amount           currency.MoneyView
+	Amount           money.Money
 	Status           PaymentStatus
 	CreatedAt        time.Time
+	Kind             PaymentKind
 	PaidAt           *time.Time
-	Metadata         map[string]string
 }
 
 func (p *Payment) ToView() *PaymentView {
 	return &PaymentView{
 		ID:               p.id,
 		BillingAccountID: p.billingAccountID,
-		Amount:           p.amount.ToView(),
+		Amount:           p.amount,
 		Status:           p.status,
 		CreatedAt:        p.createdAt,
 		PaidAt:           p.paidAt,
-		Metadata:         p.metadata,
+		Kind:             p.kind,
 	}
 }

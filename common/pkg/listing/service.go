@@ -1,7 +1,8 @@
 package listing
 
 import (
-	"common/pkg/billing/currency"
+	"common/pkg/hardware"
+	"common/pkg/money"
 	"common/pkg/util"
 )
 
@@ -16,58 +17,87 @@ func NewListingService(repo ListingRepository) *ListingService {
 }
 
 // CreateListing creates and stores a new listing.
-func (s *ListingService) CreateListing(authorID, title, description string, accessMode ListingAccessMode) (*Listing, error) {
+func (s *ListingService) CreateListing(authorID, title, description string, accessMode ListingAccessMode) (*ListingView, error) {
 	listing := &Listing{
-		id:          util.GenerateUUID(), // assume you have a helper for UUIDs
+		id:          util.GenerateUUID(),
 		authorID:    authorID,
 		title:       title,
 		description: description,
 		accessMode:  accessMode,
-		pricing:     []*Pricing{},
 	}
 	if err := s.repo.Save(listing); err != nil {
 		return nil, err
 	}
-	return listing, nil
+	return listing.ToView([]*Pricing{}), nil
 }
 
-// UpdateTitle changes a listing's title and persists it.
-func (s *ListingService) UpdateTitle(listingID, newTitle string) error {
-	listing, err := s.repo.GetByID(listingID)
-	if err != nil {
-		return err
-	}
-	listing.title = newTitle
-	return s.repo.Save(listing)
+type ListingUpdate struct {
+	Title                 *string
+	Description           *string
+	HardwareSpecification *hardware.HardwareSpecification
 }
 
-// AddPricing adds a pricing entry to a listing.
-func (s *ListingService) AddPricing(listingID string, typ PricingType, amount currency.Money) (*Pricing, error) {
+func (s *ListingService) UpdateListing(listingID string, update ListingUpdate) (*ListingView, error) {
 	listing, err := s.repo.GetByID(listingID)
 	if err != nil {
 		return nil, err
 	}
+
+	if update.Title != nil {
+		listing.title = *update.Title
+	}
+	if update.Description != nil {
+		listing.description = *update.Description
+	}
+	if update.HardwareSpecification != nil {
+		listing.hardwareSpecification = update.HardwareSpecification
+	}
+
+	if err := s.repo.Save(listing); err != nil {
+		return nil, err
+	}
+
+	// Fetch pricings for view
+	pricings, err := s.repo.ListPricing(listingID)
+	if err != nil {
+		return nil, err
+	}
+
+	return listing.ToView(pricings), nil
+}
+
+// AddPricing adds a pricing entry to a listing via the repository.
+func (s *ListingService) AddPricing(listingID string, typ PricingType, amount money.Money) (*Pricing, error) {
 	pricing := &Pricing{
 		id:     util.GenerateUUID(),
 		typ:    typ,
 		amount: amount,
 	}
-	listing.pricing = append(listing.pricing, pricing)
-	if err := s.repo.Save(listing); err != nil {
+	if err := s.repo.AddPricing(listingID, pricing); err != nil {
 		return nil, err
 	}
 	return pricing, nil
 }
 
-// GetListingView returns a read-only view of a listing.
+// RemovePricing removes a pricing entry from a listing via the repository.
+func (s *ListingService) RemovePricing(listingID, pricingID string) error {
+	return s.repo.RemovePricing(listingID, pricingID)
+}
+
+// GetListingView returns a read-only view of a listing including its pricings.
 func (s *ListingService) GetListingView(listingID string) (*ListingView, error) {
 	listing, err := s.repo.GetByID(listingID)
 	if err != nil {
 		return nil, err
 	}
 
-	pricingViews := make([]*PricingView, len(listing.pricing))
-	for i, p := range listing.pricing {
+	pricings, err := s.repo.ListPricing(listingID)
+	if err != nil {
+		return nil, err
+	}
+
+	pricingViews := make([]*PricingView, len(pricings))
+	for i, p := range pricings {
 		pricingViews[i] = &PricingView{
 			ID:     p.id,
 			Type:   p.typ,
@@ -75,7 +105,20 @@ func (s *ListingService) GetListingView(listingID string) (*ListingView, error) 
 		}
 	}
 
-	return listing.ToView(), nil
+	var hwView *hardware.HardwareSpecificationView
+	if listing.hardwareSpecification != nil {
+		hwView = listing.hardwareSpecification.ToView()
+	}
+
+	return &ListingView{
+		ID:                    listing.id,
+		AuthorID:              listing.authorID,
+		Title:                 listing.title,
+		Description:           listing.description,
+		AccessMode:            listing.accessMode,
+		Pricing:               pricingViews,
+		HardwareSpecification: hwView,
+	}, nil
 }
 
 // ListByAuthor returns all listings authored by the given user ID as views.
@@ -87,19 +130,18 @@ func (s *ListingService) ListByAuthor(authorID string) ([]*ListingView, error) {
 
 	views := make([]*ListingView, len(listings))
 	for i, l := range listings {
-		views[i] = l.ToView()
+		pricings, _ := s.repo.ListPricing(l.id)
+		views[i] = l.ToView(pricings)
 	}
+
 	return views, nil
 }
 
 // DeleteListing removes a listing by its ID.
 func (s *ListingService) DeleteListing(listingID string) error {
-	// Retrieve the listing first to ensure it exists
 	_, err := s.repo.GetByID(listingID)
 	if err != nil {
 		return err
 	}
-
-	// Delete the listing
 	return s.repo.Delete(listingID)
 }

@@ -4,6 +4,7 @@ import (
 	"common/pkg/library"
 	"common/pkg/listing"
 	"common/pkg/user"
+	"fmt"
 )
 
 // UserAppService handles cross-domain operations involving users.
@@ -40,13 +41,34 @@ func (s *UserAppService) CreateListing(authorID, title, description string, acce
 	return listingView, nil
 }
 
+// UpdateUserListing updates a listing authored by the user.
+// Only the owner can update their listings.
+func (s *UserAppService) UpdateUserListing(userID, listingID string, update listing.ListingUpdate) error {
+	// Fetch the listing to check ownership
+	listingView, err := s.listingFacade.GetListingView(listingID)
+	if err != nil {
+		return err
+	}
+
+	if listingView.AuthorID != userID {
+		return fmt.Errorf("user %s is not the owner of listing %s", userID, listingID)
+	}
+
+	err = s.listingFacade.UpdateListing(listingID, update)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // SaveListingToLibrary adds a listing to a user's library.
 func (s *UserAppService) SaveListingToLibrary(userID string, listingID string) (*library.SavedListingView, error) {
 	savedItem, err := s.libraryService.SaveListing(userID, listingID)
 	if err != nil {
 		return nil, err
 	}
-	return savedItem.ToView(), nil
+	return savedItem, nil
 }
 
 // ListUserLibrary returns all saved listings for a user.

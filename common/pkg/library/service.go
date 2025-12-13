@@ -15,7 +15,7 @@ func NewLibraryService(repository SavedListingRepository) *LibraryService {
 }
 
 // SaveListing saves a listing to a user's library.
-func (service *LibraryService) SaveListing(userID string, listingID string) (*SavedListing, error) {
+func (service *LibraryService) SaveListing(userID string, listingID string) (*SavedListingView, error) {
 	savedItem := &SavedListing{
 		ID:        util.GenerateUUID(), // assume a UUID generator function
 		UserID:    userID,
@@ -24,7 +24,7 @@ func (service *LibraryService) SaveListing(userID string, listingID string) (*Sa
 	if err := service.repository.Save(savedItem); err != nil {
 		return nil, err
 	}
-	return savedItem, nil
+	return savedItem.ToView(), nil
 }
 
 // ListUserLibrary returns all listings saved by a user.
