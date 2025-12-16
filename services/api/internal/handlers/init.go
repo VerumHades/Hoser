@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"api/internal/database"
+	"common/pkg/app"
+	"common/pkg/auth"
 	"common/pkg/configuration"
 	"net/http"
 
@@ -10,53 +12,41 @@ import (
 )
 
 type App struct {
-	DatabaseInteractor   database.Store
+	UserAppService *app.UserAppService
+	UserAuth       *auth.AuthenticationService
+
 	RunningConfiguration *configuration.Configuration
-	JWTSecret            []byte
-}
 
-// =================== APP INIT ===================
-
-func NewApp(db database.Store, cfg *configuration.Configuration, jwtSecret []byte) *App {
-	return &App{
-		DatabaseInteractor:   db,
-		RunningConfiguration: cfg,
-		JWTSecret:            jwtSecret,
-	}
+	JWTSecret []byte
 }
 
 // =================== HELPER FUNCTIONS ===================
 
 // GetUserFromContext retrieves the authenticated user from Echo context (JWT claims)
-func (app *App) GetUserFromContext(c echo.Context) (database.User, error) {
+func (app *App) GetUserIDFromContext(c echo.Context) (string, error) {
 	cookie, err := c.Cookie("jwt")
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Missing token")
+		return "", echo.NewHTTPError(http.StatusUnauthorized, "Missing token")
 	}
 
 	token, err := jwt.Parse(cookie.Value, func(t *jwt.Token) (interface{}, error) {
 		return []byte(app.JWTSecret), nil
 	})
 	if err != nil || !token.Valid {
-		return nil, echo.NewHTTPError(http.StatusUnauthorized, "Invalid token")
+		return "", echo.NewHTTPError(http.StatusUnauthorized, "Invalid token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, echo.NewHTTPError(http.StatusUnauthorized)
+		return "", echo.NewHTTPError(http.StatusUnauthorized)
 	}
 
 	userID, ok := claims["user_id"].(string)
 	if !ok {
-		return nil, echo.NewHTTPError(http.StatusUnauthorized)
+		return "", echo.NewHTTPError(http.StatusUnauthorized)
 	}
 
-	user, err := app.DatabaseInteractor.GetUserByID(userID)
-	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusUnauthorized)
-	}
-
-	return user, nil
+	return userID, nil
 }
 
 type HardwareDTO struct {
@@ -66,11 +56,11 @@ type HardwareDTO struct {
 }
 
 type PublicListing struct {
-	ID          string            `json:"id"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Hardware    *HardwareDTO      `json:"hardware,omitempty"`
-	Prices      []ApiPricingEntry `json:"prices,omitempty"`
+	ID          string         `json:"id"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Hardware    *HardwareDTO   `json:"hardware,omitempty"`
+	Prices      []ListingPrice `json:"prices,omitempty"`
 }
 
 type CurrencyDTO struct {
@@ -79,8 +69,8 @@ type CurrencyDTO struct {
 	Value float32 `json:"value"`
 }
 
-func (app *App) ConvertPricingListToAPI(pl database.PricingList) []ApiPricingEntry {
-	var priceEntries []ApiPricingEntry
+func (app *App) ConvertPricingListToAPI(pl database.PricingList) []ListingPrice {
+	var priceEntries []ListingPrice
 	if pl == nil {
 		return priceEntries
 	}
@@ -90,7 +80,7 @@ func (app *App) ConvertPricingListToAPI(pl database.PricingList) []ApiPricingEnt
 		pricing := list[i]
 		amount := pricing.Amount()
 
-		priceEntries = append(priceEntries, ApiPricingEntry{
+		priceEntries = append(priceEntries, ListingPrice{
 			ID:   pricing.UUID(),
 			Type: int(pricing.Type()),
 			Currency: CurrencyRequest{
@@ -136,16 +126,4 @@ func (app *App) PublicListingsHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, response)
-}
-
-// =================== TEST APP ===================
-
-func NewTestApp() *App {
-	db := &database.DummyStore{}
-	cfg := &configuration.Configuration{
-		AllowedOrigins: []string{"http://localhost"},
-	}
-	jwtSecret := []byte("test-secret-key")
-
-	return NewApp(db, cfg, jwtSecret)
 }

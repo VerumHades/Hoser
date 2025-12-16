@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -12,12 +11,17 @@ import (
 
 func (app *App) DeveloperOnlyMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		user, err := app.GetUserFromContext(c)
-		fmt.Println(user)
+		userID, err := app.GetUserIDFromContext(c)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusUnauthorized)
 		}
-		if !user.IsDeveloper() {
+
+		isDeveloper, err := app.UserAppService.IsUserDeveloper(userID)
+
+		if err != nil {
+			return echo.NewHTTPError(http.StatusUnauthorized)
+		}
+		if !isDeveloper {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Developer access required")
 		}
 		return next(c)

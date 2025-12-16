@@ -3,9 +3,9 @@ package app
 import "common/pkg/listing"
 
 type ListingSearchService interface {
-	IndexListing(listing *listing.ListingView) error
+	IndexListing(listing *listing.Listing) error
 	RemoveListing(listingID string) error
-	SearchListings(query string) ([]*listing.ListingView, error)
+	SearchListings(query string) ([]*listing.Listing, error)
 }
 
 type ListingFacadeService struct {
@@ -21,7 +21,7 @@ func NewListingFacadeService(ls *listing.ListingService, ss ListingSearchService
 }
 
 // CreateListing creates a listing and indexes it
-func (f *ListingFacadeService) CreateListing(authorID, title, description string, accessMode listing.ListingAccessMode) (*listing.ListingView, error) {
+func (f *ListingFacadeService) CreateListing(authorID, title, description string, accessMode listing.ListingAccessMode) (*listing.Listing, error) {
 	listing, err := f.listingService.CreateListing(authorID, title, description, accessMode)
 	if err != nil {
 		return nil, err
@@ -35,30 +35,34 @@ func (f *ListingFacadeService) CreateListing(authorID, title, description string
 }
 
 // ListByAuthor returns all listings authored by the given user ID
-func (f *ListingFacadeService) ListByAuthor(authorID string) ([]*listing.ListingView, error) {
+func (f *ListingFacadeService) ListByAuthor(authorID string) ([]*listing.Listing, error) {
 	return f.listingService.ListByAuthor(authorID)
 }
 
 // UpdateListing updates a listing's fields and reindexes it.
-func (f *ListingFacadeService) UpdateListing(listingID string, update listing.ListingUpdate) error {
+func (f *ListingFacadeService) UpdateListing(listingID string, update listing.ListingUpdate) (*listing.Listing, error) {
 	// Update listing via service
 	listingView, err := f.listingService.UpdateListing(listingID, update)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	err = f.searchService.IndexListing(listingView)
+	if err != nil {
+		return nil, err
+	}
 	// Reindex using the view (only public/exported fields)
-	return f.searchService.IndexListing(listingView)
+	return listingView, nil
 }
 
-func (s *ListingFacadeService) GetListingView(listingID string) (*listing.ListingView, error) {
-	return s.listingService.GetListingView(listingID)
+func (s *ListingFacadeService) GetListing(listingID string) (*listing.Listing, error) {
+	return s.listingService.GetListing(listingID)
 }
 
 // DeleteListing deletes a listing and removes it from the search index
 func (f *ListingFacadeService) DeleteListing(listingID string) error {
 	// Retrieve the public view for search index removal
-	listingView, err := f.listingService.GetListingView(listingID)
+	listingView, err := f.listingService.GetListing(listingID)
 	if err != nil {
 		return err
 	}

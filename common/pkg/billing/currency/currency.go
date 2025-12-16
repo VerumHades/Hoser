@@ -1,5 +1,18 @@
 package currency
 
+type Currency struct {
+	Code   string // "USD"
+	Name   string // "US Dollar"
+	Symbol string // optional "$"
+}
+
+// CurrencyRepository defines operations for persisting and retrieving currencies.
+type CurrencyRepository interface {
+	Save(currency *Currency) error
+	GetByCode(code string) (*Currency, error)
+	ListAll() ([]*Currency, error)
+}
+
 // CurrencyService provides higher-level operations around currencies.
 type CurrencyService struct {
 	repo CurrencyRepository
@@ -25,32 +38,11 @@ func (s *CurrencyService) CreateCurrency(code, name, symbol string) (*Currency, 
 }
 
 // GetCurrency retrieves a currency by code.
-func (s *CurrencyService) GetCurrency(code string) (*CurrencyView, error) {
-	currency, err := s.repo.GetByCode(code)
-	if err != nil {
-		return nil, err
-	}
-	return &CurrencyView{
-		Code:   currency.Code,
-		Name:   currency.Name,
-		Symbol: currency.Symbol,
-	}, nil
+func (s *CurrencyService) GetCurrency(code string) (*Currency, error) {
+	return s.repo.GetByCode(code)
 }
 
 // ListCurrencies returns all currencies as views.
-func (s *CurrencyService) ListCurrencies() ([]*CurrencyView, error) {
-	currencies, err := s.repo.ListAll()
-	if err != nil {
-		return nil, err
-	}
-
-	views := make([]*CurrencyView, len(currencies))
-	for i, c := range currencies {
-		views[i] = &CurrencyView{
-			Code:   c.Code,
-			Name:   c.Name,
-			Symbol: c.Symbol,
-		}
-	}
-	return views, nil
+func (s *CurrencyService) ListCurrencies() ([]*Currency, error) {
+	return s.repo.ListAll()
 }

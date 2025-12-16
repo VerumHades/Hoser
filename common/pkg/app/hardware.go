@@ -22,8 +22,8 @@ func NewHardwareCostCalculationService(costService *rates.HardwareCostService, c
 }
 
 // GetRateView returns the hardware cost rate at a given time, optionally converted to another currency.
-func (s *HardwareCostCalculationService) GetRateView(at time.Time, currencyCode string) (*rates.HardwareCostRateView, error) {
-	view, err := s.costService.GetRateView(at)
+func (s *HardwareCostCalculationService) GetRateView(at time.Time, currencyCode string) (*rates.HardwareCostRate, error) {
+	view, err := s.costService.GetRate(at)
 	if err != nil {
 		return nil, err
 	}

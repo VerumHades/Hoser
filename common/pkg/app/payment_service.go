@@ -33,7 +33,7 @@ func (s *PaymentService) CreateBillingAccount(
 	ownerID string,
 	paymentProvider payments.PaymentProvider,
 	providerAccountID string,
-) (*account.BillingAccountView, error) {
+) (*account.BillingAccount, error) {
 	acct, err := s.billingAccountService.CreateAccount(ownerID, paymentProvider, providerAccountID)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (s *PaymentService) PaySubscription(
 	billingAccountID string,
 	amount money.Money,
 	metadata payment.SubscriptionPaymentMetadata,
-) (*payment.PaymentView, error) {
+) (*payment.Payment, error) {
 
 	paymentView, err := s.Pay(billingAccountID, amount)
 	if err != nil {
@@ -89,7 +89,7 @@ func (s *PaymentService) PayOneTime(
 	billingAccountID string,
 	amount money.Money,
 	metadata payment.OneTimePaymentMetadata,
-) (*payment.PaymentView, error) {
+) (*payment.Payment, error) {
 
 	paymentView, err := s.Pay(billingAccountID, amount)
 	if err != nil {
@@ -107,9 +107,9 @@ func (s *PaymentService) PayOneTime(
 func (s *PaymentService) Pay(
 	billingAccountID string,
 	amount money.Money,
-) (*payment.PaymentView, error) {
+) (*payment.Payment, error) {
 	// Lookup billing account via the account service
-	acct, err := s.billingAccountService.GetAccountView(billingAccountID)
+	acct, err := s.billingAccountService.GetAccount(billingAccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (s *PaymentService) Pay(
 		return nil, err
 	}
 
-	paymentView := pmt.ToView()
+	paymentView := pmt
 
 	// Resolve the gateway
 	gateway, err := s.gatewayRouter.Resolve(provider)
@@ -158,7 +158,7 @@ func (s *PaymentService) Pay(
 }
 
 // GetPaymentView returns a read-only view of the payment
-func (s *PaymentService) GetPaymentView(paymentID string) (*payment.PaymentView, error) {
+func (s *PaymentService) GetPaymentView(paymentID string) (*payment.Payment, error) {
 	return s.paymentService.GetPaymentView(paymentID)
 }
 

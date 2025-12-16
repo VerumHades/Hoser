@@ -6,7 +6,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // LoginRequest defines the expected login payload
@@ -31,14 +30,14 @@ func (app *App) LoginHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	user, err := app.DatabaseInteractor.GetUserByName(req.Username)
-	if err != nil || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash()), []byte(req.Password)) != nil {
+	user, err := app.UserAuth.AuthenticateUser(req.Username, req.Password)
+	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
 	}
 
 	// Create JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID(),
+		"user_id": user.ToPublicView().ID,
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	})
 
@@ -80,16 +79,25 @@ func (app *App) LogoutHandler(c echo.Context) error {
 
 // UserDataHandler returns info about the currently authenticated user
 func (app *App) UserDataHandler(c echo.Context) error {
-	user, err := app.GetUserFromContext(c)
+	userID, err := app.GetUserIDFromContext(c)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	user, err := app.UserAppService.GetUser(userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
 	}
 
 	return c.JSON(http.StatusOK, struct {
 		Username    string `json:"username"`
 		IsDeveloper bool   `json:"isDeveloper"`
 	}{
-		Username:    user.Username(),
-		IsDeveloper: user.IsDeveloper(),
+		Username:    user.ToPrivateView().Username,
+		IsDeveloper: user.ToPublicView().IsDev,
 	})
 }
