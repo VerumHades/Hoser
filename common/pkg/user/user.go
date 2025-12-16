@@ -10,6 +10,15 @@ type User struct {
 	developer    bool
 }
 
+func NewUser(id, username, passwordHash string, developer bool) *User {
+	return &User{
+		id:           id,
+		username:     username,
+		passwordHash: passwordHash,
+		developer:    developer,
+	}
+}
+
 // UserPublicView exposes safe read-only public information about a user.
 type UserPublicView struct {
 	ID       string

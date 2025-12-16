@@ -41,7 +41,7 @@ func (app *App) LoginHandler(c echo.Context) error {
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte(app.JWTSecret))
+	tokenString, err := token.SignedString([]byte(app.RunningConfiguration.JWTSecret))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate token")
 	}

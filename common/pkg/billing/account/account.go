@@ -62,6 +62,12 @@ type BillingAccountService struct {
 	accountRepository BillingAccountRepository
 }
 
+func NewBillingAccountService(repo BillingAccountRepository) *BillingAccountService {
+	return &BillingAccountService{
+		accountRepository: repo,
+	}
+}
+
 func (s *BillingAccountService) CreateAccount(
 	ownerID string,
 	paymentProvider payments.PaymentProvider,

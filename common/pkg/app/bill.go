@@ -9,7 +9,7 @@ import (
 	"common/pkg/money"
 )
 
-type ListingBillingService struct {
+type InstanceBillingService struct {
 	listingService          *listing.ListingService
 	paymentService          *PaymentService
 	hardwareCostCalculation *HardwareCostCalculationService
@@ -21,8 +21,8 @@ func NewListingPurchaseService(
 	paymentService *PaymentService,
 	hardwareCostCalculation *HardwareCostCalculationService,
 	conversionService money.CurrencyConversionService,
-) *ListingBillingService {
-	return &ListingBillingService{
+) *InstanceBillingService {
+	return &InstanceBillingService{
 		listingService:          listingService,
 		paymentService:          paymentService,
 		hardwareCostCalculation: hardwareCostCalculation,
@@ -30,7 +30,7 @@ func NewListingPurchaseService(
 }
 
 // BillInstance purchases a listing, taking into account past payments, hardware cost, and duration.
-func (s *ListingBillingService) BillInstance(
+func (s *InstanceBillingService) BillInstance(
 	billingAccountID string,
 	listingID string,
 	instanceID string,

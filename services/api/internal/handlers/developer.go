@@ -50,12 +50,6 @@ type AddListingRequest struct {
 	Description string `json:"description"`
 }
 
-type CurrencyRequest struct {
-	Value float32 `json:"value"`
-	Name  string  `json:"name"`
-	Short string  `json:"short"`
-}
-
 type HardwareUpdate struct {
 	CPU  *int   `json:"cpu,omitempty"`
 	RAM  *int64 `json:"ramBytes,omitempty"`
@@ -107,7 +101,7 @@ func (app *App) PublicGetListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "listing id required")
 	}
 
-	listing, err := app.UserAppService.GetPublicListing(id)
+	listing, err := app.ListingService.GetPublicListing(id)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
 	}
@@ -122,7 +116,7 @@ func (app *App) DeveloperListingsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized)
 	}
 
-	dbListings, err := app.UserAppService.GetUserListings(userID)
+	dbListings, err := app.ListingService.ListByAuthor(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
 	}
@@ -168,7 +162,7 @@ func (app *App) DeveloperUpdateListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	listing, err := app.UserAppService.UpdateUserListing(userID, req.ID, listing.ListingUpdate{
+	listing, err := app.ListingService.UpdateListing(userID, req.ID, listing.ListingUpdate{
 		Title:                 req.Title,
 		Description:           req.Description,
 		HardwareSpecification: req.Hardware,
@@ -194,7 +188,7 @@ func (app *App) DeveloperDeleteListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	if err := app.UserAppService.DeleteUserListing(userID, req.ID); err != nil {
+	if err := app.ListingService.DeleteListing(userID, req.ID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Could not delete listing")
 	}
 
@@ -214,13 +208,13 @@ func (app *App) UserLibraryHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch library")
 	}
 
-	apiListings := make([]ApiDeveloperListing, 0, len(savedItems))
+	apiListings := make([]ApiListingBase, 0, len(savedItems))
 	for _, savedItem := range savedItems {
-		listing, err := app.UserAppService.GetPublicListing(savedItem.ListingID)
+		listing, err := app.ListingService.GetPublicListing(savedItem.ListingID)
 		if err != nil {
 			continue // skip listings that no longer exist or are not public
 		}
-		apiListings = append(apiListings, app.MakeApiDeveloperListing(listing))
+		apiListings = append(apiListings, app.MakeApiDeveloperListing(listing).ApiListingBase)
 	}
 
 	return c.JSON(http.StatusOK, apiListings)

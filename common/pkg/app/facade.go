@@ -34,6 +34,12 @@ func (f *ListingFacadeService) CreateListing(authorID, title, description string
 	return listing, nil
 }
 
+// SearchListings returns listings matching the search query.
+// No access control or visibility rules are applied.
+func (f *ListingFacadeService) SearchListings(query string) ([]*listing.Listing, error) {
+	return f.searchService.SearchListings(query)
+}
+
 // ListByAuthor returns all listings authored by the given user ID
 func (f *ListingFacadeService) ListByAuthor(authorID string) ([]*listing.Listing, error) {
 	return f.listingService.ListByAuthor(authorID)

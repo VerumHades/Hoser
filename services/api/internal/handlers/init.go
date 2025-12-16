@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"api/internal/database"
 	"common/pkg/app"
 	"common/pkg/auth"
 	"common/pkg/configuration"
+	"common/pkg/listing"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -14,10 +14,9 @@ import (
 type App struct {
 	UserAppService *app.UserAppService
 	UserAuth       *auth.AuthenticationService
+	ListingService *app.PublicListingService
 
 	RunningConfiguration *configuration.Configuration
-
-	JWTSecret []byte
 }
 
 // =================== HELPER FUNCTIONS ===================
@@ -30,7 +29,7 @@ func (app *App) GetUserIDFromContext(c echo.Context) (string, error) {
 	}
 
 	token, err := jwt.Parse(cookie.Value, func(t *jwt.Token) (interface{}, error) {
-		return []byte(app.JWTSecret), nil
+		return []byte(app.RunningConfiguration.JWTSecret), nil
 	})
 	if err != nil || !token.Valid {
 		return "", echo.NewHTTPError(http.StatusUnauthorized, "Invalid token")
@@ -55,66 +54,54 @@ type HardwareDTO struct {
 	Disk int64 `json:"disk"`
 }
 
-type PublicListing struct {
-	ID          string         `json:"id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	Hardware    *HardwareDTO   `json:"hardware,omitempty"`
-	Prices      []ListingPrice `json:"prices,omitempty"`
-}
-
-type CurrencyDTO struct {
+type CurrencyRequest struct {
+	Value float32 `json:"value"`
 	Name  string  `json:"name"`
 	Short string  `json:"short"`
-	Value float32 `json:"value"`
 }
 
-func (app *App) ConvertPricingListToAPI(pl database.PricingList) []ListingPrice {
-	var priceEntries []ListingPrice
-	if pl == nil {
-		return priceEntries
-	}
-
-	list := pl.All() // assume All() returns []Pricing
-	for i := range list {
-		pricing := list[i]
-		amount := pricing.Amount()
-
-		priceEntries = append(priceEntries, ListingPrice{
-			ID:   pricing.UUID(),
-			Type: int(pricing.Type()),
-			Currency: CurrencyRequest{
-				Name:  amount.Name(),
-				Short: amount.Short(),
-				Value: amount.Value(),
-			},
-		})
-	}
-
-	return priceEntries
+type PublicListing struct {
+	ID          string           `json:"id"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	Hardware    *HardwareDTO     `json:"hardware,omitempty"`
+	Price       *CurrencyRequest `json:"prices,omitempty"`
 }
 
-func (app *App) ConvertListingToPublic(l database.Listing) *PublicListing {
+// ConvertListingToPublic converts a domain listing into a public-facing API listing.
+func (app *App) ConvertListingToPublic(listingEntity *listing.Listing) *PublicListing {
+	var hardwareDTO *HardwareDTO
+	if listingEntity.HardwareSpecification != nil {
+		hardwareDTO = &HardwareDTO{
+			CPU:  listingEntity.HardwareSpecification.CPUCount,
+			RAM:  listingEntity.HardwareSpecification.RAMBytes,
+			Disk: listingEntity.HardwareSpecification.DiskBytes,
+		}
+	}
+
 	return &PublicListing{
-		ID:          l.UUID(),
-		Title:       l.Title(),
-		Description: l.Description(),
-		Hardware: &HardwareDTO{
-			CPU:  l.HardwareRequirements().CPUCount(),
-			RAM:  l.HardwareRequirements().RAMBytes(),
-			Disk: l.HardwareRequirements().DiskBytes(),
+		ID:          listingEntity.ID,
+		Title:       listingEntity.Title,
+		Description: listingEntity.Description,
+		Hardware:    hardwareDTO,
+		Price: &CurrencyRequest{
+			Value: float32(listingEntity.Price.Amount),
+			Short: listingEntity.Price.CurrencyCode,
 		},
-		Prices: app.ConvertPricingListToAPI(l.Pricing()),
 	}
+}
+
+type ListingQueryOptions struct {
+	Text string
 }
 
 func (app *App) PublicListingsHandler(c echo.Context) error {
-	options := database.ListingQueryOptions{}
+	options := ListingQueryOptions{}
 	if q := c.QueryParam("q"); q != "" {
 		options.Text = q
 	}
 
-	listings, err := app.DatabaseInteractor.QueryPublicListings(&options)
+	listings, err := app.ListingService.SearchPublicListings(options.Text)
 	if err != nil {
 		return c.NoContent(http.StatusInternalServerError)
 	}
