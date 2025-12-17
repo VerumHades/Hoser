@@ -1,7 +1,7 @@
 // src/components/AccountPage.tsx
 import React, { useReducer, useState } from "react";
 import EditableText from "../../components/input/EditableText";
-import { API, ListingAccessModes, type CurrencyRequest, type HardwareUpdate, type Listing, type PricingEntry } from "../../backend";
+import { API, ListingAccessModes, type CurrencyRequest, type HardwareUpdate, type Listing } from "../../backend";
 import { ChevronLeft, Delete } from "lucide-react";
 import PromptButton from "../../components/input/PromptButton";
 
@@ -22,9 +22,7 @@ export type ListingAction =
     | { type: "setDescription"; description: string }
     | { type: "setAccessMode"; mode: number }
     | { type: "setHardware"; hardware: HardwareUpdate }
-    | { type: "addPrice"; price: PricingEntry }
-    | { type: "updatePrice"; priceId: string; currency: CurrencyRequest | null }
-    | { type: "deletePrice"; priceId: string }
+    | { type: "setPrice"; currency: CurrencyRequest }
     | { type: "reset"; backup: Listing };
 
     
@@ -38,22 +36,8 @@ function listingReducer(state: Listing, action: ListingAction): Listing {
             return { ...state, accessMode: action.mode };
         case "setHardware":
             return { ...state, hardware: { ...state.hardware, ...action.hardware } };
-        case "addPrice":
-            return { ...state, prices: [...state.prices, action.price] };
-        case "updatePrice":
-            return {
-                ...state,
-                prices: state.prices.map((p) => {
-                    if(p.id == action.priceId && action.currency != null) {
-                        p.currency = action.currency
-                        return p;
-                    }
-                    return p;
-                }
-                ),
-            };
-        case "deletePrice":
-            return { ...state, prices: state.prices.filter((p) => p.id !== action.priceId) };
+        case "setPrice":
+            return { ...state, price: action.currency };
         case "reset":
             return action.backup;
         default:
@@ -104,14 +88,7 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                         <button
                             className="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600"
                             onClick={async () => {
-                                if (listing.prices) {
-                                    const removed = backupListing.prices.filter(item => !listing.prices.includes(item));
-                                    
-                                    for(const price of removed){
-                                        await API.developer.listing.prices.delete(listing.id, price.id);
-                                    }
-                                }
-                                
+                        
                                 console.log(listing)
                                 const{ json, ok } = await API.developer.listing.update(listing);
                                 if (!ok) {

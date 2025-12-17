@@ -121,7 +121,7 @@ func main() {
 	// Public routes
 	// ---------------------------
 	public := e.Group("")
-	public.GET("/rentals/public", app.PublicListingsHandler)
+	public.GET("/listings", app.PublicListingsHandler)
 	public.GET("/rentals/public/:id", app.PublicGetListingHandler)
 	public.POST("/login", app.LoginHandler)
 	public.POST("/logout", app.LogoutHandler)

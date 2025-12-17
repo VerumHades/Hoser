@@ -34,7 +34,7 @@ type UpdateListingRequest struct {
 	Description *string                    `json:"description,omitempty"`
 	Hardware    *HardwareUpdate            `json:"hardware,omitempty"`
 	Price       *money.Money               `json:"price,omitempty"`
-	AccessMode  *listing.ListingAccessMode `json:"access_mode,omitempty"` // integer type
+	AccessMode  *listing.ListingAccessMode `json:"accessMode,omitempty"` // integer type
 }
 type ListingRequest struct {
 	ID          string           `json:"id"`

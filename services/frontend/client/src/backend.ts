@@ -81,7 +81,7 @@ export interface Listing {
     description?: string;
     author: string;
     accessMode?: number;
-    prices: PricingEntry[];
+    price: CurrencyRequest;
     hardware?: HardwareUpdate;
 }
 
@@ -125,23 +125,6 @@ export const API = {
 
                 return await backend_request<Listing>(`/developer/listing`, "POST", data)
             },
-            prices: {
-                async delete(listing_id: string, price_id: string) {
-                    return await backend_request("/developer/listing/price", "DELETE", {
-                        listingId: listing_id,
-                        pricingId: price_id,
-                    })
-                },
-                async update(listing_id: string, price: PricingEntry) {
-                    return await backend_request("/developer/listing/price", "PUT", {
-                        listingId: listing_id,
-                        pricingId: price.id,
-                        ...price
-                    })
-                },
-            }
         }
-
-
     }
 }

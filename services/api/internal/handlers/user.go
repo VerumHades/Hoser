@@ -84,10 +84,6 @@ func (app *App) UserDataHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized)
 	}
 
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
-
 	user, err := app.UserAppService.GetUser(userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized)

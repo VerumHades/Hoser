@@ -3,7 +3,6 @@ import backend_constants from "../backend_constants";
 import { PriceTag } from "../user/developer/prices/PriceTag";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
 import { Flow, FlowSwitch, FlowTopBackWrapper } from "../components/navigation/Flow";
-import { BillingFrequency, BillingFrequencyName } from "../backend";
 //import { useNavigate } from "react-router-dom";
 import Query from "../components/querying/Query";
 import TableRow from "../components/table/TableRow";
@@ -21,19 +20,13 @@ interface HardwareDTO {
     disk: number;
 }
 
-interface ListingPrices {
-    singlePurchase?: CurrencyValue;
-    monthlySubscription?: CurrencyValue;
-    monthlyHardware?: CurrencyValue;
-}
-
 interface SearchItem {
     id: string;
     title: string;
     description: string;
     images?: string[];
     hardware?: HardwareDTO;
-    prices?: ListingPrices;
+    price?: CurrencyValue;
     author?: string;
 }
 
@@ -69,10 +62,7 @@ interface PriceDisplayProps {
 
 function PriceDisplay({ item }: PriceDisplayProps) {
     return <div className="flex flex-col gap-3">
-        {
-            item.prices && Object.values(item.prices).map(price => <PriceTag
-                prices={[price.currency]} rate={BillingFrequencyName[price.type as BillingFrequency]} />)
-        }
+        { item.price && <PriceTag prices={[item.price]} rate={"one time"} />}
     </div>
 }
 
@@ -98,7 +88,6 @@ function PublicListingDisplay({ item }: PublicListingDisplayProps) {
 
                 </TitleAndDescription>
                 <div className="text-slate-500 dark:text-slate-400 text-sm">
-                    <label className="">Purchase:</label>
                     <PriceDisplay item={item}></PriceDisplay>
                 </div>
             </div>
@@ -133,7 +122,7 @@ export default function PublicListingSearch() {
                     </Table>
                 }
                 queryBuilder={queryBuilder}
-                endpoint={`${backend_constants.address}/rentals/public`}
+                endpoint={`${backend_constants.address}/listings`}
             />
             <FlowTopBackWrapper>
                 {item ? <PublicListingDisplay item={item}></PublicListingDisplay> : <></>}

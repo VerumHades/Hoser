@@ -31,7 +31,7 @@ export default function UserRentalList() {
                     </Table>
                 }
                 queryBuilder={queryBuilder}
-                endpoint={`${backend_constants.address}/user/rentals`}
+                endpoint={`${backend_constants.address}/listings`}
             >
             </Query>
             {rental && <FlowTopBackWrapper><UserRentalDisplay rental={rental}></UserRentalDisplay></FlowTopBackWrapper>}
