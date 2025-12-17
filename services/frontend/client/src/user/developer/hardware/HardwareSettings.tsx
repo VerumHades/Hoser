@@ -39,8 +39,8 @@ export default function HardwareSettings({
                 icon={<MemoryStick className="w-5 h-5" />}
                 min={1024}               // 1 GB in bytes
                 max={1024 * GB}            // 1024 GB in bytes
-                value={hardware.ram ?? 8 * GB}
-                onChange={(v) => onChange({ ...hardware, ram: v })}
+                value={hardware.ramBytes ?? 8 * GB}
+                onChange={(v) => onChange({ ...hardware, ramBytes: Math.floor(v) })}
                 units={byteUnits}
             />
 
@@ -50,8 +50,8 @@ export default function HardwareSettings({
                 icon={<HardDrive className="w-5 h-5" />}
                 min={1024}             // 128 GB in bytes
                 max={1024 * GB}            // 1024 GB in bytes
-                value={hardware.disk ?? 256 * GB}
-                onChange={(v) => onChange({ ...hardware, disk: v })}
+                value={hardware.diskBytes ?? 256 * GB}
+                onChange={(v) => onChange({ ...hardware, diskBytes: Math.floor(v) })}
                 units={byteUnits}
             />
         </div>

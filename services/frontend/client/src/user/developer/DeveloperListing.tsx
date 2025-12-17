@@ -111,7 +111,8 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                                         await API.developer.listing.prices.delete(listing.id, price.id);
                                     }
                                 }
-
+                                
+                                console.log(listing)
                                 const{ json, ok } = await API.developer.listing.update(listing);
                                 if (!ok) {
                                     reset();

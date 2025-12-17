@@ -29,12 +29,12 @@ type ApiPublicListing struct {
 }
 
 type UpdateListingRequest struct {
-	ID          string                          `json:"id"`
-	Title       *string                         `json:"title,omitempty"`
-	Description *string                         `json:"description,omitempty"`
-	Hardware    *hardware.HardwareSpecification `json:"hardware,omitempty"`
-	Price       *money.Money                    `json:"price,omitempty"`
-	AccessMode  *listing.ListingAccessMode      `json:"access_mode,omitempty"` // integer type
+	ID          string                     `json:"id"`
+	Title       *string                    `json:"title,omitempty"`
+	Description *string                    `json:"description,omitempty"`
+	Hardware    *HardwareUpdate            `json:"hardware,omitempty"`
+	Price       *money.Money               `json:"price,omitempty"`
+	AccessMode  *listing.ListingAccessMode `json:"access_mode,omitempty"` // integer type
 }
 type ListingRequest struct {
 	ID          string           `json:"id"`
@@ -162,10 +162,24 @@ func (app *App) DeveloperUpdateListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
+	// Translate HardwareUpdate to HardwareSpecification
+	var hardwareSpec hardware.HardwareSpecification
+	if req.Hardware != nil {
+		if req.Hardware.CPU != nil {
+			hardwareSpec.CPUCount = *req.Hardware.CPU
+		}
+		if req.Hardware.RAM != nil {
+			hardwareSpec.RAMBytes = *req.Hardware.RAM
+		}
+		if req.Hardware.Disk != nil {
+			hardwareSpec.DiskBytes = *req.Hardware.Disk
+		}
+	}
+
 	listing, err := app.ListingService.UpdateListing(userID, req.ID, listing.ListingUpdate{
 		Title:                 req.Title,
 		Description:           req.Description,
-		HardwareSpecification: req.Hardware,
+		HardwareSpecification: &hardwareSpec,
 		Price:                 req.Price,
 		AccessMode:            req.AccessMode,
 	})

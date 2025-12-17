@@ -63,8 +63,8 @@ export interface PricingEntry {
 
 export interface HardwareUpdate {
     cpu?: number;   // corresponds to Go CPU
-    ram?: number;   // corresponds to Go RAM (ramBytes)
-    disk?: number;  // corresponds to Go Disk (diskBytes)
+    ramBytes?: number;   // corresponds to Go RAM (ramBytes)
+    diskBytes?: number;  // corresponds to Go Disk (diskBytes)
 }
 
 export interface ListingRequest {
@@ -123,7 +123,7 @@ export const API = {
                     description
                 };
 
-                return await backend_request(`/developer/listing`, "POST", data)
+                return await backend_request<Listing>(`/developer/listing`, "POST", data)
             },
             prices: {
                 async delete(listing_id: string, price_id: string) {

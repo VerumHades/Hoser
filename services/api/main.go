@@ -5,6 +5,7 @@ import (
 	"context"
 	"time"
 
+	"common/infra/configuration"
 	librarymongodb "common/infra/mongodb/library"
 	listingmongodb "common/infra/mongodb/listing"
 	usermongodb "common/infra/mongodb/user"
@@ -13,14 +14,11 @@ import (
 
 	"common/pkg/app"
 	"common/pkg/auth"
-	"common/pkg/configuration"
 	"common/pkg/library"
 	"common/pkg/listing"
 	"common/pkg/user"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,26 +29,39 @@ func main() {
 	// ---------------------------
 	// Load configuration
 	// ---------------------------
-	runningConfiguration, err := configuration.Load[configuration.Configuration]()
+	runningConfiguration, err := configuration.Load[handlers.Configuration]()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Create MongoDB URI with authentication
+	mongoURI := fmt.Sprintf("mongodb://%s:%s@%s:%s/%s",
+		runningConfiguration.MongoDatabaseUserName,
+		runningConfiguration.MongoDatabasePassword,
+		runningConfiguration.MongoDatabaseHost,
+		runningConfiguration.MongoDatabasePort,
+		runningConfiguration.MongoDatabaseName,
+	)
+
+	// Set client options
+	clientOptions := options.Client().ApplyURI(mongoURI)
+
+	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	// Connect to MongoDB (non-deprecated)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+
+	// Connect to MongoDB
+	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("MongoDB connection error:", err)
 	}
 
-	// Ping the database to verify connection
 	if err := client.Ping(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 
 	// Choose a database
-	db := client.Database("myappdb")
+	db := client.Database(runningConfiguration.MongoDatabaseName)
 
 	// 3. Initialize collections & repositories
 	userRepo := usermongodb.NewUserRepository(db.Collection("users"))
@@ -65,6 +76,12 @@ func main() {
 	userAuthentificationService := auth.NewAuthenticationService(userRepo)
 
 	userService := user.NewUserService(userRepo)
+
+	_, err = userService.CreateUser("alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	listingService := listing.NewListingService(listingRepo)
 	libraryService := library.NewLibraryService(libraryRepo)
 	//billingAccountService := account.NewBillingAccountService(accountRepo)
@@ -122,26 +139,13 @@ func main() {
 	// ---------------------------
 	// Developer-only routes
 	// ---------------------------
+	e.GET("/developer/listings", app.DeveloperListingsHandler)
 	dev := e.Group("/developer/listing")
 	dev.Use(app.DeveloperOnlyMiddleware)
 
-	dev.GET("", app.DeveloperListingsHandler)
 	dev.POST("", app.DeveloperAddListingHandler)
 	dev.PUT("", app.DeveloperUpdateListingHandler)
 	dev.DELETE("", app.DeveloperDeleteListingHandler)
-
-	// ---------------------------
-	// Serve React client
-	// ---------------------------
-	fsRoot := runningConfiguration.ClientDirectory
-	e.GET("/*", func(c echo.Context) error {
-		path := filepath.Join(fsRoot, c.Request().URL.Path)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			// Fallback to index.html
-			return c.File(filepath.Join(fsRoot, "index.html"))
-		}
-		return c.File(path)
-	})
 
 	// ---------------------------
 	// Start server
