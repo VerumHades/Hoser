@@ -2,13 +2,13 @@
 import { Delete } from "lucide-react";
 import type { ListingAction } from "../DeveloperListing";
 import TableRow from "../../../components/table/TableRow";
-import { BillingFrequencyName, type Listing, type PricingEntry } from "../../../backend";
+import { BillingFrequencyName, type DeveloperListing, type PricingEntry } from "../../../backend";
 import Table from "../../../components/table/Table";
 
 
 // --- Prices Menu Component ---
 interface PricesMenuProps {
-    listing: Listing;
+    listing: DeveloperListing;
     onAction:  (action:  ListingAction) => void,
 }
 

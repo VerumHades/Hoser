@@ -29,6 +29,7 @@ type ListingRepository interface {
 	Save(listing *Listing) error
 	Delete(listingID string) error
 	ListByAuthor(authorID string) ([]*Listing, error)
+	ListAll() ([]*Listing, error) // new method to list all listings
 }
 
 // ListingService provides higher-level business logic around Listings.
@@ -91,6 +92,10 @@ func (s *ListingService) UpdateListing(listingID string, update ListingUpdate) (
 	}
 
 	return listing, nil
+}
+
+func (s *ListingService) ListAll() ([]*Listing, error) {
+	return s.repo.ListAll()
 }
 
 // GetListing returns a read-only view of a listing including its pricings.

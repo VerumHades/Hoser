@@ -1,6 +1,9 @@
 package user
 
-import "common/pkg/util"
+import (
+	"common/pkg/util"
+	"fmt"
+)
 
 // User represents a system account internally.
 type User struct {
@@ -100,4 +103,17 @@ func (s *UserService) CheckDeveloper(userID string) (bool, error) {
 // CheckDeveloper returns whether the user is a developer.
 func (s *UserService) GetUser(userID string) (*User, error) {
 	return s.repo.GetByID(userID)
+}
+
+func (s *UserService) GetByUsername(userID string) (*User, error) {
+	user, err := s.repo.GetByUsername(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return nil, fmt.Errorf("user with this id does not exists")
+	}
+
+	return user, nil
 }

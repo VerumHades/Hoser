@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
 import React from "react";
 import { createContext, useContext, useState } from "react";
-import type { Clickable } from "../common";
+import type { Clickable, HasClassname } from "../common";
 
 interface FlowContextType {
     page: number,
@@ -13,11 +13,11 @@ interface FlowContextType {
 
 const FlowContext = createContext<FlowContextType>({ page: 0, next: () => { }, prev: () => { }, setPage: () => {} });
 
-interface FlowProps {
+interface FlowProps extends HasClassname {
     children?: React.ReactNode
 }
 
-export function Flow({ children }: FlowProps) {
+export function Flow({ children, className }: FlowProps) {
     const total = React.Children.count(children);
     const childArray = React.Children.toArray(children);
 
@@ -40,7 +40,7 @@ export function Flow({ children }: FlowProps) {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -50 }}
                             transition={{ duration: 0.3 }}
-                            className="w-full h-full"
+                            className={ className}
                         >
                             {child}
                         </motion.div>

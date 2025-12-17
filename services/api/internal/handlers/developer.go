@@ -94,21 +94,6 @@ func DeveloperToPublicListing(dev ApiDeveloperListing) ApiPublicListing {
 	}
 }
 
-// =================== HANDLERS ===================
-func (app *App) PublicGetListingHandler(c echo.Context) error {
-	id := c.Param("id")
-	if id == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "listing id required")
-	}
-
-	listing, err := app.ListingService.GetPublicListing(id)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
-	}
-
-	return c.JSON(http.StatusOK, app.MakeApiDeveloperListing(listing).ApiListingBase)
-}
-
 // DeveloperListingsHandler returns all listings for the authenticated developer
 func (app *App) DeveloperListingsHandler(c echo.Context) error {
 	userID, err := app.GetUserIDFromContext(c)
@@ -210,7 +195,6 @@ func (app *App) DeveloperDeleteListingHandler(c echo.Context) error {
 }
 
 // UserLibraryHandler returns all saved listings for the authenticated user.
-// UserLibraryHandler returns all saved listings for the authenticated user
 func (app *App) UserLibraryHandler(c echo.Context) error {
 	userID, err := app.GetUserIDFromContext(c)
 	if err != nil {
@@ -242,7 +226,7 @@ func (app *App) UserAddListingToLibraryHandler(c echo.Context) error {
 	}
 
 	var req struct {
-		ListingID string `json:"listing_id"`
+		ListingID string `json:"id"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
@@ -264,7 +248,7 @@ func (app *App) UserRemoveListingFromLibraryHandler(c echo.Context) error {
 	}
 
 	var req struct {
-		ItemID string `json:"item_id"`
+		ItemID string `json:"id"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")

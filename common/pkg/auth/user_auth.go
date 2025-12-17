@@ -9,18 +9,18 @@ import (
 )
 
 type AuthenticationService struct {
-	userRepository user.UserRepository
+	userService *user.UserService
 }
 
-func NewAuthenticationService(userRepository user.UserRepository) *AuthenticationService {
+func NewAuthenticationService(userService *user.UserService) *AuthenticationService {
 	return &AuthenticationService{
-		userRepository: userRepository,
+		userService: userService,
 	}
 }
 
 // AuthenticateUser verifies a user's credentials and returns the user if valid.
 func (service *AuthenticationService) AuthenticateUser(username string, password string) (*user.User, error) {
-	fetchedUser, fetchError := service.userRepository.GetByUsername(username)
+	fetchedUser, fetchError := service.userService.GetByUsername(username)
 	if fetchError != nil {
 		return nil, errors.New("invalid credentials")
 	}

@@ -73,9 +73,9 @@ func main() {
 	//currencyRepo := currencymongodb.NewCurrencyRepository(db.Collection("currencies"))
 	//hardwareRateRepo := ratesmongodb.NewHardwareCostRepository(db.Collection("hardware_costs"))
 
-	userAuthentificationService := auth.NewAuthenticationService(userRepo)
-
 	userService := user.NewUserService(userRepo)
+
+	userAuthentificationService := auth.NewAuthenticationService(userService)
 
 	_, err = userService.CreateUser("alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
 	if err != nil {
@@ -91,6 +91,14 @@ func main() {
 	//hardwareCostService := rates.NewHardwareCostService(hardwareRateRepo)
 
 	listingSearchService := listingmem.NewInMemoryListingSearchService()
+
+	listings, err := listingRepo.ListAll()
+	if err == nil {
+		for _, listing := range listings {
+			listingSearchService.IndexListing(listing)
+		}
+	}
+
 	listingFacadeService := app.NewListingFacadeService(listingService, listingSearchService)
 
 	publicListingService := app.NewPublicListingService(listingFacadeService)
@@ -122,7 +130,7 @@ func main() {
 	// ---------------------------
 	public := e.Group("")
 	public.GET("/listings", app.PublicListingsHandler)
-	public.GET("/rentals/public/:id", app.PublicGetListingHandler)
+	public.GET("/listing/:id", app.PublicListingHandler)
 	public.POST("/login", app.LoginHandler)
 	public.POST("/logout", app.LogoutHandler)
 

@@ -80,10 +80,14 @@ export interface Listing {
     title?: string;
     description?: string;
     author: string;
-    accessMode?: number;
     price: CurrencyRequest;
     hardware?: HardwareUpdate;
 }
+
+export interface DeveloperListing extends Listing {
+    accessMode?: number;
+}
+
 
 export type User = {
     username: string
@@ -102,13 +106,23 @@ export const API = {
             const response = await backend_request("/user/data", "GET");
             return response.ok ? (response.json as User) : undefined
         },
-        async rentListing(id: string) {
-            return await backend_request("/user/rent", "POST", { id });
+        library:{
+            async add(id: string) {
+                return await backend_request("/user/library", "POST", { id });
+            },
+            async delete(id: string) {
+                return await backend_request("/user/library", "DELETE", { id });
+            }
         }
+    },
+    listing: {
+        async get(id: string): Promise<APIResult<Listing>> {
+            return await backend_request(`/listing/${id}`, "GET");
+        },
     },
     developer: {
         listing: {
-            async get(id: string): Promise<APIResult<Listing>> {
+            async get(id: string): Promise<APIResult<DeveloperListing>> {
                 return await backend_request("/developer/listing", "GET", {id});
             },
             async delete(id: string): Promise<APIResult<unknown>> {
@@ -123,7 +137,7 @@ export const API = {
                     description
                 };
 
-                return await backend_request<Listing>(`/developer/listing`, "POST", data)
+                return await backend_request<DeveloperListing>(`/developer/listing`, "POST", data)
             },
         }
     }

@@ -127,3 +127,18 @@ func (app *App) PublicListingsHandler(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, response)
 }
+
+func (app *App) PublicListingHandler(c echo.Context) error {
+	listingID := c.Param("id")
+	if listingID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing listing ID"})
+	}
+
+	listingEntity, err := app.ListingService.GetPublicListing(listingID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "listing not found"})
+	}
+
+	publicListing := app.ConvertListingToPublic(listingEntity)
+	return c.JSON(http.StatusOK, publicListing)
+}

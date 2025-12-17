@@ -8,7 +8,7 @@ import Logo from "../components/prefabs/Logo";
 import { useNavigate } from "react-router-dom";
 import RequireLogin from "../components/restriction/RequireLogin";
 import Dashboard, { Page } from "../components/navigation/Dashboard";
-import UserRentalList from "./rentals/Rentals";
+import UserLibrary from "./library/Library";
 import DeveloperListings from "./developer/DeveloperListings";
 import { useUserSession } from "../components/restriction/UserSession";
 
@@ -31,10 +31,7 @@ const AccountPage: React.FC = () => {
             <div className="w-full h-full flex flex-col">
                 <Dashboard logo={<Logo></Logo>}>
                     <Page name="Account Information" icon={<UserIcon />}>
-                        <div className="md:max-w-md w-full mx-auto p-6 bg-white dark:bg-gray-800">
-                            <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                                Account Details
-                            </h1>
+                        <div className="w-full mx-auto p-6">
                             <p className="mb-2 text-gray-700 dark:text-gray-300">
                                 <strong>Username:</strong> {session.user?.username}
                             </p>
@@ -47,16 +44,13 @@ const AccountPage: React.FC = () => {
                         </div>
                     </Page>
                     <Page name="My Rentals" icon={<ShoppingCart />}>
-                        <UserRentalList></UserRentalList>
+                        <UserLibrary></UserLibrary>
                     </Page>
                     {session.user?.isDeveloper && <>
-                        <Page name="Developer" icon={<ShoppingCart />} children={undefined}>
-
-                        </Page>,
-                        <Page name="Listings" subpage_of="Developer" icon={<Images />}>
+                        <Page name="Listings" icon={<Images />}>
                             <DeveloperListings></DeveloperListings>
                         </Page>,
-                        <Page name="Earnings" subpage_of="Developer" icon={<BarChart3 />}>
+                        <Page name="Earnings" icon={<BarChart3 />}>
                             <div>Earnings content goes here</div>
                         </Page>
                     </>

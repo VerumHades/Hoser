@@ -59,6 +59,30 @@ func (r *ListingRepository) Save(listingEntity *listing.Listing) error {
 	return err
 }
 
+// ListAll returns all listings in the collection.
+func (r *ListingRepository) ListAll() ([]*listing.Listing, error) {
+	cursor, err := r.collection.Find(context.Background(), bson.M{}) // empty filter matches all documents
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+
+	var results []*listing.Listing
+	for cursor.Next(context.Background()) {
+		var doc listingDocument
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, err
+		}
+		results = append(results, mapDocumentToDomain(doc))
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
 // GetByID retrieves a listing by ID.
 func (r *ListingRepository) GetByID(listingID string) (*listing.Listing, error) {
 	var doc listingDocument

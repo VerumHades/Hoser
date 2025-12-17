@@ -1,7 +1,7 @@
 // src/components/AccountPage.tsx
 import React, { useReducer, useState } from "react";
 import EditableText from "../../components/input/EditableText";
-import { API, ListingAccessModes, type CurrencyRequest, type HardwareUpdate, type Listing } from "../../backend";
+import { API, ListingAccessModes, type CurrencyRequest, type HardwareUpdate, type DeveloperListing } from "../../backend";
 import { ChevronLeft, Delete } from "lucide-react";
 import PromptButton from "../../components/input/PromptButton";
 
@@ -13,7 +13,7 @@ import SelectBox from "../../components/input/SelectBox";
 import PricesMenu from "./prices/PricesMenu";
 
 interface ListingDisplayProps {
-    listing: Listing,
+    listing: DeveloperListing,
     onShouldClose?: () => void
 }
 
@@ -23,10 +23,10 @@ export type ListingAction =
     | { type: "setAccessMode"; mode: number }
     | { type: "setHardware"; hardware: HardwareUpdate }
     | { type: "setPrice"; currency: CurrencyRequest }
-    | { type: "reset"; backup: Listing };
+    | { type: "reset"; backup: DeveloperListing };
 
     
-function listingReducer(state: Listing, action: ListingAction): Listing {
+function listingReducer(state: DeveloperListing, action: ListingAction): DeveloperListing {
     switch (action.type) {
         case "setTitle":
             return { ...state, title: action.title };
@@ -45,7 +45,7 @@ function listingReducer(state: Listing, action: ListingAction): Listing {
     }
 }
 export default function DeveloperListingDisplay({ listing: sourceListing, onShouldClose }: ListingDisplayProps) {
-    const [backupListing, setBackupListing] = useState<Listing>(sourceListing);
+    const [backupListing, setBackupListing] = useState<DeveloperListing>(sourceListing);
     const [listing, dispatch] = useReducer(listingReducer, sourceListing);
 
     const [currentText, setText] = useState<string>("");
@@ -96,8 +96,8 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                                     return;
                                 }
 
-                                dispatch({ type: "reset", backup: json as Listing });
-                                setBackupListing(json as Listing);
+                                dispatch({ type: "reset", backup: json as DeveloperListing });
+                                setBackupListing(json as DeveloperListing);
                                 setHasUnsavedChanges(false);
                             }}
                         >

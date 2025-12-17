@@ -35,6 +35,11 @@ def start_vite():
     os.system("npm run dev")
     input()
 
+def start_mongo():
+    os.chdir(os.path.join("dev", "mongodb"))
+    os.system("docker compose up -d")
+
 if __name__ == "__main__":
     spawn_function_shell(start_go_server)
     spawn_function_shell(start_vite)
+    spawn_function_shell(start_mongo)

@@ -52,7 +52,7 @@ export default function Query<T>({ bodyBuilder, endpoint, queryBuilder, debounce
     }, [query, fetchResultsDebounced]);
 
     return (
-        <div className={"relative flex flex-col p-6 w-full h-full " + className}>
+        <div className={"flex flex-col " + className}>
             <div className="flex flex-col sm:flex-row gap-3 items-center w-full mb-3 
                 dark:bg-slate-800 px-5 shadow-md">
                 <input

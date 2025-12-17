@@ -5,6 +5,7 @@ import WithNavbar from "./components/navigation/WithNavbar";
 import { Home } from "lucide-react";
 import { UserSession } from "./components/restriction/UserSession";
 import AccountPage from "./user/Account";
+import { PublicListingView } from "./explore/PublicListingView";
 
 function App() {
     return (
@@ -16,6 +17,7 @@ function App() {
                         <Route path="/explore/listing" element={<WithNavbar><PublicListingSearch /></WithNavbar>} />
                         <Route path="/" element={<WithNavbar><Home /></WithNavbar>} />
                         <Route path="/account" element={<AccountPage></AccountPage>} />
+                        <Route path="/listing" element={<WithNavbar><PublicListingView></PublicListingView></WithNavbar>} />
                     </Routes>
                 </Router>
             </div>
