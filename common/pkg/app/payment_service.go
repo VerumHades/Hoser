@@ -113,7 +113,6 @@ func (s *PaymentService) Pay(
 	if err != nil {
 		return nil, err
 	}
-
 	// Check account status
 	if acct.Status == account.BillingAccountStatusSuspended || acct.Status == account.BillingAccountStatusClosed {
 		return nil, fmt.Errorf("billing account is not active")

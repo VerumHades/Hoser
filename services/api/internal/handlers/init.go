@@ -32,6 +32,7 @@ type App struct {
 	ListingService        *app.PublicListingService
 	BillingAccountService *account.BillingAccountService
 	PaymentService        *payment.PaymentService
+	InstanceEngineService *app.InstanceEngineService
 
 	RunningConfiguration *Configuration
 }

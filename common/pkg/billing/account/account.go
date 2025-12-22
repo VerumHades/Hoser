@@ -1,6 +1,7 @@
 package account
 
 import (
+	"fmt"
 	"time"
 
 	"common/pkg/billing/payments"
@@ -92,7 +93,14 @@ func (s *BillingAccountService) ListByOwner(ownerID string) ([]*BillingAccount, 
 }
 
 func (s *BillingAccountService) GetAccount(accountID string) (*BillingAccount, error) {
-	return s.accountRepository.GetByID(accountID)
+	account, err := s.accountRepository.GetByID(accountID)
+	if err != nil {
+		return nil, err
+	}
+	if account == nil {
+		return nil, fmt.Errorf("Billing account with given id doesnt exist.")
+	}
+	return account, nil
 }
 
 func (s *BillingAccountService) SuspendAccount(accountID string) error {

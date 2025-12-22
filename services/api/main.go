@@ -8,6 +8,7 @@ import (
 	"common/infra/configuration"
 	accountmongodb "common/infra/mongodb/billing/account"
 	paymentmongodb "common/infra/mongodb/billing/payment"
+	instancemongodb "common/infra/mongodb/instance"
 	librarymongodb "common/infra/mongodb/library"
 	listingmongodb "common/infra/mongodb/listing"
 	usermongodb "common/infra/mongodb/user"
@@ -19,6 +20,7 @@ import (
 	"common/pkg/auth"
 	"common/pkg/billing/account"
 	"common/pkg/billing/payments/payment"
+	"common/pkg/instance"
 	"common/pkg/library"
 	"common/pkg/listing"
 	"common/pkg/money"
@@ -30,6 +32,23 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// DudReconciliationHandler is a no-op implementation of ReconciliationHandler
+type DudReconciliationHandler struct{}
+
+// OnInstanceCreated is called when a new instance is created.
+// This implementation does nothing and always returns nil.
+func (h *DudReconciliationHandler) OnInstanceCreated(instance *instance.Instance) error {
+	// No-op
+	return nil
+}
+
+// OnInstanceUpdated is called when an instance is updated.
+// This implementation does nothing and always returns nil.
+func (h *DudReconciliationHandler) OnInstanceUpdated(instance *instance.Instance) error {
+	// No-op
+	return nil
+}
 
 func main() {
 	// ---------------------------
@@ -85,7 +104,7 @@ func main() {
 	}
 	accountRepo := accountmongodb.NewBillingAccountRepository(db.Collection("billing_accounts"))
 	paymentRepo := paymentmongodb.NewPaymentRepository(db.Collection("payments"), db.Collection("one_time_paymens"), db.Collection("subscription_payments"))
-	//instanceRepo := instancemongodb.NewInstanceRepository(db.Collection("instances"))
+	instanceRepo := instancemongodb.NewInstanceRepository(db.Collection("instances"))
 	//currencyRepo := currencymongodb.NewCurrencyRepository(db.Collection("currencies"))
 	//hardwareRateRepo := ratesmongodb.NewHardwareCostRepository(db.Collection("hardware_costs"))
 
@@ -102,7 +121,7 @@ func main() {
 
 	billingAccountService := account.NewBillingAccountService(accountRepo)
 	paymentService := payment.NewPaymentService(paymentRepo)
-	//instanceService := instance.NewInstanceService(instanceRepo)
+	instanceService := instance.NewInstanceService(instanceRepo)
 	//currencyService := currency.NewCurrencyService(currencyRepo)
 	//hardwareCostService := rates.NewHardwareCostService(hardwareRateRepo)
 
@@ -132,6 +151,14 @@ func main() {
 		paymentGatewayResolver,
 	)
 
+	instanceEngineService := *app.NewInstanceEngineService(
+		instanceService,
+		billingAccountService,
+		toplevelPaymentService,
+		publicListingService,
+		&DudReconciliationHandler{},
+	)
+
 	_, err = toplevelPaymentService.Pay("d49138ad-0b17-4299-b0ca-b2655fb2d208", money.Money{Amount: 1000, CurrencyCode: "USD"})
 	if err != nil {
 		fmt.Print(err)
@@ -144,6 +171,7 @@ func main() {
 		ListingService:        publicListingService,
 		BillingAccountService: billingAccountService,
 		PaymentService:        paymentService,
+		InstanceEngineService: &instanceEngineService,
 	}
 
 	e := echo.New()
@@ -184,6 +212,13 @@ func main() {
 	auth.GET("/billing/:billingAccountId/payments", app.UserListPaymentsHandler)
 	auth.GET("/billing/:billingAccountId/payment/:paymentId", app.UserGetPaymentHandler)
 	auth.GET("/billing/:billingAccountId/payment/:paymentId/metadata", app.UserGetPaymentMetadataHandler)
+
+	// ================= Instance endpoints =================
+	auth.POST("/instances", app.UserLaunchInstanceHandler)                           // Launch a new instance
+	auth.PATCH("/instances/:id/hardware", app.UserUpdateHardwareHandler)             // Update hardware spec
+	auth.GET("/instances/:id", app.UserGetInstanceHandler)                           // Get single instance
+	auth.GET("/billing/:billingId/instances", app.UserListInstancesByBillingHandler) // List instances by billing account
+	auth.GET("/instances", app.UserListInstancesByOwnerHandler)                      // List all instances for the authenticated user
 
 	// ---------------------------
 	// Developer-only routes
