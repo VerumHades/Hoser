@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 
-	"common/pkg/hardware"
 	"common/pkg/instance"
 
 	"github.com/labstack/echo/v4"
@@ -11,23 +10,23 @@ import (
 
 // =================== TYPES ===================
 type ApiInstance struct {
-	ID                    string                          `json:"id"`
-	ListingID             string                          `json:"listingId"`
-	BillingID             string                          `json:"billingId"`
-	State                 string                          `json:"state"`
-	HardwareSpecification *hardware.HardwareSpecification `json:"hardwareSpecification"`
+	ID                    string                    `json:"id"`
+	ListingID             string                    `json:"listingId"`
+	BillingID             string                    `json:"billingId"`
+	State                 string                    `json:"state"`
+	HardwareSpecification *HardwareSpecificationDTO `json:"hardwareSpecification"`
 }
 
 // LaunchInstanceRequest is the payload to create a new instance
 type LaunchInstanceRequest struct {
-	ListingID        string                          `json:"listingId"`
-	BillingAccountID string                          `json:"billingAccountId"`
-	HardwareSpec     *hardware.HardwareSpecification `json:"hardwareSpecification"`
+	ListingID        string                    `json:"listingId"`
+	BillingAccountID string                    `json:"billingAccountId"`
+	HardwareSpec     *HardwareSpecificationDTO `json:"hardwareSpecification"`
 }
 
 // UpdateHardwareRequest is the payload to update hardware spec
 type UpdateHardwareRequest struct {
-	HardwareSpec *hardware.HardwareSpecification `json:"hardwareSpecification"`
+	HardwareSpec *HardwareSpecificationDTO `json:"hardwareSpecification"`
 }
 
 // =================== HELPERS ===================
@@ -37,7 +36,7 @@ func (app *App) MakeApiInstance(instance *instance.Instance) ApiInstance {
 		ListingID:             instance.ListingID,
 		BillingID:             instance.BillingID,
 		State:                 "",
-		HardwareSpecification: instance.HardwareSpecification,
+		HardwareSpecification: app.HardwareSpecificationToDTO(instance.HardwareSpecification),
 	}
 }
 
@@ -59,7 +58,7 @@ func (app *App) UserLaunchInstanceHandler(c echo.Context) error {
 		userID,
 		req.ListingID,
 		req.BillingAccountID,
-		req.HardwareSpec,
+		app.HardwareDTOToSpec(req.HardwareSpec),
 	)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to launch instance: "+err.Error())
@@ -98,7 +97,7 @@ func (app *App) UserUpdateHardwareHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusForbidden, "Not authorized to modify this instance")
 	}
 
-	updatedInstance, err := app.InstanceEngineService.UpdateHardwareSpecification(instanceID, req.HardwareSpec)
+	updatedInstance, err := app.InstanceEngineService.UpdateHardwareSpecification(instanceID, app.HardwareDTOToSpec(req.HardwareSpec))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update hardware: "+err.Error())
 	}

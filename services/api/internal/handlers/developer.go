@@ -11,12 +11,12 @@ import (
 
 // =================== TYPES ===================
 type ApiListingBase struct {
-	ID          string          `json:"id"`
-	Title       *string         `json:"title,omitempty"`
-	Description *string         `json:"description,omitempty"`
-	Price       CurrencyRequest `json:"price"`
-	Hardware    *HardwareUpdate `json:"hardware,omitempty"`
-	Author      string          `json:"author"`
+	ID          string                    `json:"id"`
+	Title       *string                   `json:"title,omitempty"`
+	Description *string                   `json:"description,omitempty"`
+	Price       CurrencyRequest           `json:"price"`
+	Hardware    *HardwareSpecificationDTO `json:"hardware,omitempty"`
+	Author      string                    `json:"author"`
 }
 
 type ApiDeveloperListing struct {
@@ -32,17 +32,17 @@ type UpdateListingRequest struct {
 	ID          string                     `json:"id"`
 	Title       *string                    `json:"title,omitempty"`
 	Description *string                    `json:"description,omitempty"`
-	Hardware    *HardwareUpdate            `json:"hardware,omitempty"`
+	Hardware    *HardwareSpecificationDTO  `json:"hardware,omitempty"`
 	Price       *money.Money               `json:"price,omitempty"`
 	AccessMode  *listing.ListingAccessMode `json:"accessMode,omitempty"` // integer type
 }
 type ListingRequest struct {
-	ID          string           `json:"id"`
-	Title       *string          `json:"title,omitempty"`
-	Description *string          `json:"description,omitempty"`
-	AccessMode  *int             `json:"accessMode,omitempty"`
-	Price       *CurrencyRequest `json:"price,omitempty"`
-	Hardware    *HardwareUpdate  `json:"hardware,omitempty"`
+	ID          string                    `json:"id"`
+	Title       *string                   `json:"title,omitempty"`
+	Description *string                   `json:"description,omitempty"`
+	AccessMode  *int                      `json:"accessMode,omitempty"`
+	Price       *CurrencyRequest          `json:"price,omitempty"`
+	Hardware    *HardwareSpecificationDTO `json:"hardware,omitempty"`
 }
 
 type AddListingRequest struct {
@@ -50,25 +50,9 @@ type AddListingRequest struct {
 	Description string `json:"description"`
 }
 
-type HardwareUpdate struct {
-	CPU  *int   `json:"cpu,omitempty"`
-	RAM  *int64 `json:"ramBytes,omitempty"`
-	Disk *int64 `json:"diskBytes,omitempty"`
-}
-
 // =================== HELPERS ===================
 func (app *App) MakeApiDeveloperListing(l *listing.Listing) ApiDeveloperListing {
 	accessMode := int(l.AccessMode) // convert ListingAccessMode to int
-
-	// Convert hardware spec
-	var hwUpdate *HardwareUpdate
-	if l.HardwareSpecification != nil {
-		hwUpdate = &HardwareUpdate{
-			CPU:  &l.HardwareSpecification.CPUCount,
-			RAM:  &l.HardwareSpecification.RAMBytes,
-			Disk: &l.HardwareSpecification.DiskBytes,
-		}
-	}
 
 	price := CurrencyRequest{
 		Value: float32(l.Price.Amount),
@@ -82,7 +66,7 @@ func (app *App) MakeApiDeveloperListing(l *listing.Listing) ApiDeveloperListing 
 			Title:       &l.Title,
 			Description: &l.Description,
 			Price:       price,
-			Hardware:    hwUpdate,
+			Hardware:    app.HardwareSpecificationToDTO(l.HardwareSpecification),
 		},
 		AccessMode: &accessMode,
 	}

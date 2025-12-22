@@ -23,7 +23,6 @@ import (
 	"common/pkg/instance"
 	"common/pkg/library"
 	"common/pkg/listing"
-	"common/pkg/money"
 	"common/pkg/user"
 	"fmt"
 	"log"
@@ -158,11 +157,6 @@ func main() {
 		publicListingService,
 		&DudReconciliationHandler{},
 	)
-
-	_, err = toplevelPaymentService.Pay("d49138ad-0b17-4299-b0ca-b2655fb2d208", money.Money{Amount: 1000, CurrencyCode: "USD"})
-	if err != nil {
-		fmt.Print(err)
-	}
 
 	app := &handlers.App{
 		RunningConfiguration:  &runningConfiguration,
