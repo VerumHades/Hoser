@@ -23,14 +23,22 @@ type SavedListingRepository struct {
 	collection *mongo.Collection
 }
 
-// NewSavedListingRepository creates a new MongoDB-backed saved listing repository.
-func NewSavedListingRepository(collection *mongo.Collection) *SavedListingRepository {
-	return &SavedListingRepository{
+// NewSavedListingRepository creates a new MongoDB-backed saved listing repository
+// and ensures required indexes exist.
+func NewSavedListingRepository(collection *mongo.Collection) (*SavedListingRepository, error) {
+	repository := &SavedListingRepository{
 		collection: collection,
 	}
+
+	if err := repository.ensureIndexes(); err != nil {
+		return nil, err
+	}
+
+	return repository, nil
 }
 
-// Save inserts or updates a saved listing.
+// Save inserts a saved listing.
+// Uniqueness is enforced by a compound database index.
 func (r *SavedListingRepository) Save(item *library.SavedListing) error {
 	doc := savedListingDocument{
 		ID:        item.ID,
@@ -38,13 +46,34 @@ func (r *SavedListingRepository) Save(item *library.SavedListing) error {
 		ListingID: item.ListingID,
 	}
 
-	_, err := r.collection.UpdateByID(
-		context.Background(),
-		doc.ID,
-		bson.M{"$set": doc},
-		options.Update().SetUpsert(true),
-	)
+	_, err := r.collection.InsertOne(context.Background(), doc)
 	return err
+}
+
+// ExistsByUserAndListing checks whether a user already saved a specific listing.
+func (r *SavedListingRepository) ExistsByUserAndListing(userID string, listingID string) (bool, error) {
+	filter := bson.M{
+		"user_id":    userID,
+		"listing_id": listingID,
+	}
+
+	err := r.collection.
+		FindOne(
+			context.Background(),
+			filter,
+			options.FindOne().SetProjection(bson.M{"_id": 1}),
+		).
+		Err()
+
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // GetByUserID retrieves all saved listings for a user.
@@ -80,14 +109,34 @@ func (r *SavedListingRepository) Delete(itemID string) error {
 // GetByID retrieves a saved listing by its ID.
 func (r *SavedListingRepository) GetByID(itemID string) (*library.SavedListing, error) {
 	var doc savedListingDocument
-	err := r.collection.FindOne(context.Background(), bson.M{"_id": itemID}).Decode(&doc)
+
+	err := r.collection.
+		FindOne(context.Background(), bson.M{"_id": itemID}).
+		Decode(&doc)
+
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	return mapDocumentToDomain(doc), nil
+}
+
+// ensureIndexes creates required MongoDB indexes for correctness and performance.
+func (r *SavedListingRepository) ensureIndexes() error {
+	indexModel := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "user_id", Value: 1},
+			{Key: "listing_id", Value: 1},
+		},
+		Options: options.Index().SetUnique(true),
+	}
+
+	_, err := r.collection.Indexes().CreateOne(context.Background(), indexModel)
+	return err
 }
 
 // mapDocumentToDomain converts a MongoDB document into a domain SavedListing.

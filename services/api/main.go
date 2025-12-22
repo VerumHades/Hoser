@@ -6,16 +6,22 @@ import (
 	"time"
 
 	"common/infra/configuration"
+	accountmongodb "common/infra/mongodb/billing/account"
+	paymentmongodb "common/infra/mongodb/billing/payment"
 	librarymongodb "common/infra/mongodb/library"
 	listingmongodb "common/infra/mongodb/listing"
 	usermongodb "common/infra/mongodb/user"
 
 	listingmem "common/infra/inmem/listing"
+	inmempayments "common/infra/inmem/payments"
 
 	"common/pkg/app"
 	"common/pkg/auth"
+	"common/pkg/billing/account"
+	"common/pkg/billing/payments/payment"
 	"common/pkg/library"
 	"common/pkg/listing"
+	"common/pkg/money"
 	"common/pkg/user"
 	"fmt"
 	"log"
@@ -64,17 +70,26 @@ func main() {
 	db := client.Database(runningConfiguration.MongoDatabaseName)
 
 	// 3. Initialize collections & repositories
-	userRepo := usermongodb.NewUserRepository(db.Collection("users"))
+	userRepo, err := usermongodb.NewUserRepository(db.Collection("users"))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	listingRepo := listingmongodb.NewListingRepository(db.Collection("listings"))
-	libraryRepo := librarymongodb.NewSavedListingRepository(db.Collection("libraries"))
-	//accountRepo := accountmongodb.NewBillingAccountRepository(db.Collection("billing_accounts"))
-	//paymentRepo := paymentmongodb.NewPaymentRepository(db.Collection("payments"), db.Collection("one_time_paymens"), db.Collection("subscription_payments"))
+
+	libraryRepo, err := librarymongodb.NewSavedListingRepository(db.Collection("libraries"))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	accountRepo := accountmongodb.NewBillingAccountRepository(db.Collection("billing_accounts"))
+	paymentRepo := paymentmongodb.NewPaymentRepository(db.Collection("payments"), db.Collection("one_time_paymens"), db.Collection("subscription_payments"))
 	//instanceRepo := instancemongodb.NewInstanceRepository(db.Collection("instances"))
 	//currencyRepo := currencymongodb.NewCurrencyRepository(db.Collection("currencies"))
 	//hardwareRateRepo := ratesmongodb.NewHardwareCostRepository(db.Collection("hardware_costs"))
 
 	userService := user.NewUserService(userRepo)
-
 	userAuthentificationService := auth.NewAuthenticationService(userService)
 
 	_, err = userService.CreateUser("alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
@@ -84,8 +99,9 @@ func main() {
 
 	listingService := listing.NewListingService(listingRepo)
 	libraryService := library.NewLibraryService(libraryRepo)
-	//billingAccountService := account.NewBillingAccountService(accountRepo)
-	//paymentService := payment.NewPaymentService(paymentRepo)
+
+	billingAccountService := account.NewBillingAccountService(accountRepo)
+	paymentService := payment.NewPaymentService(paymentRepo)
 	//instanceService := instance.NewInstanceService(instanceRepo)
 	//currencyService := currency.NewCurrencyService(currencyRepo)
 	//hardwareCostService := rates.NewHardwareCostService(hardwareRateRepo)
@@ -100,7 +116,6 @@ func main() {
 	}
 
 	listingFacadeService := app.NewListingFacadeService(listingService, listingSearchService)
-
 	publicListingService := app.NewPublicListingService(listingFacadeService)
 
 	userAppService := app.NewUserAppService(
@@ -109,11 +124,26 @@ func main() {
 		libraryService,
 	)
 
+	paymentGatewayResolver := inmempayments.NewInMemoryPaymentGatewayResolver()
+
+	toplevelPaymentService := app.NewPaymentService(
+		paymentService,
+		billingAccountService,
+		paymentGatewayResolver,
+	)
+
+	_, err = toplevelPaymentService.Pay("d49138ad-0b17-4299-b0ca-b2655fb2d208", money.Money{Amount: 1000, CurrencyCode: "USD"})
+	if err != nil {
+		fmt.Print(err)
+	}
+
 	app := &handlers.App{
-		RunningConfiguration: &runningConfiguration,
-		UserAppService:       userAppService,
-		UserAuth:             userAuthentificationService,
-		ListingService:       publicListingService,
+		RunningConfiguration:  &runningConfiguration,
+		UserAppService:        userAppService,
+		UserAuth:              userAuthentificationService,
+		ListingService:        publicListingService,
+		BillingAccountService: billingAccountService,
+		PaymentService:        paymentService,
 	}
 
 	e := echo.New()
@@ -143,6 +173,17 @@ func main() {
 	auth.GET("/library", app.UserLibraryHandler)
 	auth.POST("/library", app.UserAddListingToLibraryHandler)
 	auth.DELETE("/library", app.UserRemoveListingFromLibraryHandler)
+
+	// ================= Billing account endpoints =================
+	auth.GET("/billing", app.UserBillingAccountsHandler)                    // list all accounts
+	auth.POST("/billing", app.UserCreateBillingAccountHandler)              // create a new account
+	auth.GET("/billing/:id", app.UserGetBillingAccountHandler)              // get single account
+	auth.POST("/billing/:id/suspend", app.UserSuspendBillingAccountHandler) // suspend account
+	auth.POST("/billing/:id/close", app.UserCloseBillingAccountHandler)     // close account
+
+	auth.GET("/billing/:billingAccountId/payments", app.UserListPaymentsHandler)
+	auth.GET("/billing/:billingAccountId/payment/:paymentId", app.UserGetPaymentHandler)
+	auth.GET("/billing/:billingAccountId/payment/:paymentId/metadata", app.UserGetPaymentMetadataHandler)
 
 	// ---------------------------
 	// Developer-only routes

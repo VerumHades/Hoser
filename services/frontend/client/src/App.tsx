@@ -2,10 +2,10 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LoginForm from "./user/LoginForm";
 import PublicListingSearch from "./explore/PublicListingSearch";
 import WithNavbar from "./components/navigation/WithNavbar";
-import { Home } from "lucide-react";
 import { UserSession } from "./components/restriction/UserSession";
 import AccountPage from "./user/Account";
 import { PublicListingView } from "./explore/PublicListingView";
+import PublicLandingPage from "./explore/PublicLandingPage";
 
 function App() {
     return (
@@ -14,9 +14,9 @@ function App() {
                 <Router>
                     <Routes>
                         <Route path="/login" element={<LoginForm />} />
-                        <Route path="/explore/listing" element={<WithNavbar><PublicListingSearch /></WithNavbar>} />
-                        <Route path="/" element={<WithNavbar><Home /></WithNavbar>} />
-                        <Route path="/account" element={<AccountPage></AccountPage>} />
+                        <Route path="/search" element={<WithNavbar><PublicListingSearch /></WithNavbar>} />
+                        <Route path="/" element={<WithNavbar><PublicLandingPage/></WithNavbar>} />
+                        <Route path="/dashboard/*" element={<AccountPage></AccountPage>} />
                         <Route path="/listing" element={<WithNavbar><PublicListingView></PublicListingView></WithNavbar>} />
                     </Routes>
                 </Router>

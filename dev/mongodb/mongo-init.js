@@ -12,6 +12,11 @@ db = db.getSiblingDB(dbName);
 db.createCollection("users");
 db.createCollection("listings");
 db.createCollection("libraries");
+db.createCollection("billing_accounts");
+
+db.createCollection("payments");
+db.createCollection("one_time_paymens");
+db.createCollection("subscription_payments");
 
 // Optional: create indexes for the collections if you need
 // db.users.createIndex({ email: 1 }, { unique: true });
