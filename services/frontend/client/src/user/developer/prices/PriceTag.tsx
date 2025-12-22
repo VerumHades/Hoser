@@ -11,7 +11,6 @@ interface PriceTagProps {
 }
 
 export function PriceTag({ prices, rate, onClick }: PriceTagProps) {
-    console.log(prices)
     const totalValue = prices.reduce((sum, p) => sum + p?.value, 0);
     const currency = prices[0]?.short || "";
 

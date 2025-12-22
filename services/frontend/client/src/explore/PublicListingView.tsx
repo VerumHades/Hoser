@@ -1,5 +1,5 @@
 import { useEffect, useState, type JSX } from "react";
-import { useSearchParams, type NavigateFunction } from "react-router-dom";
+import { useParams, useSearchParams, type NavigateFunction } from "react-router-dom";
 import { API, type Listing } from "../backend";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
 import { BookmarkPlus } from "lucide-react";
@@ -13,14 +13,12 @@ export function gotoListing(
         return;
     }
 
-    const urlSearchParameters = new URLSearchParams();
-    urlSearchParameters.append("id", listing.id);
-    navigate("/listing?" + urlSearchParameters.toString());
+    navigate("/listing/" + listing.id);
 }
 
 export function PublicListingView(): JSX.Element {
-    const [searchParameters] = useSearchParams();
-    const listingID = searchParameters.get("id");
+    const {id} = useParams<{id: string}>();
+    const listingID = id;
 
     const [listing, setListing] = useState<Listing | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);

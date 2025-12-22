@@ -17,7 +17,7 @@ function App() {
                         <Route path="/search" element={<WithNavbar><PublicListingSearch /></WithNavbar>} />
                         <Route path="/" element={<WithNavbar><PublicLandingPage/></WithNavbar>} />
                         <Route path="/dashboard/*" element={<AccountPage></AccountPage>} />
-                        <Route path="/listing" element={<WithNavbar><PublicListingView></PublicListingView></WithNavbar>} />
+                        <Route path="/listing/:id" element={<WithNavbar><PublicListingView></PublicListingView></WithNavbar>} />
                     </Routes>
                 </Router>
             </div>

@@ -61,7 +61,7 @@ export interface PricingEntry {
     currency: CurrencyRequest;
 }
 
-export interface HardwareUpdate {
+export interface HardwareSpecification {
     cpu?: number;   // corresponds to Go CPU
     ramBytes?: number;   // corresponds to Go RAM (ramBytes)
     diskBytes?: number;  // corresponds to Go Disk (diskBytes)
@@ -72,7 +72,7 @@ export interface ListingRequest {
     title?: string;
     description?: string;
     accessMode?: number;
-    hardware?: HardwareUpdate;
+    hardware?: HardwareSpecification;
 }
 
 export interface Listing {
@@ -81,7 +81,7 @@ export interface Listing {
     description?: string;
     author: string;
     price: CurrencyRequest;
-    hardware?: HardwareUpdate;
+    hardware?: HardwareSpecification;
 }
 
 export interface DeveloperListing extends Listing {
@@ -135,18 +135,11 @@ export interface ApiInstance {
 export interface LaunchInstanceRequest {
     listingId: string;
     billingAccountId: string;
-    hardwareSpec: HardwareSpecification;
+    hardwareSpecification: HardwareSpecification;
 }
 
 export interface UpdateHardwareRequest {
-    hardwareSpec: HardwareSpecification;
-}
-
-export interface HardwareSpecification {
-    cpu: string;
-    memory: number;
-    storage: number;
-    gpu?: string;
+    hardwareSpecification: HardwareSpecification;
 }
 
 // =================== EXTENDED API ===================
@@ -194,12 +187,12 @@ export const API = {
             }
         },
         instances: {
-            async launch(listingId: string, billingAccountId: string, hardwareSpec: HardwareSpecification): Promise<APIResult<ApiInstance>> {
-                const data: LaunchInstanceRequest = { listingId, billingAccountId, hardwareSpec };
+            async launch(listingId: string, billingAccountId: string, hardwareSpecification: HardwareSpecification): Promise<APIResult<ApiInstance>> {
+                const data: LaunchInstanceRequest = { listingId, billingAccountId, hardwareSpecification };
                 return await backend_request(`/user/instances`, "POST", data);
             },
-            async updateHardware(instanceId: string, hardwareSpec: HardwareSpecification): Promise<APIResult<ApiInstance>> {
-                const data: UpdateHardwareRequest = { hardwareSpec };
+            async updateHardware(instanceId: string, hardwareSpecification: HardwareSpecification): Promise<APIResult<ApiInstance>> {
+                const data: UpdateHardwareRequest = { hardwareSpecification };
                 return await backend_request(`/user/instances/${instanceId}/hardware`, "PATCH", data);
             },
             async get(instanceId: string): Promise<APIResult<ApiInstance>> {

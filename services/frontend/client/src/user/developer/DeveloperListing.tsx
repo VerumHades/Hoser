@@ -1,7 +1,7 @@
 // src/components/AccountPage.tsx
 import React, { useReducer, useState } from "react";
 import EditableText from "../../components/input/EditableText";
-import { API, ListingAccessModes, type CurrencyRequest, type HardwareUpdate, type DeveloperListing } from "../../backend";
+import { API, ListingAccessModes, type CurrencyRequest, type DeveloperListing, type HardwareSpecification } from "../../backend";
 import { ChevronLeft, Delete } from "lucide-react";
 import PromptButton from "../../components/input/PromptButton";
 
@@ -21,7 +21,7 @@ export type ListingAction =
     | { type: "setTitle"; title: string }
     | { type: "setDescription"; description: string }
     | { type: "setAccessMode"; mode: number }
-    | { type: "setHardware"; hardware: HardwareUpdate }
+    | { type: "setHardware"; hardware: HardwareSpecification }
     | { type: "setPrice"; currency: CurrencyRequest }
     | { type: "reset"; backup: DeveloperListing };
 
@@ -89,7 +89,6 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
                             className="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600"
                             onClick={async () => {
                         
-                                console.log(listing)
                                 const{ json, ok } = await API.developer.listing.update(listing);
                                 if (!ok) {
                                     reset();
@@ -170,7 +169,7 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
 
                     {/* Hardware sliders */}
                     <HardwareSettings
-                        hardware={listing.hardware ?? {}}
+                        initialSpec={listing.hardware ?? {}}
                         onChange={(newHardware) => {
                             dispatch({ type: "setHardware", hardware: newHardware });
                             changeListing();
