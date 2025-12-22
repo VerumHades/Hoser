@@ -123,6 +123,33 @@ export interface ApiPayment {
     paidAt?: number;
 }
 
+// =================== TYPES ===================
+export interface ApiInstance {
+    id: string;
+    listingId: string;
+    billingId: string;
+    state: string;
+    hardwareSpecification: HardwareSpecification;
+}
+
+export interface LaunchInstanceRequest {
+    listingId: string;
+    billingAccountId: string;
+    hardwareSpec: HardwareSpecification;
+}
+
+export interface UpdateHardwareRequest {
+    hardwareSpec: HardwareSpecification;
+}
+
+export interface HardwareSpecification {
+    cpu: string;
+    memory: number;
+    storage: number;
+    gpu?: string;
+}
+
+// =================== EXTENDED API ===================
 export const API = {
     user: {
         async getData(): Promise<User | undefined> {
@@ -165,6 +192,25 @@ export const API = {
                     return await backend_request(`/user/billing/${billingAccountId}/payment/${paymentId}/metadata`, "GET");
                 }
             }
+        },
+        instances: {
+            async launch(listingId: string, billingAccountId: string, hardwareSpec: HardwareSpecification): Promise<APIResult<ApiInstance>> {
+                const data: LaunchInstanceRequest = { listingId, billingAccountId, hardwareSpec };
+                return await backend_request(`/user/instances`, "POST", data);
+            },
+            async updateHardware(instanceId: string, hardwareSpec: HardwareSpecification): Promise<APIResult<ApiInstance>> {
+                const data: UpdateHardwareRequest = { hardwareSpec };
+                return await backend_request(`/user/instances/${instanceId}/hardware`, "PATCH", data);
+            },
+            async get(instanceId: string): Promise<APIResult<ApiInstance>> {
+                return await backend_request(`/user/instances/${instanceId}`, "GET");
+            },
+            async listByBilling(billingId: string): Promise<APIResult<ApiInstance[]>> {
+                return await backend_request(`/user/billing/${billingId}/instances`, "GET");
+            },
+            async list(): Promise<APIResult<ApiInstance[]>> {
+                return await backend_request(`/user/instances`, "GET");
+            }
         }
     },
     listing: {
@@ -184,13 +230,9 @@ export const API = {
                 return await backend_request("/developer/listing", "PUT", data)
             },
             async create(title: string = "My New Listing", description: string = "This is a description of my listing.") {
-                const data = {
-                    title,
-                    description
-                };
-
+                const data = { title, description };
                 return await backend_request<DeveloperListing>(`/developer/listing`, "POST", data)
             },
         }
     }
-}
+};

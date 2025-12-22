@@ -11,7 +11,6 @@ const (
 	Building InstanceState = iota
 	Running
 	Stopped
-	NotBilled
 )
 
 // Instance represents a hardware rental instance derived from a listing.
@@ -51,24 +50,31 @@ func (s *InstanceService) CreateInstance(listingID, billingID string, hardwareSp
 		State:                 Building,
 		HardwareSpecification: hardwareSpec,
 	}
-	err := s.repo.Save(instance)
-	if err != nil {
+	if err := s.repo.Save(instance); err != nil {
 		return nil, err
 	}
 	return instance, nil
 }
 
-// UpdateState updates the state of an instance.
-func (s *InstanceService) UpdateState(instanceID string, state InstanceState) error {
+// UpdateHardwareSpecification updates an instance's hardware spec.
+func (s *InstanceService) UpdateHardwareSpecification(instanceID string, newHardwareSpec *hardware.HardwareSpecification) (*Instance, error) {
 	instance, err := s.repo.GetByID(instanceID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	instance.State = state
-	return s.repo.Save(instance)
+	instance.HardwareSpecification = newHardwareSpec
+	if err := s.repo.Save(instance); err != nil {
+		return nil, err
+	}
+	return instance, nil
 }
 
-// GetInstanceView retrieves an instance as a read-only view.
+// GetInstance retrieves an instance by ID.
 func (s *InstanceService) GetInstance(instanceID string) (*Instance, error) {
 	return s.repo.GetByID(instanceID)
+}
+
+// ListByBillingAccount lists all instances associated with a billing account.
+func (s *InstanceService) ListByBillingAccount(billingID string) ([]*Instance, error) {
+	return s.repo.ListByBilling(billingID)
 }
