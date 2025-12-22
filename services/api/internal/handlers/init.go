@@ -3,6 +3,8 @@ package handlers
 import (
 	"common/pkg/app"
 	"common/pkg/auth"
+	"common/pkg/billing/account"
+	"common/pkg/billing/payments/payment"
 	"common/pkg/listing"
 	"net/http"
 
@@ -25,9 +27,11 @@ type Configuration struct {
 }
 
 type App struct {
-	UserAppService *app.UserAppService
-	UserAuth       *auth.AuthenticationService
-	ListingService *app.PublicListingService
+	UserAppService        *app.UserAppService
+	UserAuth              *auth.AuthenticationService
+	ListingService        *app.PublicListingService
+	BillingAccountService *account.BillingAccountService
+	PaymentService        *payment.PaymentService
 
 	RunningConfiguration *Configuration
 }

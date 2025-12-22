@@ -100,6 +100,29 @@ interface APIResult<T> {
     json: T
 }
 
+export interface ApiBillingAccount {
+    id: string;
+    status: "active" | "suspended" | "closed";
+    paymentProvider: string;
+    providerAccountId: string;
+    createdAt: number; // Unix timestamp
+}
+
+
+export type ApiPaymentKind = "one_time" | "subscription" | "unknown";
+export type ApiPaymentStatus = "pending" | "paid" | "failed" | "refunded";
+
+export interface ApiPayment {
+    id: string;
+    billingAccountId: string;
+    amount: number;
+    currency: string;
+    status: ApiPaymentStatus;
+    kind: ApiPaymentKind;
+    createdAt: number; // unix timestamp
+    paidAt?: number;
+}
+
 export const API = {
     user: {
         async getData(): Promise<User | undefined> {
@@ -112,6 +135,35 @@ export const API = {
             },
             async delete(id: string) {
                 return await backend_request("/user/library", "DELETE", { id });
+            }
+        },
+        billing: {
+            async list(): Promise<APIResult<ApiBillingAccount[]>> {
+                return await backend_request("/user/billing", "GET");
+            },
+            async create(paymentProvider: string, providerAccountID: string): Promise<APIResult<ApiBillingAccount>> {
+                const data = { paymentProvider, providerAccountID };
+                return await backend_request("/user/billing", "POST", data);
+            },
+            async get(id: string): Promise<APIResult<ApiBillingAccount>> {
+                return await backend_request(`/user/billing/${id}`, "GET");
+            },
+            async suspend(id: string): Promise<APIResult<ApiBillingAccount>> {
+                return await backend_request(`/user/billing/${id}/suspend`, "POST");
+            },
+            async close(id: string): Promise<APIResult<ApiBillingAccount>> {
+                return await backend_request(`/user/billing/${id}/close`, "POST");
+            },
+            payments: {
+                async list(billingAccountId: string): Promise<APIResult<ApiPayment[]>> {
+                    return await backend_request(`/user/billing/${billingAccountId}/payments`, "GET");
+                },
+                async get(billingAccountId: string, paymentId: string): Promise<APIResult<ApiPayment>> {
+                    return await backend_request(`/user/billing/${billingAccountId}/payment/${paymentId}`, "GET");
+                },
+                async getMetadata(billingAccountId: string, paymentId: string): Promise<APIResult<any>> {
+                    return await backend_request(`/user/billing/${billingAccountId}/payment/${paymentId}/metadata`, "GET");
+                }
             }
         }
     },

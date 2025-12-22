@@ -102,7 +102,16 @@ func (s *UserService) CheckDeveloper(userID string) (bool, error) {
 
 // CheckDeveloper returns whether the user is a developer.
 func (s *UserService) GetUser(userID string) (*User, error) {
-	return s.repo.GetByID(userID)
+	user, err := s.repo.GetByID(userID)
+
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, fmt.Errorf("User doesnt exist.")
+	}
+
+	return user, nil
 }
 
 func (s *UserService) GetByUsername(userID string) (*User, error) {

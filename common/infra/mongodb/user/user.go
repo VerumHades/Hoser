@@ -24,18 +24,30 @@ type UserRepository struct {
 	collection *mongo.Collection
 }
 
-// NewUserRepository creates a new MongoDB-backed user repository.
-func NewUserRepository(collection *mongo.Collection) *UserRepository {
-	return &UserRepository{collection: collection}
+// NewUserRepository creates a new MongoDB-backed user repository
+// and ensures required indexes exist.
+func NewUserRepository(collection *mongo.Collection) (*UserRepository, error) {
+	repository := &UserRepository{
+		collection: collection,
+	}
+
+	if err := repository.ensureIndexes(); err != nil {
+		return nil, err
+	}
+
+	return repository, nil
 }
 
 // Save inserts or updates a user.
+// Username uniqueness is enforced by a database index.
 func (r *UserRepository) Save(userEntity *user.User) error {
+	privateView := userEntity.ToPrivateView()
+
 	doc := userDocument{
-		ID:           userEntity.ToPrivateView().ID,
-		Username:     userEntity.ToPrivateView().Username,
-		PasswordHash: userEntity.ToPrivateView().PasswordHash,
-		Developer:    userEntity.ToPrivateView().IsDev,
+		ID:           privateView.ID,
+		Username:     privateView.Username,
+		PasswordHash: privateView.PasswordHash,
+		Developer:    privateView.IsDev,
 	}
 
 	_, err := r.collection.UpdateByID(
@@ -44,38 +56,64 @@ func (r *UserRepository) Save(userEntity *user.User) error {
 		bson.M{"$set": doc},
 		options.Update().SetUpsert(true),
 	)
+
 	return err
 }
 
 // GetByID retrieves a user by ID.
 func (r *UserRepository) GetByID(id string) (*user.User, error) {
 	var doc userDocument
-	err := r.collection.FindOne(context.Background(), bson.M{"_id": id}).Decode(&doc)
+
+	err := r.collection.
+		FindOne(context.Background(), bson.M{"_id": id}).
+		Decode(&doc)
+
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	return mapDocumentToDomain(doc), nil
 }
 
 // GetByUsername retrieves a user by username.
 func (r *UserRepository) GetByUsername(username string) (*user.User, error) {
 	var doc userDocument
-	err := r.collection.FindOne(context.Background(), bson.M{"username": username}).Decode(&doc)
+
+	err := r.collection.
+		FindOne(context.Background(), bson.M{"username": username}).
+		Decode(&doc)
+
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	return mapDocumentToDomain(doc), nil
 }
 
 // Delete removes a user by ID.
 func (r *UserRepository) Delete(id string) error {
 	_, err := r.collection.DeleteOne(context.Background(), bson.M{"_id": id})
+	return err
+}
+
+// ensureIndexes creates required MongoDB indexes for correctness and performance.
+func (r *UserRepository) ensureIndexes() error {
+	usernameIndex := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "username", Value: 1},
+		},
+		Options: options.Index().SetUnique(true),
+	}
+
+	_, err := r.collection.Indexes().CreateOne(context.Background(), usernameIndex)
 	return err
 }
 

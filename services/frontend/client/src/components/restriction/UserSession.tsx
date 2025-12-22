@@ -38,7 +38,7 @@ export function UserSession({ children }: UserSessionProps) {
 export function UserSessionDisplay() {
     let { user } = useContext(UserSessionContext);
     return <NavLink
-        to={user ? "/account" : "/login"}
+        to={user ? "/dashboard" : "/login"}
         className="flex items-center gap-2 p-2 m-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
     >
         <UserIcon size={20} className="text-gray-700 dark:text-gray-300" />
