@@ -11,6 +11,7 @@ import UserBilling from "./billing/UserAccounts";
 import Logo from "../components/prefabs/Logo";
 import CreateInstance from "./library/CreateInstance";
 import UserInstances from "./instances/UserInstances";
+import DeveloperListingLoader from "./developer/DeveloperListingPage";
 
 const AccountInfo: React.FC = () => {
     const session = useUserSession();
@@ -98,6 +99,7 @@ const AccountPage: React.FC = () => {
                         <Route path="library" element={<UserLibrary />} />
                         <Route path="create-instance/:listingId" element={<CreateInstance />} />
                         <Route path="instances" element={<UserInstances />} />
+                        <Route path="developer/listing/:id" element={<DeveloperListingLoader />} />
                         <Route path="billing/*" element={<UserBilling />} />
                         {session.user?.isDeveloper && (
                             <>

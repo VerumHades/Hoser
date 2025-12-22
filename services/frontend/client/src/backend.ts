@@ -214,7 +214,7 @@ export const API = {
     developer: {
         listing: {
             async get(id: string): Promise<APIResult<DeveloperListing>> {
-                return await backend_request("/developer/listing", "GET", {id});
+                return await backend_request("/developer/listing/" + id, "GET");
             },
             async delete(id: string): Promise<APIResult<unknown>> {
                 return await backend_request("/developer/listing", "DELETE", {id});

@@ -66,41 +66,6 @@ export default function PublicLandingPage() {
                     <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-200">
                         Featured setups
                     </h2>
-
-                    <Query
-                        endpoint={`${backend_constants.address}/listings`}
-                        queryBuilder={queryBuilder}
-                        bodyBuilder={(items?: Listing[]) => (
-                            <Table>
-                                {items?.map((item) => (
-                                    <TableRow
-                                        key={item.id}
-                                        onClick={() => gotoListing(navigate, item)}
-                                    >
-                                        <div className="flex flex-col justify-between h-full">
-                                            <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-300">
-                                                {item.title}
-                                            </h3>
-                                            <p className="text-xs mt-1 text-slate-600 dark:text-slate-500">
-                                                By {item.author}
-                                            </p>
-                                        </div>
-
-                                        <p className="text-sm text-slate-600 dark:text-slate-500">
-                                            {item.description}
-                                        </p>
-
-                                        {item.price && (
-                                            <PriceTag
-                                                prices={[item.price]}
-                                                rate="one time"
-                                            />
-                                        )}
-                                    </TableRow>
-                                ))}
-                            </Table>
-                        )}
-                    />
                 </div>
             </section>
 

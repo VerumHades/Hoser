@@ -1,5 +1,5 @@
 // src/components/AccountPage.tsx
-import React, { useReducer, useState } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 import EditableText from "../../components/input/EditableText";
 import { API, ListingAccessModes, type CurrencyRequest, type DeveloperListing, type HardwareSpecification } from "../../backend";
 import { ChevronLeft, Delete } from "lucide-react";
@@ -18,6 +18,7 @@ interface ListingDisplayProps {
 }
 
 export type ListingAction =
+    | { type: "set"; listing: DeveloperListing }
     | { type: "setTitle"; title: string }
     | { type: "setDescription"; description: string }
     | { type: "setAccessMode"; mode: number }
@@ -40,6 +41,8 @@ function listingReducer(state: DeveloperListing, action: ListingAction): Develop
             return { ...state, price: action.currency };
         case "reset":
             return action.backup;
+        case "set":
+            return action.listing;
         default:
             return state;
     }
@@ -47,6 +50,10 @@ function listingReducer(state: DeveloperListing, action: ListingAction): Develop
 export default function DeveloperListingDisplay({ listing: sourceListing, onShouldClose }: ListingDisplayProps) {
     const [backupListing, setBackupListing] = useState<DeveloperListing>(sourceListing);
     const [listing, dispatch] = useReducer(listingReducer, sourceListing);
+    
+    useEffect(() => {
+        dispatch({type: "set", listing: sourceListing})
+    },[sourceListing])
 
     const [currentText, setText] = useState<string>("");
     const deleteKeyword = "Delete";
@@ -70,11 +77,6 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
 
     return (
         <div className="relative flex flex-col w-full h-full min-h-0 overflow-hidden">
-            <FlowSwitch className="my-3 py-2 flex flex-row items-center hover:bg-slate-200 dark:hover:bg-gray-700 transition-all" direction="back">
-                <ChevronLeft size={32} />
-                <label>Back</label>
-            </FlowSwitch>
-
             <AnimatePresence mode="wait">
                 {hasUnsavedChanges && <motion.div
                     initial={{ opacity: 0, y: 50 }}

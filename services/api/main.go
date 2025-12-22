@@ -219,6 +219,7 @@ func main() {
 	// ---------------------------
 	e.GET("/developer/listings", app.DeveloperListingsHandler)
 	dev := e.Group("/developer/listing")
+	dev.GET("/:id", app.DeveloperGetListingHandler)
 	dev.Use(app.DeveloperOnlyMiddleware)
 
 	dev.POST("", app.DeveloperAddListingHandler)
