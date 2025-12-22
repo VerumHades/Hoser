@@ -99,6 +99,27 @@ func (app *App) DeveloperListingsHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, listings)
 }
 
+// DeveloperGetListingHandler returns a single listing for the authenticated developer by ID
+func (app *App) DeveloperGetListingHandler(c echo.Context) error {
+	userID, err := app.GetUserIDFromContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
+	listingID := c.Param("id")
+	if listingID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
+	}
+
+	listing, err := app.ListingService.GetOwnedListing(userID, listingID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
+	}
+
+	apiListing := app.MakeApiDeveloperListing(listing)
+	return c.JSON(http.StatusOK, apiListing)
+}
+
 // DeveloperAddListingHandler adds a new listing for the developer
 func (app *App) DeveloperAddListingHandler(c echo.Context) error {
 	userID, err := app.GetUserIDFromContext(c)

@@ -1,69 +1,77 @@
-import { useEffect, useState, useCallback } from "react";
-import debounce from "lodash.debounce";
-import LoadingIcon from "../prefabs/LoadingIcon";
-import { Search } from "lucide-react";
-import type { HasClassname } from "../common";
+import { useEffect, useState } from "react"
+import LoadingIcon from "../prefabs/LoadingIcon"
+import { Search } from "lucide-react"
+import type { HasClassname } from "../common"
 
-interface QueryProps<T> extends HasClassname {
-    children?: React.ReactNode;
-    bodyBuilder: (item?: T) => React.ReactElement;
-    queryBuilder: (query: string) => Record<string, string>;
-    endpoint: string;
-    debounceDelay?: number;
+interface QueryProps<ResultType> extends HasClassname {
+    endpoint: string
+    queryBuilder: (queryText: string) => Record<string, string>
+    render: (results: ResultType | undefined) => React.ReactElement
+    debounceDelayMilliseconds?: number
+    toolbarRightSlot?: React.ReactNode
+    searchPlaceholder?: string
 }
 
-const DEFAULT_DEBOUNCE_DELAY = 300;
+const DEFAULT_DEBOUNCE_DELAY_MILLISECONDS = 300
 
-export default function Query<T>({
-    bodyBuilder,
+/**
+ * Query provides debounced, abort-safe search querying with a controlled render boundary.
+ */
+export default function Query<ResultType>({
     endpoint,
     queryBuilder,
-    debounceDelay,
-    children,
+    render,
+    debounceDelayMilliseconds = DEFAULT_DEBOUNCE_DELAY_MILLISECONDS,
+    toolbarRightSlot,
+    searchPlaceholder = "Search...",
     className
-}: QueryProps<T>) {
-    const [query, setQuery] = useState("");
-    const [results, setResults] = useState<T | undefined>(undefined);
-    const [loading, setLoading] = useState(false);
-
-    const fetchResultsDebounced = useCallback(
-        debounce(async (queryValue: string, controller: AbortController) => {
-            setLoading(true);
-
-            try {
-                const params = new URLSearchParams(queryBuilder(queryValue));
-                const response = await fetch(`${endpoint}?${params}`, {
-                    signal: controller.signal,
-                    credentials: "include"
-                });
-
-                if (!response.ok) {
-                    throw new Error("Failed to fetch results");
-                }
-
-                const data: T = await response.json();
-                setResults(data);
-            } catch (error) {
-                if (error instanceof DOMException && error.name === "AbortError") {
-                    return;
-                }
-                console.error("Query fetch error:", error);
-            } finally {
-                setLoading(false);
-            }
-        }, debounceDelay ?? DEFAULT_DEBOUNCE_DELAY),
-        [endpoint, queryBuilder, debounceDelay]
-    );
+}: QueryProps<ResultType>) {
+    const [queryText, setQueryText] = useState("")
+    const [results, setResults] = useState<ResultType | undefined>(undefined)
+    const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
-        const controller = new AbortController();
-        fetchResultsDebounced(query, controller);
+        const abortController = new AbortController()
+        const timeoutHandle = window.setTimeout(async () => {
+            setIsLoading(true)
+
+            try {
+                const searchParameters = new URLSearchParams(
+                    queryBuilder(queryText)
+                )
+
+                const response = await fetch(
+                    `${endpoint}?${searchParameters.toString()}`,
+                    {
+                        credentials: "include",
+                        signal: abortController.signal
+                    }
+                )
+
+                if (!response.ok) {
+                    throw new Error("Query request failed")
+                }
+
+                const parsedResults: ResultType = await response.json()
+                setResults(parsedResults)
+            } catch (error) {
+                if (
+                    error instanceof DOMException &&
+                    error.name === "AbortError"
+                ) {
+                    return
+                }
+                console.error("Query error:", error)
+            } finally {
+                setIsLoading(false)
+            }
+        }, debounceDelayMilliseconds)
 
         return () => {
-            controller.abort();
-            fetchResultsDebounced.cancel();
-        };
-    }, [query, fetchResultsDebounced]);
+            abortController.abort()
+            window.clearTimeout(timeoutHandle)
+        }
+    }, [queryText])
 
     return (
         <div className={`flex flex-col gap-4 ${className ?? ""}`}>
@@ -89,9 +97,11 @@ export default function Query<T>({
 
                 <input
                     type="text"
-                    placeholder="Search setups, stacks, infrastructure..."
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    value={queryText}
+                    onChange={(event) =>
+                        setQueryText(event.target.value)
+                    }
+                    placeholder={searchPlaceholder}
                     className="
                         flex-1
                         bg-transparent
@@ -104,18 +114,18 @@ export default function Query<T>({
                     "
                 />
 
-                {children}
+                {toolbarRightSlot}
             </div>
 
             <div className="relative min-h-[3rem]">
-                {loading ? (
+                {isLoading ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <LoadingIcon />
                     </div>
                 ) : (
-                    bodyBuilder(results)
+                    render(results)
                 )}
             </div>
         </div>
-    );
+    )
 }
