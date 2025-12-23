@@ -12,16 +12,26 @@ const (
 	Building InstanceState = iota
 	Running
 	Stopped
+
+	UpdatingHardware      // instance is being updated
+	ReconciliationPending // needs reconciliation
+	ErrorState            // encountered an unrecoverable error
+	Suspended             // temporarily inactive
 )
 
-// Instance represents a hardware rental instance derived from a listing.
 type Instance struct {
 	ID                    string
 	ListingID             string
 	BillingID             string
 	State                 InstanceState
 	HardwareSpecification *hardware.HardwareSpecification
-	Expiry                time.Time // When the current rental period ends
+	DesiredHardwareSpec   *hardware.HardwareSpecification // desired spec for reconciliation
+	Expiry                time.Time                       // rental period expiry
+
+	// Reconciliation metadata
+	PendingUpdate bool      // true if a hardware change is pending
+	LastAttempt   time.Time // last reconciliation attempt
+	UpdateFailed  bool      // true if last update failed
 }
 
 // InstanceRepository defines persistence operations for instances.
@@ -58,20 +68,24 @@ func (s *InstanceService) CreateInstance(listingID, billingID string, hardwareSp
 	return instance, nil
 }
 
-// UpdateHardwareSpecification updates an instance's hardware spec.
 func (s *InstanceService) UpdateHardwareSpecification(instanceID string, newHardwareSpec *hardware.HardwareSpecification) (*Instance, error) {
 	instance, err := s.repo.GetByID(instanceID)
 	if err != nil {
 		return nil, err
 	}
-	instance.HardwareSpecification = newHardwareSpec
+
+	instance.DesiredHardwareSpec = newHardwareSpec
+	instance.PendingUpdate = true
+	instance.State = UpdatingHardware
+	instance.UpdateFailed = false
+	instance.LastAttempt = time.Time{} // reset last attempt
+
 	if err := s.repo.Save(instance); err != nil {
 		return nil, err
 	}
 	return instance, nil
 }
 
-// SetExpiry sets or updates the expiry of an instance based on a total paid duration.
 func (s *InstanceService) SetExpiry(instanceID string, expiry time.Time) (*Instance, error) {
 	instance, err := s.repo.GetByID(instanceID)
 	if err != nil {

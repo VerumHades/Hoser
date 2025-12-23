@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     API,
+    type ApiBillingAccount,
+    type ApiHardwareRatesResponse,
     type HardwareSpecification,
     type Listing,
-    type ApiBillingAccount,
 } from "../../backend";
 import SelectBox from "../../components/input/SelectBox";
 import HardwareSettings from "../developer/hardware/HardwareSettings";
@@ -16,8 +17,10 @@ export default function CreateInstance() {
 
     const [listing, setListing] = useState<Listing | null>(null);
     const [billingAccounts, setBillingAccounts] = useState<ApiBillingAccount[] | null>(null);
-    const [selectedBillingAccount, setSelectedBillingAccount] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [selectedBillingAccountId, setSelectedBillingAccountId] = useState<string | null>(null);
+    const [isLaunching, setIsLaunching] = useState<boolean>(false);
+    const [rentalDurationMonths, setRentalDurationMonths] = useState<number>(1);
+    const [hardwareRates, setHardwareRates] = useState<ApiHardwareRatesResponse | null>(null);
 
     const [hardwareSpecification, setHardwareSpecification] =
         useState<HardwareSpecification>({
@@ -27,112 +30,239 @@ export default function CreateInstance() {
         });
 
     useEffect(() => {
-        if (!listingId) return;
+        API.hardware.getRates("USD").then((response) => {
+            if (!response.ok) {
+                return;
+            }
+
+            setHardwareRates(response.json);
+        });
+    }, []);
+
+
+    useEffect(() => {
+        if (!listingId) {
+            navigate("/dashboard/library");
+            return;
+        }
 
         API.listing.get(listingId).then((response) => {
-            if (response.ok) {
-                setListing(response.json);
-            } else {
-                alert("Failed to load listing.");
+            if (!response.ok) {
                 navigate("/dashboard/library");
+                return;
             }
+
+            setListing(response.json);
         });
     }, [listingId, navigate]);
 
     useEffect(() => {
         API.user.billing.list().then((response) => {
-            if (response.ok) {
-                setBillingAccounts(response.json);
-                if (response.json.length === 1) {
-                    setSelectedBillingAccount(response.json[0].id);
-                }
-            } else {
-                alert("Failed to fetch billing accounts.");
+            if (!response.ok) {
+                return;
+            }
+
+            setBillingAccounts(response.json);
+
+            if (response.json.length === 1) {
+                setSelectedBillingAccountId(response.json[0].id);
             }
         });
     }, []);
 
-    const calculateTotalPrice = (): number => {
-        if (!listing) return 0;
+    /**
+     * Computes the full monthly price based on listing base price and hardware configuration.
+     */
+    const { monthlyPrice, totalPrice } = useMemo(() => {
+        if (!listing || !hardwareRates) {
+            return { monthlyPrice: 0, totalPrice: 0 };
+        }
+
+        const hoursPerMonth = 24 * 30;
+
+        const cpuHourlyCost =
+            hardwareRates.cpuCost.amount *
+            hardwareSpecification.cpu *
+            hoursPerMonth;
+
+        const ramHourlyCost =
+            hardwareRates.ramCost.amount *
+            hardwareSpecification.ramBytes *
+            hoursPerMonth;
+
+        const diskHourlyCost =
+            hardwareRates.diskCost.amount *
+            hardwareSpecification.diskBytes *
+            hoursPerMonth;
 
         const basePrice = listing.price?.amount ?? 0;
-        const ramPrice = (hardwareSpecification.ramBytes / 1024 ** 3) * 5;
-        const diskPrice = (hardwareSpecification.diskBytes / 1024 ** 3) * 0.1;
 
-        return basePrice + ramPrice + diskPrice;
-    };
+        const monthly =
+            basePrice +
+            cpuHourlyCost +
+            ramHourlyCost +
+            diskHourlyCost;
 
-    const launchInstance = async () => {
-        if (!listingId || !selectedBillingAccount) {
-            alert("Please select a billing account.");
+        return {
+            monthlyPrice: monthly,
+            totalPrice: monthly * rentalDurationMonths,
+        };
+    }, [
+        listing,
+        hardwareRates,
+        hardwareSpecification,
+        rentalDurationMonths,
+    ]);
+
+    /**
+     * Launches a new instance using the selected configuration.
+     */
+    const launchInstance = async (): Promise<void> => {
+        if (!listingId || !selectedBillingAccountId) {
             return;
         }
 
-        try {
-            setLoading(true);
+        setIsLaunching(true);
 
+        try {
             const response = await API.user.instances.launch(
                 listingId,
-                selectedBillingAccount,
+                selectedBillingAccountId,
                 hardwareSpecification
             );
 
             if (response.ok) {
                 navigate("/dashboard/library");
-            } else {
-                alert("Failed to launch instance.");
             }
         } finally {
-            setLoading(false);
+            setIsLaunching(false);
         }
     };
 
-    if (!listing || !billingAccounts) {
-        return <p>Loading...</p>;
+    if (!listing || !billingAccounts || !hardwareRates) {
+        return (
+            <div className="min-h-screen flex items-center justify-center text-slate-500">
+                Loading…
+            </div>
+        );
     }
 
-    const billingOptions: Record<string, { label: string }> = {};
+
+    const billingAccountOptions: Record<string, { label: string }> = {};
     billingAccounts.forEach((account) => {
-        if(account.status != "active") return;
-        billingOptions[account.id] = { label: account.id };
+        if (account.status !== "active") {
+            return;
+        }
+
+        billingAccountOptions[account.id] = {
+            label: account.id,
+        };
     });
 
     return (
-        <div className="max-w-3xl mx-auto p-6 space-y-6">
-            <h1 className="text-2xl font-bold">{listing.title}</h1>
-            <p className="text-gray-700">{listing.description}</p>
+        <div className="min-h-screen w-full bg-slate-50 dark:bg-slate-950 px-6 py-16">
+            <div className="max-w-5xl mx-auto flex flex-col gap-12">
+                <header className="flex flex-col gap-4">
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                        Launch instance
+                    </h1>
 
-            <div className="space-y-2">
-                <label className="font-semibold">Select Billing Account</label>
-                <SelectBox
-                    options={billingOptions}
-                    onEmpty={() => 
-                        <CreateBillingAccount/>
-                        }
-                    defaultValue={selectedBillingAccount ?? undefined}
-                    onSelected={setSelectedBillingAccount}
-                />
+                    <p className="max-w-2xl text-lg text-slate-600 dark:text-slate-400">
+                        Configure hardware and billing for{" "}
+                        <span className="font-medium text-slate-900 dark:text-slate-200">
+                            {listing.title}
+                        </span>
+                    </p>
+                </header>
+
+                <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="md:col-span-2 flex flex-col gap-8">
+                        <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                                Billing account
+                            </h2>
+
+                            <SelectBox
+                                options={billingAccountOptions}
+                                defaultValue={selectedBillingAccountId ?? undefined}
+                                onSelected={setSelectedBillingAccountId}
+                                onEmpty={() => <CreateBillingAccount />}
+                            />
+                        </div>
+
+                        <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                                Rental duration
+                            </h2>
+
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                                Choose how long you want to rent this hardware.
+                            </p>
+
+                            <select
+                                value={rentalDurationMonths}
+                                onChange={(event) => setRentalDurationMonths(Number(event.target.value))}
+                                className="w-full px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-100"
+                            >
+                                <option value={1}>1 month</option>
+                                <option value={3}>3 months</option>
+                                <option value={6}>6 months</option>
+                                <option value={12}>12 months</option>
+                            </select>
+                        </div>
+
+                        <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                                Hardware configuration
+                            </h2>
+
+                            <HardwareSettings
+                                initialSpec={hardwareSpecification}
+                                onChange={setHardwareSpecification}
+                            />
+                        </div>
+                    </div>
+
+                    <aside className="flex flex-col gap-6">
+                        <div className="p-6 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                                Price summary
+                            </h2>
+
+                            <div className="flex flex-col gap-2 text-sm text-slate-600 dark:text-slate-400">
+                                <div className="flex justify-between">
+                                    <span>Monthly price</span>
+                                    <span>
+                                        {hardwareRates.cpuCost.currencyCode} {monthlyPrice.toFixed(2)}
+                                    </span>
+
+                                </div>
+
+                                <div className="flex justify-between">
+                                    <span>Duration</span>
+                                    <span>{rentalDurationMonths} month{rentalDurationMonths > 1 ? "s" : ""}</span>
+                                </div>
+
+                                <div className="flex justify-between pt-2 border-t border-slate-300 dark:border-slate-700 font-medium text-slate-900 dark:text-slate-100">
+                                    <span>Total</span>
+                                    <span>
+                                        {hardwareRates.cpuCost.currencyCode} {monthlyPrice.toFixed(2)}
+                                    </span>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={launchInstance}
+                            disabled={isLaunching || !selectedBillingAccountId}
+                            className="w-full px-6 py-3 rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-medium hover:opacity-90 transition disabled:opacity-50"
+                        >
+                            {isLaunching ? "Launching…" : "Launch instance"}
+                        </button>
+                    </aside>
+                </section>
             </div>
-
-            <HardwareSettings
-                initialSpec={hardwareSpecification}
-                onChange={setHardwareSpecification}
-            />
-
-            <div className="space-y-1">
-                <h2 className="font-semibold">Price Summary</h2>
-                <p>Base Price: ${listing.price?.amount ?? 0}</p>
-                <p>Hardware Price: ${(calculateTotalPrice() - (listing.price?.amount ?? 0)).toFixed(2)}</p>
-                <p className="font-bold">Total: ${calculateTotalPrice().toFixed(2)}</p>
-            </div>
-
-            <button
-                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-                disabled={loading}
-                onClick={launchInstance}
-            >
-                {loading ? "Launching..." : "Launch Instance"}
-            </button>
         </div>
     );
 }
