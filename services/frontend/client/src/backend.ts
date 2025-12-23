@@ -144,9 +144,46 @@ export interface UpdateHardwareRequest {
 export type HasInLibraryResponse = {
     hasListing: boolean;
 };
+export type ApiHardwareRate = {
+    amount: number;
+    currencyCode: string;
+    unit: string;
+};
+
+export type ApiHardwareRatesResponse = {
+    cpuCost: ApiHardwareRate;
+    ramCost: ApiHardwareRate;
+    diskCost: ApiHardwareRate;
+    effectiveAt: number;
+};
+
 
 // =================== EXTENDED API ===================
 export const API = {
+    hardware: {
+        async getRates(
+            currencyCode?: string,
+            atUnixTimestamp?: number
+        ): Promise<APIResult<ApiHardwareRatesResponse>> {
+            const queryParameters = new URLSearchParams();
+
+            if (currencyCode) {
+                queryParameters.set("currency", currencyCode);
+            }
+
+            if (atUnixTimestamp) {
+                queryParameters.set("at", String(atUnixTimestamp));
+            }
+
+            const queryString = queryParameters.toString();
+            const path = queryString
+                ? `/hardware/rates?${queryString}`
+                : `/hardware/rates`;
+
+            return await backend_request(path, "GET");
+        },
+    },
+
     user: {
         async getData(): Promise<User | undefined> {
             const response = await backend_request("/user/data", "GET");

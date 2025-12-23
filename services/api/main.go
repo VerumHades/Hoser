@@ -129,22 +129,21 @@ func main() {
 	hardwareCostService := rates.NewHardwareCostService(hardwareRateRepo)
 
 	// Add a first rate
+	// CPU cost per core-hour
+	cpuRate := money.Money{Amount: 0.03, CurrencyCode: "USD"}
+
+	// RAM cost per byte-hour (8 GiB ≈ $0.005/GiB-hour)
+	ramRate := money.Money{Amount: 0.005 / (1024 * 1024 * 1024), CurrencyCode: "USD"}
+
+	// Disk cost per byte-hour (100 GiB ≈ $0.0002/GiB-hour)
+	diskRate := money.Money{Amount: 0.0002 / (1024 * 1024 * 1024), CurrencyCode: "USD"}
+
 	hardwareCostService.AddRate(
-		money.Money{Amount: 0.05, CurrencyCode: "USD"},
-		money.Money{Amount: 0.01, CurrencyCode: "USD"},
-		money.Money{Amount: 0.001, CurrencyCode: "USD"},
+		cpuRate,
+		ramRate,
+		diskRate,
 		time.Now().Add(-24*time.Hour), // valid from yesterday
 		nil,                           // no end date
-	)
-
-	// Add a second rate with a specific future end date
-	endDate := time.Now().Add(30 * 24 * time.Hour)
-	hardwareCostService.AddRate(
-		money.Money{Amount: 0.06, CurrencyCode: "USD"},
-		money.Money{Amount: 0.015, CurrencyCode: "USD"},
-		money.Money{Amount: 0.002, CurrencyCode: "USD"},
-		time.Now(),
-		&endDate,
 	)
 
 	listingSearchService := listingmem.NewInMemoryListingSearchService()
@@ -185,18 +184,18 @@ func main() {
 		billingAccountService,
 		toplevelPaymentService,
 		publicListingService,
-		&DudReconciliationHandler{},
 		hardwareCostCalculationService,
 	)
 
 	app := &handlers.App{
-		RunningConfiguration:  &runningConfiguration,
-		UserAppService:        userAppService,
-		UserAuth:              userAuthentificationService,
-		ListingService:        publicListingService,
-		BillingAccountService: billingAccountService,
-		PaymentService:        paymentService,
-		InstanceEngineService: &instanceEngineService,
+		RunningConfiguration:           &runningConfiguration,
+		UserAppService:                 userAppService,
+		UserAuth:                       userAuthentificationService,
+		ListingService:                 publicListingService,
+		BillingAccountService:          billingAccountService,
+		PaymentService:                 paymentService,
+		InstanceEngineService:          &instanceEngineService,
+		HardwareCostCalculationService: hardwareCostCalculationService,
 	}
 
 	e := echo.New()
@@ -216,6 +215,7 @@ func main() {
 	public.GET("/listing/:id", app.PublicListingHandler)
 	public.POST("/login", app.LoginHandler)
 	public.POST("/logout", app.LogoutHandler)
+	public.GET("/hardware/rates", app.HardwareRatesHandler)
 
 	// ---------------------------
 	// Authenticated user routes

@@ -29,12 +29,13 @@ type Configuration struct {
 }
 
 type App struct {
-	UserAppService        *app.UserAppService
-	UserAuth              *auth.AuthenticationService
-	ListingService        *app.PublicListingService
-	BillingAccountService *account.BillingAccountService
-	PaymentService        *payment.PaymentService
-	InstanceEngineService *app.InstanceEngineService
+	UserAppService                 *app.UserAppService
+	UserAuth                       *auth.AuthenticationService
+	ListingService                 *app.PublicListingService
+	BillingAccountService          *account.BillingAccountService
+	PaymentService                 *payment.PaymentService
+	InstanceEngineService          *app.InstanceEngineService
+	HardwareCostCalculationService *app.HardwareCostCalculationService
 
 	RunningConfiguration *Configuration
 }

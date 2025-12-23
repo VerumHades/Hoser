@@ -9,19 +9,12 @@ import (
 	"time"
 )
 
-// ReconciliationHandler defines actions triggered after instance changes.
-type ReconciliationHandler interface {
-	OnInstanceCreated(instance *instance.Instance) error
-	OnInstanceUpdated(instance *instance.Instance) error
-}
-
-// InstanceEngineService orchestrates instance creation, payment, reconciliation, and hardware cost calculations.
+// InstanceEngineService orchestrates instance creation, payment, and hardware cost calculations.
 type InstanceEngineService struct {
 	instanceService                *instance.InstanceService
 	billingService                 *account.BillingAccountService
 	paymentService                 *PaymentService
 	publicListingService           *PublicListingService
-	reconciliationHandler          ReconciliationHandler
 	hardwareCostCalculationService *HardwareCostCalculationService
 }
 
@@ -31,7 +24,6 @@ func NewInstanceEngineService(
 	billingService *account.BillingAccountService,
 	paymentService *PaymentService,
 	publicListingService *PublicListingService,
-	reconciliationHandler ReconciliationHandler,
 	hardwareCostCalculationService *HardwareCostCalculationService,
 ) *InstanceEngineService {
 	return &InstanceEngineService{
@@ -39,7 +31,6 @@ func NewInstanceEngineService(
 		billingService:                 billingService,
 		paymentService:                 paymentService,
 		publicListingService:           publicListingService,
-		reconciliationHandler:          reconciliationHandler,
 		hardwareCostCalculationService: hardwareCostCalculationService,
 	}
 }
@@ -74,13 +65,6 @@ func (s *InstanceEngineService) LaunchInstance(ownerID, listingID, billingAccoun
 	instanceObj, err := s.instanceService.CreateInstance(listingID, billingAccountID, hardwareSpec)
 	if err != nil {
 		return nil, err
-	}
-
-	// Trigger reconciliation if a handler is set
-	if s.reconciliationHandler != nil {
-		if err := s.reconciliationHandler.OnInstanceCreated(instanceObj); err != nil {
-			return instanceObj, err
-		}
 	}
 
 	return instanceObj, nil
@@ -159,13 +143,6 @@ func (s *InstanceEngineService) RenewInstanceHardware(
 	updatedInstance, err = s.instanceService.SetExpiry(instanceID, expiry)
 	if err != nil {
 		return nil, err
-	}
-
-	// Trigger reconciliation
-	if s.reconciliationHandler != nil {
-		if err := s.reconciliationHandler.OnInstanceUpdated(updatedInstance); err != nil {
-			return updatedInstance, err
-		}
 	}
 
 	return updatedInstance, nil
