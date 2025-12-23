@@ -157,6 +157,11 @@ export type ApiHardwareRatesResponse = {
     effectiveAt: number;
 };
 
+interface GithubSetupResponse {
+    id: string;
+    repoUrl: string;
+    createdAt: number;
+}
 
 // =================== EXTENDED API ===================
 export const API = {
@@ -253,6 +258,7 @@ export const API = {
         async get(id: string): Promise<APIResult<Listing>> {
             return await backend_request(`/listing/${id}`, "GET");
         },
+        
     },
     developer: {
         listing: {
@@ -269,6 +275,17 @@ export const API = {
                 const data = { title, description };
                 return await backend_request<DeveloperListing>(`/developer/listing`, "POST", data)
             },
+            setup: {
+                async get(listingId: string): Promise<APIResult<GithubSetupResponse>> {
+                    return await backend_request(`/developer/listing/${listingId}/setup`, "GET");
+                },
+                async attachOrUpdate(listingId: string, repoUrl: string, accessToken: string): Promise<APIResult<GithubSetupResponse>> {
+                    return await backend_request(`/developer/listing/${listingId}/setup`, "POST", { repoUrl, accessToken });
+                },
+                async remove(listingId: string): Promise<APIResult<unknown>> {
+                    return await backend_request(`/developer/listing/${listingId}/setup`, "DELETE");
+                }
+            }
         }
     }
 };
