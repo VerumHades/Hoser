@@ -7,6 +7,7 @@ import (
 	"common/pkg/billing/payments/payment"
 	"common/pkg/hardware"
 	"common/pkg/listing"
+	"common/pkg/money"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -67,57 +68,12 @@ func (app *App) GetUserIDFromContext(c echo.Context) (string, error) {
 	return userID, nil
 }
 
-type HardwareSpecificationDTO struct {
-	CPU  *int   `json:"cpu,omitempty"`
-	RAM  *int64 `json:"ramBytes,omitempty"`
-	Disk *int64 `json:"diskBytes,omitempty"`
-}
-
-func (app *App) HardwareSpecificationToDTO(spec *hardware.HardwareSpecification) *HardwareSpecificationDTO {
-	if spec == nil {
-		return nil
-	}
-	return &HardwareSpecificationDTO{
-		CPU:  &spec.CPUCount,
-		RAM:  &spec.RAMBytes,
-		Disk: &spec.DiskBytes,
-	}
-}
-
-func (application *App) HardwareDTOToSpec(dto *HardwareSpecificationDTO) *hardware.HardwareSpecification {
-	if dto == nil {
-		return nil
-	}
-
-	hardwareSpecification := &hardware.HardwareSpecification{}
-
-	if dto.CPU != nil {
-		hardwareSpecification.CPUCount = *dto.CPU
-	}
-
-	if dto.RAM != nil {
-		hardwareSpecification.RAMBytes = *dto.RAM
-	}
-
-	if dto.Disk != nil {
-		hardwareSpecification.DiskBytes = *dto.Disk
-	}
-
-	return hardwareSpecification
-}
-
-type CurrencyRequest struct {
-	Value float32 `json:"value"`
-	Name  string  `json:"name"`
-	Short string  `json:"short"`
-}
-
 type PublicListing struct {
-	ID          string                    `json:"id"`
-	Title       string                    `json:"title"`
-	Description string                    `json:"description"`
-	Hardware    *HardwareSpecificationDTO `json:"hardware,omitempty"`
-	Price       *CurrencyRequest          `json:"prices,omitempty"`
+	ID          string                          `json:"id"`
+	Title       string                          `json:"title"`
+	Description string                          `json:"description"`
+	Hardware    *hardware.HardwareSpecification `json:"hardware,omitempty"`
+	Price       *money.Money                    `json:"prices,omitempty"`
 }
 
 // ConvertListingToPublic converts a domain listing into a public-facing API listing.
@@ -126,11 +82,8 @@ func (app *App) ConvertListingToPublic(listingEntity *listing.Listing) *PublicLi
 		ID:          listingEntity.ID,
 		Title:       listingEntity.Title,
 		Description: listingEntity.Description,
-		Hardware:    app.HardwareSpecificationToDTO(listingEntity.HardwareSpecification),
-		Price: &CurrencyRequest{
-			Value: float32(listingEntity.Price.Amount),
-			Short: listingEntity.Price.CurrencyCode,
-		},
+		Hardware:    listingEntity.HardwareSpecification,
+		Price:       &listingEntity.Price,
 	}
 }
 

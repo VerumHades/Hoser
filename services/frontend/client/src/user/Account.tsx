@@ -51,7 +51,7 @@ const AccountPage: React.FC = () => {
 
     return (
         <RequireLogin>
-            <div className="flex min-h-screen bg-slate-50 dark:bg-gray-950">
+            <div className="flex h-screen bg-slate-50 dark:bg-gray-950">
                 {/* Sidebar */}
                 <aside
                     className={`fixed md:static z-20 top-0 left-0 bottom-0 w-64 border-r border-slate-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-900 transform ${
@@ -93,7 +93,7 @@ const AccountPage: React.FC = () => {
 
 
                 {/* Main content */}
-                <main className="flex-1 p-6 overflow-auto">
+                <main className="flex flex-1 overflow-auto min-h-0">
                     <Routes>
                         <Route path="info" element={<AccountInfo />} />
                         <Route path="library" element={<UserLibrary />} />

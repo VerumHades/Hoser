@@ -1,4 +1,4 @@
-import type { Listing } from "../../backend"
+import type { Listing } from "../../../backend"
 
 type UserLibraryItemProps = {
     listing: Listing

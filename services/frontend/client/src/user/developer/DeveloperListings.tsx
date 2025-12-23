@@ -1,7 +1,7 @@
 import { useState } from "react"
 import DeveloperListingDisplay from "./DeveloperListing"
 import DeveloperListingsCollection from "./DeveloperListingsCollection"
-import SplitView from "../../components/view/SplitView"
+
 import { type DeveloperListing } from "../../backend"
 import { useNavigate } from "react-router-dom"
 

@@ -1,8 +1,8 @@
 import { ExternalLink, Play } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import TableRow from "../../components/table/TableRow"
-import type { Listing } from "../../backend"
-import { gotoListing } from "../../explore/PublicListingView"
+import TableRow from "../../../components/table/TableRow"
+import type { Listing } from "../../../backend"
+import { gotoListing } from "../../../explore/PublicListingView"
 import { UserLibraryItem } from "./UserLibraryItem"
 
 type UserLibraryRowProps = {

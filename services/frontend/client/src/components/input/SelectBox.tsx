@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import Prompt from "./Prompt";
 
 interface SelectBoxOption {
@@ -10,13 +10,18 @@ interface SelectBoxProps {
     options: Record<string, SelectBoxOption>;
     defaultValue?: string;
     onSelected?: (value: string, oldValue: string) => void;
+    onEmpty?: () => React.ReactNode
 }
 
 export default function SelectBox({
     options,
     defaultValue,
     onSelected = () => { },
+    onEmpty
 }: SelectBoxProps) {
+    if(!options || (Object.keys(options).length <= 0)) {
+        return onEmpty?.()
+    }
     const [selected, setSelected] = useState<string>(defaultValue || Object.keys(options)[0] || "");
     const [open, setOpen] = useState<boolean>(false)
 

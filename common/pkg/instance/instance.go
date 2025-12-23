@@ -3,6 +3,7 @@ package instance
 import (
 	"common/pkg/hardware"
 	"common/pkg/util"
+	"time"
 )
 
 type InstanceState int
@@ -20,6 +21,7 @@ type Instance struct {
 	BillingID             string
 	State                 InstanceState
 	HardwareSpecification *hardware.HardwareSpecification
+	Expiry                time.Time // When the current rental period ends
 }
 
 // InstanceRepository defines persistence operations for instances.
@@ -63,6 +65,19 @@ func (s *InstanceService) UpdateHardwareSpecification(instanceID string, newHard
 		return nil, err
 	}
 	instance.HardwareSpecification = newHardwareSpec
+	if err := s.repo.Save(instance); err != nil {
+		return nil, err
+	}
+	return instance, nil
+}
+
+// SetExpiry sets or updates the expiry of an instance based on a total paid duration.
+func (s *InstanceService) SetExpiry(instanceID string, expiry time.Time) (*Instance, error) {
+	instance, err := s.repo.GetByID(instanceID)
+	if err != nil {
+		return nil, err
+	}
+	instance.Expiry = expiry
 	if err := s.repo.Save(instance); err != nil {
 		return nil, err
 	}

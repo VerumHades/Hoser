@@ -5,8 +5,8 @@ type CurrencyConversionService interface {
 }
 
 type Money struct {
-	Amount       float64
-	CurrencyCode string
+	Amount       float64 `json:"amount"`
+	CurrencyCode string  `json:"code"`
 }
 
 // Add converts 'other' to the base currency and then adds it to 'm'.
@@ -37,6 +37,9 @@ func (m Money) Add(other Money, conversionService CurrencyConversionService) (Mo
 		Amount:       mBase.Amount + otherBase.Amount,
 		CurrencyCode: baseCurrency,
 	}, nil
+}
+func (m Money) Subtract(other Money, conversionService CurrencyConversionService) (Money, error) {
+	return m.Add(Money{CurrencyCode: other.CurrencyCode, Amount: -other.Amount}, conversionService)
 }
 
 // Multiply multiplies the amount by a factor and returns a new Money value.

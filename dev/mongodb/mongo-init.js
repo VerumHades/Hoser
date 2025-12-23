@@ -17,7 +17,7 @@ db.createCollection("billing_accounts");
 db.createCollection("payments");
 db.createCollection("one_time_paymens");
 db.createCollection("subscription_payments");
-
+db.createCollection("hardware_costs");
 // Optional: create indexes for the collections if you need
 // db.users.createIndex({ email: 1 }, { unique: true });
 // db.listings.createIndex({ title: 1 });

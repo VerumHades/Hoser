@@ -1,5 +1,5 @@
 import { Earth, EarthLock } from "lucide-react"
-import type { DeveloperListing } from "../../backend"
+import type { DeveloperListing } from "../../../backend"
 
 type DeveloperListingItemProps = {
     listing: DeveloperListing
@@ -9,14 +9,14 @@ export function DeveloperListingItem({
     listing
 }: DeveloperListingItemProps) {
     return (
-        <>
+        [
             <h3 className="font-semibold text-lg">
                 {listing.title}
-            </h3>
+            </h3>,
 
             <p className="text-sm text-gray-600">
                 {listing.description}
-            </p>
+            </p>,
 
             <div className="flex items-center gap-2 text-sm">
                 {listing.accessMode === 1 ? (
@@ -31,6 +31,6 @@ export function DeveloperListingItem({
                     </>
                 )}
             </div>
-        </>
+        ]    
     )
 }

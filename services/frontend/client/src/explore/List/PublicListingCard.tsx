@@ -1,6 +1,5 @@
 import React from "react";
-import { PriceTag } from "../user/developer/prices/PriceTag";
-import { type Listing } from "../backend";
+import { type Listing } from "../../backend";
 
 interface PublicListingCardProps {
     listing: Listing;
@@ -24,7 +23,6 @@ export function PublicListingCard({ listing, onSelect }: PublicListingCardProps)
             </p>
             {listing.price && (
                 <div className="flex items-center justify-end mt-2">
-                    <PriceTag prices={[listing.price]} rate="one time" />
                 </div>
             )}
         </div>

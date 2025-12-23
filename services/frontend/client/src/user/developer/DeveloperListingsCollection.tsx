@@ -2,9 +2,9 @@ import { useCallback, useState } from "react"
 import backend_constants from "../../backend_constants"
 import { API, type DeveloperListing } from "../../backend"
 import Query from "../../components/querying/Query"
-import { CollectionView } from "../../components/view/CollectionView"
-import { DeveloperListingRow } from "./DeveloperListingRow"
-import { DeveloperListingCard } from "./DeveloperListingCard"
+import { CollectionViewContainer } from "../../components/view/CollectionViewContainer"
+import { DeveloperListingRow } from "./List/DeveloperListingRow"
+import { DeveloperListingCard } from "./List/DeveloperListingCard"
 import { FlowSwitch } from "../../components/navigation/Flow"
 
 type ListingViewMode = "cards" | "table"
@@ -15,14 +15,28 @@ interface DeveloperListingsCollectionProps {
 
 export default function DeveloperListingsCollection({ onSelect }: DeveloperListingsCollectionProps) {
     const [viewMode, setViewMode] = useState<ListingViewMode>("cards")
+    const [creating, setCreating] = useState(false)
 
     const renderListing = useCallback(
         (listings: DeveloperListing[] | undefined) => (
-            <CollectionView
+            <CollectionViewContainer
                 items={listings}
                 viewMode={viewMode}
-                renderTableRow={(listing) => <DeveloperListingRow key={listing.id} listing={listing} onSelect={onSelect} />}
-                renderCard={(listing) => <DeveloperListingCard key={listing.id} listing={listing} onSelect={onSelect} />}
+                onViewModeChange={setViewMode}
+                renderTableRow={(listing) => (
+                    <DeveloperListingRow
+                        key={listing.id}
+                        listing={listing}
+                        onSelect={() => onSelect(listing)}
+                    />
+                )}
+                renderCard={(listing) => (
+                    <DeveloperListingCard
+                        key={listing.id}
+                        listing={listing}
+                        onSelect={() => onSelect(listing)}
+                    />
+                )}
                 emptyState={<p className="text-sm text-slate-500">No listings found</p>}
             />
         ),
@@ -31,7 +45,6 @@ export default function DeveloperListingsCollection({ onSelect }: DeveloperListi
 
     const queryBuilder = useCallback((queryText: string) => ({ q: queryText }), [])
 
-    const [creating, setCreating] = useState(false)
     const createListing = async () => {
         setCreating(true)
         const response = await API.developer.listing.create()
@@ -42,15 +55,11 @@ export default function DeveloperListingsCollection({ onSelect }: DeveloperListi
     }
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-1 flex-col h-full min-h-0 p-6">
             <div className="flex items-center justify-between mb-4">
                 <FlowSwitch direction="next" onClick={createListing}>
                     New Listing
                 </FlowSwitch>
-                <div className="flex gap-2">
-                    <button onClick={() => viewMode !== "cards" && viewMode} className={viewMode === "cards" ? "font-semibold" : ""}>Cards</button>
-                    <button onClick={() => viewMode !== "table" && viewMode} className={viewMode === "table" ? "font-semibold" : ""}>Table</button>
-                </div>
             </div>
 
             <Query<DeveloperListing[]>

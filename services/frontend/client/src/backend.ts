@@ -49,16 +49,15 @@ export const BillingFrequencyName: Record<BillingFrequency, string> = {
 export type BillingFrequency =
   (typeof BillingFrequency)[keyof typeof BillingFrequency];
 
-export interface CurrencyRequest {
-    value: number;      // corresponds to Go Value
-    name: string;       // corresponds to Go Name
-    short: string;      // corresponds to Go Short
+export interface Money {
+    amount: number;      // corresponds to Go Value
+    code: string;      // corresponds to Go Short
 }
 
 export interface PricingEntry {
     id: string;          // "0", "1", etc
     type: 0 | 1;         // 0 = OneTime, 1 = Monthly
-    currency: CurrencyRequest;
+    currency: Money;
 }
 
 export interface HardwareSpecification {
@@ -80,7 +79,7 @@ export interface Listing {
     title?: string;
     description?: string;
     author: string;
-    price: CurrencyRequest;
+    price: Money;
     hardware?: HardwareSpecification;
 }
 
@@ -142,6 +141,10 @@ export interface UpdateHardwareRequest {
     hardwareSpecification: HardwareSpecification;
 }
 
+export type HasInLibraryResponse = {
+    hasListing: boolean;
+};
+
 // =================== EXTENDED API ===================
 export const API = {
     user: {
@@ -155,6 +158,9 @@ export const API = {
             },
             async delete(id: string) {
                 return await backend_request("/user/library", "DELETE", { id });
+            },
+            async check(listingId: string): Promise<APIResult<HasInLibraryResponse>> {
+                return await backend_request(`/user/library/${listingId}/exists`, "GET");
             }
         },
         billing: {

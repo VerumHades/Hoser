@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { DollarSign } from "lucide-react";
-import type { CurrencyRequest } from "../../../backend";
+import type { Money } from "../../../backend";
 
 interface CurrencyInputProps {
-    value?: CurrencyRequest;
+    value?: Money;
     text?: string,
-    onChange: (value: CurrencyRequest | null) => void;
+    onChange: (value: Money | null) => void;
 }
 
-const currencyPresets: CurrencyRequest[] = [
-    { value: 0, name: "US Dollar", short: "USD" },
-    { value: 0, name: "Euro", short: "EUR" },
-    { value: 0, name: "British Pound", short: "GBP" },
+const currencyPresets: Money[] = [
+    { amount: 0, name: "US Dollar", code: "USD" },
+    { amount: 0, name: "Euro", code: "EUR" },
+    { amount: 0, name: "British Pound", code: "GBP" },
 ];
 
 export default function CurrencyInput({ value, onChange, text }: CurrencyInputProps) {
@@ -46,16 +46,16 @@ export default function CurrencyInput({ value, onChange, text }: CurrencyInputPr
                 className="p-2 rounded-md border border-slate-300 dark:border-slate-600 
                            bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
                            disabled:bg-slate-200 dark:disabled:bg-slate-600 disabled:text-slate-500"
-                value={value?.short ?? ""}
+                value={value?.code ?? ""}
                 onChange={(e) => {
-                    const preset = currencyPresets.find((c) => c.short === e.target.value);
-                    if (preset) onChange({ ...preset, value: value?.value ?? 0 });
+                    const preset = currencyPresets.find((c) => c.code === e.target.value);
+                    if (preset) onChange({ ...preset, amount: value?.amount ?? 0 });
                 }}
             >
                 <option value="" disabled>Select currency…</option>
                 {currencyPresets.map((c) => (
-                    <option key={c.short} value={c.short}>
-                        {c.name} ({c.short})
+                    <option key={c.code} value={c.code}>
+                        {c.name} ({c.code})
                     </option>
                 ))}
             </select>
@@ -66,9 +66,9 @@ export default function CurrencyInput({ value, onChange, text }: CurrencyInputPr
                 className="p-2 rounded-md border border-slate-300 dark:border-slate-600 
                            bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
                            disabled:bg-slate-200 dark:disabled:bg-slate-600 disabled:text-slate-500"
-                value={value?.value ?? ""}
+                value={value?.amount ?? ""}
                 onChange={(e) =>
-                    onChange({ ...value!, value: parseFloat(e.target.value) })
+                    onChange({ ...value!, amount: parseFloat(e.target.value) })
                 }
             />
         </div>
