@@ -5,6 +5,8 @@ import (
 	"common/pkg/billing/payments/payment"
 	"common/pkg/hardware"
 	"common/pkg/instance"
+	"common/pkg/money"
+	"time"
 )
 
 // ReconciliationHandler defines actions triggered after instance changes.
@@ -13,29 +15,32 @@ type ReconciliationHandler interface {
 	OnInstanceUpdated(instance *instance.Instance) error
 }
 
-// InstanceEngineService orchestrates instance creation, payment, and reconciliation.
+// InstanceEngineService orchestrates instance creation, payment, reconciliation, and hardware cost calculations.
 type InstanceEngineService struct {
-	instanceService       *instance.InstanceService
-	billingService        *account.BillingAccountService
-	paymentService        *PaymentService
-	publicListingService  *PublicListingService
-	reconciliationHandler ReconciliationHandler
+	instanceService                *instance.InstanceService
+	billingService                 *account.BillingAccountService
+	paymentService                 *PaymentService
+	publicListingService           *PublicListingService
+	reconciliationHandler          ReconciliationHandler
+	hardwareCostCalculationService *HardwareCostCalculationService
 }
 
-// NewInstanceEngineService creates a new instance engine service.
+// NewInstanceEngineService creates a new instance engine service with the calculation service.
 func NewInstanceEngineService(
 	instanceService *instance.InstanceService,
 	billingService *account.BillingAccountService,
 	paymentService *PaymentService,
 	publicListingService *PublicListingService,
 	reconciliationHandler ReconciliationHandler,
+	hardwareCostCalculationService *HardwareCostCalculationService,
 ) *InstanceEngineService {
 	return &InstanceEngineService{
-		instanceService:       instanceService,
-		billingService:        billingService,
-		paymentService:        paymentService,
-		publicListingService:  publicListingService,
-		reconciliationHandler: reconciliationHandler,
+		instanceService:                instanceService,
+		billingService:                 billingService,
+		paymentService:                 paymentService,
+		publicListingService:           publicListingService,
+		reconciliationHandler:          reconciliationHandler,
+		hardwareCostCalculationService: hardwareCostCalculationService,
 	}
 }
 
@@ -81,20 +86,89 @@ func (s *InstanceEngineService) LaunchInstance(ownerID, listingID, billingAccoun
 	return instanceObj, nil
 }
 
-// UpdateHardwareSpecification updates the hardware spec of an instance and triggers reconciliation.
-func (s *InstanceEngineService) UpdateHardwareSpecification(instanceID string, newHardwareSpec *hardware.HardwareSpecification) (*instance.Instance, error) {
-	instance, err := s.instanceService.UpdateHardwareSpecification(instanceID, newHardwareSpec)
+// RenewInstanceHardware renews an instance with a new hardware spec and/or duration.
+// Charges only the difference between the already paid remaining period and the new total.
+func (s *InstanceEngineService) RenewInstanceHardware(
+	instanceID string,
+	newHardwareSpec *hardware.HardwareSpecification,
+	duration time.Duration,
+) (*instance.Instance, error) {
+
+	// Fetch the instance
+	currentInstance, err := s.instanceService.GetInstance(instanceID)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.reconciliationHandler != nil {
-		if err := s.reconciliationHandler.OnInstanceUpdated(instance); err != nil {
-			return instance, err
+	now := time.Now()
+	var remainingDuration time.Duration
+	if currentInstance.Expiry.After(now) {
+		remainingDuration = currentInstance.Expiry.Sub(now)
+	} else {
+		remainingDuration = 0
+	}
+
+	// Cost already paid for remaining time with current spec
+	alreadyPaid, err := s.hardwareCostCalculationService.CalculateCost(
+		currentInstance.HardwareSpecification,
+		remainingDuration,
+		now,
+		"USD",
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Total cost for new spec over total duration
+	newTotalCost, err := s.hardwareCostCalculationService.CalculateCost(
+		newHardwareSpec,
+		duration,
+		now,
+		"USD",
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	amountToCharge, err := newTotalCost.Subtract(alreadyPaid, s.hardwareCostCalculationService.conversionService)
+	if err != nil {
+		return nil, err
+	}
+	if amountToCharge.Amount < 0 {
+		amountToCharge = money.Money{Amount: 0, CurrencyCode: "USD"} // no refunds on downgrade
+	}
+
+	expiry := now.Add(duration)
+
+	if amountToCharge.Amount > 0 {
+		_, err := s.paymentService.PaySubscription(currentInstance.BillingID, amountToCharge, payment.SubscriptionPaymentMetadata{
+			InstanceID:       instanceID,
+			CurrentPeriodEnd: expiry,
+			Type:             payment.SubscriptionPaymentInstanceHosting,
+		})
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return instance, nil
+	// Update instance spec and expiry
+	updatedInstance, err := s.instanceService.UpdateHardwareSpecification(instanceID, newHardwareSpec)
+	if err != nil {
+		return nil, err
+	}
+	updatedInstance, err = s.instanceService.SetExpiry(instanceID, expiry)
+	if err != nil {
+		return nil, err
+	}
+
+	// Trigger reconciliation
+	if s.reconciliationHandler != nil {
+		if err := s.reconciliationHandler.OnInstanceUpdated(updatedInstance); err != nil {
+			return updatedInstance, err
+		}
+	}
+
+	return updatedInstance, nil
 }
 
 // ListInstancesByBillingAccount lists all instances for a billing account.

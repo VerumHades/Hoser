@@ -117,7 +117,7 @@ export default function Query<ResultType>({
                 {toolbarRightSlot}
             </div>
 
-            <div className="relative min-h-[3rem]">
+            <div className="flex min-h-[3rem]">
                 {isLoading ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <LoadingIcon />

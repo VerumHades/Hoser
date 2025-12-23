@@ -1,35 +1,45 @@
 import { useEffect, useState, type JSX } from "react";
-import { useParams, useSearchParams, type NavigateFunction } from "react-router-dom";
+import { useParams, type NavigateFunction } from "react-router-dom";
 import { API, type Listing } from "../backend";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
-import { BookmarkPlus } from "lucide-react";
-import { PriceTag } from "../user/developer/prices/PriceTag";
+import { BookmarkPlus, BookmarkCheck } from "lucide-react";
 
 export function gotoListing(
     navigate: NavigateFunction,
     listing: Listing | undefined
 ) {
-    if (!listing) {
-        return;
-    }
-
+    if (!listing) return;
     navigate("/listing/" + listing.id);
 }
 
 export function PublicListingView(): JSX.Element {
-    const {id} = useParams<{id: string}>();
+    const { id } = useParams<{ id: string }>();
     const listingID = id;
 
     const [listing, setListing] = useState<Listing | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [hasError, setHasError] = useState<boolean>(false);
+    const [isSaved, setIsSaved] = useState<boolean>(false);
+    const [isToggling, setIsToggling] = useState<boolean>(false);
 
     useEffect(() => {
         async function loadListing() {
-            const result = await API.listing.get(listingID ?? "");
+            if (!listingID) {
+                setHasError(true);
+                setIsLoading(false);
+                return;
+            }
 
+            const result = await API.listing.get(listingID);
             if (result.ok) {
                 setListing(result.json);
+
+                // Check if the listing is in the user's library
+                const libraryResult = await API.user.library.check(listingID);
+                console.log(libraryResult)
+                if (libraryResult.ok) {
+                    setIsSaved(libraryResult.json.hasListing);
+                }
             } else {
                 setHasError(true);
             }
@@ -39,6 +49,23 @@ export function PublicListingView(): JSX.Element {
 
         loadListing();
     }, [listingID]);
+
+    const toggleLibrary = async () => {
+        if (!listing) return;
+
+        setIsToggling(true);
+        try {
+            if (isSaved) {
+                await API.user.library.delete(listing.id);
+                setIsSaved(false);
+            } else {
+                await API.user.library.add(listing.id);
+                setIsSaved(true);
+            }
+        } finally {
+            setIsToggling(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -58,15 +85,7 @@ export function PublicListingView(): JSX.Element {
 
     return (
         <div className="w-full h-full flex flex-col gap-8 px-6 py-8 max-w-7xl mx-auto">
-            <section
-                className="
-                    flex flex-col gap-6
-                    border-b
-                    border-slate-200
-                    dark:border-slate-800
-                    pb-6
-                "
-            >
+            <section className="flex flex-col gap-6 border-b border-slate-200 dark:border-slate-800 pb-6">
                 <div className="flex flex-col md:flex-row justify-between gap-6">
                     <TitleAndDescription
                         title={listing.title ?? "[No title]"}
@@ -75,24 +94,11 @@ export function PublicListingView(): JSX.Element {
                         descriptionClassname="max-w-3xl"
                     />
 
-                    <div
-                        className="
-                            flex flex-col items-start md:items-end
-                            gap-3
-                            text-slate-600
-                            dark:text-slate-400
-                        "
-                    >
-                        {listing.price && (
-                            <PriceTag
-                                prices={[listing.price]}
-                                rate="one time"
-                            />
-                        )}
-
+                    <div className="flex flex-col items-start md:items-end gap-3 text-slate-600 dark:text-slate-400">
                         <button
-                            onClick={() => API.user.library.add(listing.id)}
-                            className="
+                            onClick={toggleLibrary}
+                            disabled={isToggling}
+                            className={`
                                 flex items-center gap-2
                                 px-3 py-2
                                 rounded-lg
@@ -102,33 +108,25 @@ export function PublicListingView(): JSX.Element {
                                 hover:bg-slate-100
                                 dark:hover:bg-slate-800
                                 transition
-                            "
+                                ${isSaved ? "bg-slate-100 dark:bg-slate-800" : ""}
+                                ${isToggling ? "opacity-50 cursor-not-allowed" : ""}
+                            `}
                         >
-                            <BookmarkPlus className="w-4 h-4" />
-                            <span className="text-sm">Save</span>
+                            {isSaved ? (
+                                <BookmarkCheck className="w-4 h-4" />
+                            ) : (
+                                <BookmarkPlus className="w-4 h-4" />
+                            )}
+                            <span className="text-sm">{isSaved ? "Saved" : "Save"}</span>
                         </button>
                     </div>
                 </div>
             </section>
 
             <section className="flex flex-col flex-1 min-h-0 overflow-auto gap-6">
-                <div
-                    className="
-                        rounded-xl
-                        border
-                        border-slate-200
-                        dark:border-slate-800
-                        bg-slate-50
-                        dark:bg-slate-900
-                        p-6
-                        text-slate-700
-                        dark:text-slate-300
-                    "
-                >
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-6 text-slate-700 dark:text-slate-300">
                     <p className="text-sm leading-relaxed">
-                        Additional listing content goes here.
-                        Deployment instructions, screenshots,
-                        supported providers, versioning, etc.
+                        Additional listing content goes here. Deployment instructions, screenshots, supported providers, versioning, etc.
                     </p>
                 </div>
             </section>

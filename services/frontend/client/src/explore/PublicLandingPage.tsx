@@ -4,7 +4,6 @@ import Table from "../components/table/Table";
 import TableRow from "../components/table/TableRow";
 import Query from "../components/querying/Query";
 import { type Listing } from "../backend";
-import { PriceTag } from "../user/developer/prices/PriceTag";
 import { gotoListing } from "./PublicListingView";
 
 export default function PublicLandingPage() {

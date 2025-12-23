@@ -1,7 +1,8 @@
-import { FlowSwitch } from "../../components/navigation/Flow"
-import TableRow from "../../components/table/TableRow"
-import type { DeveloperListing } from "../../backend"
+import { FlowSwitch } from "../../../components/navigation/Flow"
+import TableRow from "../../../components/table/TableRow"
+import type { DeveloperListing } from "../../../backend"
 import { DeveloperListingItem } from "./DeveloperListingItem"
+import React from "react"
 
 type DeveloperListingRowProps = {
     listing: DeveloperListing

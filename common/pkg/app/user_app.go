@@ -68,12 +68,16 @@ func (s *UserAppService) RemoveListingFromLibrary(userID string, itemID string) 
 	}
 
 	for _, item := range userLibrary {
-		if item.ID == itemID {
-			return s.libraryService.RemoveListing(itemID)
+		if item.ListingID == itemID {
+			return s.libraryService.RemoveListing(item.ID)
 		}
 	}
 
 	return fmt.Errorf("library item %s does not belong to user %s", itemID, userID)
+}
+
+func (s *UserAppService) HasUserBoughtListing(userID string, listingID string) (bool, error) {
+	return s.HasUserBoughtListing(userID, listingID)
 }
 
 // IsUserDeveloper checks whether the user is a developer.

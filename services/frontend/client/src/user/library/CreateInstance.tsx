@@ -8,6 +8,7 @@ import {
 } from "../../backend";
 import SelectBox from "../../components/input/SelectBox";
 import HardwareSettings from "../developer/hardware/HardwareSettings";
+import CreateBillingAccount from "../billing/CreateBillingAccount";
 
 export default function CreateInstance() {
     const { listingId } = useParams<{ listingId: string }>();
@@ -54,7 +55,7 @@ export default function CreateInstance() {
     const calculateTotalPrice = (): number => {
         if (!listing) return 0;
 
-        const basePrice = listing.price?.value ?? 0;
+        const basePrice = listing.price?.amount ?? 0;
         const ramPrice = (hardwareSpecification.ramBytes / 1024 ** 3) * 5;
         const diskPrice = (hardwareSpecification.diskBytes / 1024 ** 3) * 0.1;
 
@@ -92,6 +93,7 @@ export default function CreateInstance() {
 
     const billingOptions: Record<string, { label: string }> = {};
     billingAccounts.forEach((account) => {
+        if(account.status != "active") return;
         billingOptions[account.id] = { label: account.id };
     });
 
@@ -104,6 +106,9 @@ export default function CreateInstance() {
                 <label className="font-semibold">Select Billing Account</label>
                 <SelectBox
                     options={billingOptions}
+                    onEmpty={() => 
+                        <CreateBillingAccount/>
+                        }
                     defaultValue={selectedBillingAccount ?? undefined}
                     onSelected={setSelectedBillingAccount}
                 />
@@ -116,8 +121,8 @@ export default function CreateInstance() {
 
             <div className="space-y-1">
                 <h2 className="font-semibold">Price Summary</h2>
-                <p>Base Price: ${listing.price?.value ?? 0}</p>
-                <p>Hardware Price: ${(calculateTotalPrice() - (listing.price?.value ?? 0)).toFixed(2)}</p>
+                <p>Base Price: ${listing.price?.amount ?? 0}</p>
+                <p>Hardware Price: ${(calculateTotalPrice() - (listing.price?.amount ?? 0)).toFixed(2)}</p>
                 <p className="font-bold">Total: ${calculateTotalPrice().toFixed(2)}</p>
             </div>
 

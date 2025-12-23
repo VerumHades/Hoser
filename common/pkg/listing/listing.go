@@ -4,6 +4,7 @@ import (
 	"common/pkg/hardware"
 	"common/pkg/money"
 	"common/pkg/util"
+	"fmt"
 )
 
 type PricingType int
@@ -98,9 +99,17 @@ func (s *ListingService) ListAll() ([]*Listing, error) {
 	return s.repo.ListAll()
 }
 
-// GetListing returns a read-only view of a listing including its pricings.
 func (s *ListingService) GetListing(listingID string) (*Listing, error) {
-	return s.repo.GetByID(listingID)
+	listing, err := s.repo.GetByID(listingID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch listing: %w", err)
+	}
+
+	if listing == nil {
+		return nil, fmt.Errorf("listing with ID %s not found", listingID)
+	}
+
+	return listing, nil
 }
 
 // ListByAuthor returns all listings authored by the given user ID as views.

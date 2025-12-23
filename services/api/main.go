@@ -11,8 +11,10 @@ import (
 	instancemongodb "common/infra/mongodb/instance"
 	librarymongodb "common/infra/mongodb/library"
 	listingmongodb "common/infra/mongodb/listing"
+	ratesmongodb "common/infra/mongodb/rates"
 	usermongodb "common/infra/mongodb/user"
 
+	inmemconversion "common/infra/inmem/conversion"
 	listingmem "common/infra/inmem/listing"
 	inmempayments "common/infra/inmem/payments"
 
@@ -23,6 +25,8 @@ import (
 	"common/pkg/instance"
 	"common/pkg/library"
 	"common/pkg/listing"
+	"common/pkg/money"
+	"common/pkg/rates"
 	"common/pkg/user"
 	"fmt"
 	"log"
@@ -105,7 +109,7 @@ func main() {
 	paymentRepo := paymentmongodb.NewPaymentRepository(db.Collection("payments"), db.Collection("one_time_paymens"), db.Collection("subscription_payments"))
 	instanceRepo := instancemongodb.NewInstanceRepository(db.Collection("instances"))
 	//currencyRepo := currencymongodb.NewCurrencyRepository(db.Collection("currencies"))
-	//hardwareRateRepo := ratesmongodb.NewHardwareCostRepository(db.Collection("hardware_costs"))
+	hardwareRateRepo := ratesmongodb.NewHardwareCostRepository(db.Collection("hardware_costs"))
 
 	userService := user.NewUserService(userRepo)
 	userAuthentificationService := auth.NewAuthenticationService(userService)
@@ -122,7 +126,26 @@ func main() {
 	paymentService := payment.NewPaymentService(paymentRepo)
 	instanceService := instance.NewInstanceService(instanceRepo)
 	//currencyService := currency.NewCurrencyService(currencyRepo)
-	//hardwareCostService := rates.NewHardwareCostService(hardwareRateRepo)
+	hardwareCostService := rates.NewHardwareCostService(hardwareRateRepo)
+
+	// Add a first rate
+	hardwareCostService.AddRate(
+		money.Money{Amount: 0.05, CurrencyCode: "USD"},
+		money.Money{Amount: 0.01, CurrencyCode: "USD"},
+		money.Money{Amount: 0.001, CurrencyCode: "USD"},
+		time.Now().Add(-24*time.Hour), // valid from yesterday
+		nil,                           // no end date
+	)
+
+	// Add a second rate with a specific future end date
+	endDate := time.Now().Add(30 * 24 * time.Hour)
+	hardwareCostService.AddRate(
+		money.Money{Amount: 0.06, CurrencyCode: "USD"},
+		money.Money{Amount: 0.015, CurrencyCode: "USD"},
+		money.Money{Amount: 0.002, CurrencyCode: "USD"},
+		time.Now(),
+		&endDate,
+	)
 
 	listingSearchService := listingmem.NewInMemoryListingSearchService()
 
@@ -144,6 +167,13 @@ func main() {
 
 	paymentGatewayResolver := inmempayments.NewInMemoryPaymentGatewayResolver()
 
+	conversionService := inmemconversion.NewDummyCurrencyConversionService()
+
+	hardwareCostCalculationService := app.NewHardwareCostCalculationService(
+		hardwareCostService,
+		conversionService,
+	)
+
 	toplevelPaymentService := app.NewPaymentService(
 		paymentService,
 		billingAccountService,
@@ -156,6 +186,7 @@ func main() {
 		toplevelPaymentService,
 		publicListingService,
 		&DudReconciliationHandler{},
+		hardwareCostCalculationService,
 	)
 
 	app := &handlers.App{
@@ -192,6 +223,7 @@ func main() {
 	auth := e.Group("/user")
 
 	auth.GET("/data", app.UserDataHandler)
+	auth.GET("/library/:listingId/exists", app.HasListingInLibraryHandler)
 	auth.GET("/library", app.UserLibraryHandler)
 	auth.POST("/library", app.UserAddListingToLibraryHandler)
 	auth.DELETE("/library", app.UserRemoveListingFromLibraryHandler)

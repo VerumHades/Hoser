@@ -24,5 +24,20 @@ services:
     depends_on:
       - mongodb
 
+  object_storage:
+    image: minio/minio:latest
+    container_name: object-storage
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: localadmin
+      MINIO_ROOT_PASSWORD: localpassword
+    volumes:
+      - object_storage_data:/data
+
 volumes:
   mongodb_data:
+  object_storage_data:

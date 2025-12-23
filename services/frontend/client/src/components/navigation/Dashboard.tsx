@@ -102,7 +102,7 @@ export default function Dashboard({ children }: DashboardProps) {
                     </nav>
                 </aside>
 
-                <main className="flex-1 min-w-0 overflow-hidden p-4">
+                <main className="flex flex-1 min-w-0 overflow-hidden p-4">
                     <Routes>
                         {pages.map((page) => (
                             <Route

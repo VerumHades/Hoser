@@ -11,12 +11,12 @@ import (
 
 // =================== TYPES ===================
 type ApiListingBase struct {
-	ID          string                    `json:"id"`
-	Title       *string                   `json:"title,omitempty"`
-	Description *string                   `json:"description,omitempty"`
-	Price       CurrencyRequest           `json:"price"`
-	Hardware    *HardwareSpecificationDTO `json:"hardware,omitempty"`
-	Author      string                    `json:"author"`
+	ID          string                          `json:"id"`
+	Title       *string                         `json:"title,omitempty"`
+	Description *string                         `json:"description,omitempty"`
+	Price       money.Money                     `json:"price"`
+	Hardware    *hardware.HardwareSpecification `json:"hardware,omitempty"`
+	Author      string                          `json:"author"`
 }
 
 type ApiDeveloperListing struct {
@@ -29,20 +29,20 @@ type ApiPublicListing struct {
 }
 
 type UpdateListingRequest struct {
-	ID          string                     `json:"id"`
-	Title       *string                    `json:"title,omitempty"`
-	Description *string                    `json:"description,omitempty"`
-	Hardware    *HardwareSpecificationDTO  `json:"hardware,omitempty"`
-	Price       *money.Money               `json:"price,omitempty"`
-	AccessMode  *listing.ListingAccessMode `json:"accessMode,omitempty"` // integer type
+	ID          string                          `json:"id"`
+	Title       *string                         `json:"title,omitempty"`
+	Description *string                         `json:"description,omitempty"`
+	Hardware    *hardware.HardwareSpecification `json:"hardware,omitempty"`
+	Price       *money.Money                    `json:"price,omitempty"`
+	AccessMode  *listing.ListingAccessMode      `json:"accessMode,omitempty"` // integer type
 }
 type ListingRequest struct {
-	ID          string                    `json:"id"`
-	Title       *string                   `json:"title,omitempty"`
-	Description *string                   `json:"description,omitempty"`
-	AccessMode  *int                      `json:"accessMode,omitempty"`
-	Price       *CurrencyRequest          `json:"price,omitempty"`
-	Hardware    *HardwareSpecificationDTO `json:"hardware,omitempty"`
+	ID          string                          `json:"id"`
+	Title       *string                         `json:"title,omitempty"`
+	Description *string                         `json:"description,omitempty"`
+	AccessMode  *int                            `json:"accessMode,omitempty"`
+	Price       *money.Money                    `json:"price,omitempty"`
+	Hardware    *hardware.HardwareSpecification `json:"hardware,omitempty"`
 }
 
 type AddListingRequest struct {
@@ -54,19 +54,14 @@ type AddListingRequest struct {
 func (app *App) MakeApiDeveloperListing(l *listing.Listing) ApiDeveloperListing {
 	accessMode := int(l.AccessMode) // convert ListingAccessMode to int
 
-	price := CurrencyRequest{
-		Value: float32(l.Price.Amount),
-		Short: l.Price.CurrencyCode,
-	}
-
 	return ApiDeveloperListing{
 		ApiListingBase: ApiListingBase{
 			ID:          l.ID,
 			Author:      l.AuthorID,
 			Title:       &l.Title,
 			Description: &l.Description,
-			Price:       price,
-			Hardware:    app.HardwareSpecificationToDTO(l.HardwareSpecification),
+			Price:       l.Price,
+			Hardware:    l.HardwareSpecification,
 		},
 		AccessMode: &accessMode,
 	}
@@ -152,24 +147,10 @@ func (app *App) DeveloperUpdateListingHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	// Translate HardwareUpdate to HardwareSpecification
-	var hardwareSpec hardware.HardwareSpecification
-	if req.Hardware != nil {
-		if req.Hardware.CPU != nil {
-			hardwareSpec.CPUCount = *req.Hardware.CPU
-		}
-		if req.Hardware.RAM != nil {
-			hardwareSpec.RAMBytes = *req.Hardware.RAM
-		}
-		if req.Hardware.Disk != nil {
-			hardwareSpec.DiskBytes = *req.Hardware.Disk
-		}
-	}
-
 	listing, err := app.ListingService.UpdateListing(userID, req.ID, listing.ListingUpdate{
 		Title:                 req.Title,
 		Description:           req.Description,
-		HardwareSpecification: &hardwareSpec,
+		HardwareSpecification: req.Hardware,
 		Price:                 req.Price,
 		AccessMode:            req.AccessMode,
 	})
@@ -264,4 +245,38 @@ func (app *App) UserRemoveListingFromLibraryHandler(c echo.Context) error {
 	}
 
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (app *App) HasListingInLibraryHandler(c echo.Context) error {
+	// Extract user ID from JWT
+	userID, err := app.GetUserIDFromContext(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
+	}
+
+	// Get listing ID from URL path
+	listingID := c.Param("listingId")
+	if listingID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
+	}
+
+	// List the user's library
+	libraryItems, err := app.UserAppService.ListUserLibrary(userID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch user library")
+	}
+
+	// Check if the listing exists in the library
+	hasListing := false
+	for _, item := range libraryItems {
+		if item.ListingID == listingID {
+			hasListing = true
+			break
+		}
+	}
+
+	// Return result
+	return c.JSON(http.StatusOK, map[string]bool{
+		"hasListing": hasListing,
+	})
 }

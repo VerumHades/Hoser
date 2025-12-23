@@ -1,7 +1,7 @@
 package hardware
 
 type HardwareSpecification struct {
-	CPUCount  int
-	RAMBytes  int64
-	DiskBytes int64
+	CPUCount  int   `json:"cpu"`
+	RAMBytes  int64 `json:"ramBytes"`
+	DiskBytes int64 `json:"diskBytes"`
 }
