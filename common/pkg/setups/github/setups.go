@@ -1,4 +1,4 @@
-package listing
+package githubsetups
 
 import (
 	"fmt"
@@ -12,12 +12,12 @@ import (
 // GitHubSetupDefinition represents a repository configuration that can be attached to a listing.
 // Each listing can have zero or more setups (future-proofed).
 type GitHubSetupDefinition struct {
-	ID            string
-	ListingID     string
-	GitHubRepoURL string
-	AccessToken   string // optional, for private repos
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID          string
+	ListingID   string
+	RepoURL     string
+	AccessToken string // optional, for private repos
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // =================== REPOSITORY ===================
@@ -54,12 +54,12 @@ func (s *GitHubSetupService) CreateSetup(listingID, repoURL, accessToken string)
 
 	now := time.Now()
 	setup := &GitHubSetupDefinition{
-		ID:            util.GenerateUUID(),
-		ListingID:     listingID,
-		GitHubRepoURL: repoURL,
-		AccessToken:   accessToken,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:          util.GenerateUUID(),
+		ListingID:   listingID,
+		RepoURL:     repoURL,
+		AccessToken: accessToken,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := s.repo.Save(setup); err != nil {
@@ -68,18 +68,45 @@ func (s *GitHubSetupService) CreateSetup(listingID, repoURL, accessToken string)
 	return setup, nil
 }
 
-// UpdateSetup updates an existing GitHub setup. Only non-empty fields are updated.
-func (s *GitHubSetupService) UpdateSetup(id string, repoURL *string, accessToken *string) (*GitHubSetupDefinition, error) {
+// ensureSetupExists fetches a setup by ID and errors if it does not exist.
+func (s *GitHubSetupService) ensureSetupExists(id string) (*GitHubSetupDefinition, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id cannot be empty")
+	}
 	setup, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch GitHub setup: %w", err)
 	}
 	if setup == nil {
-		return nil, fmt.Errorf("GitHub setup with ID %s not found", id)
+		return nil, fmt.Errorf("GitHub setup with ID %s does not exist", id)
+	}
+	return setup, nil
+}
+
+// ensureSetupsExistForListing fetches setups for a listing and errors if none exist.
+func (s *GitHubSetupService) ensureSetupsExistForListing(listingID string) ([]*GitHubSetupDefinition, error) {
+	if listingID == "" {
+		return nil, fmt.Errorf("listingID cannot be empty")
+	}
+	setups, err := s.repo.GetByListingID(listingID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch GitHub setups for listing %s: %w", listingID, err)
+	}
+	if len(setups) == 0 {
+		return nil, fmt.Errorf("no GitHub setups exist for listing %s", listingID)
+	}
+	return setups, nil
+}
+
+// UpdateSetup updates an existing GitHub setup.
+func (s *GitHubSetupService) UpdateSetup(id string, repoURL *string, accessToken *string) (*GitHubSetupDefinition, error) {
+	setup, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
 	}
 
 	if repoURL != nil && *repoURL != "" {
-		setup.GitHubRepoURL = *repoURL
+		setup.RepoURL = *repoURL
 	}
 	if accessToken != nil {
 		setup.AccessToken = *accessToken
@@ -92,45 +119,47 @@ func (s *GitHubSetupService) UpdateSetup(id string, repoURL *string, accessToken
 	return setup, nil
 }
 
-// GetSetupByID returns a single GitHub setup by ID.
-func (s *GitHubSetupService) GetSetupByID(id string) (*GitHubSetupDefinition, error) {
-	if id == "" {
-		return nil, fmt.Errorf("id cannot be empty")
-	}
-	setup, err := s.repo.GetByID(id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch GitHub setup: %w", err)
-	}
-	if setup == nil {
-		return nil, fmt.Errorf("GitHub setup with ID %s not found", id)
-	}
-	return setup, nil
-}
-
-// ListSetupsByListing returns all GitHub setups attached to a listing.
-func (s *GitHubSetupService) ListSetupsByListing(listingID string) ([]*GitHubSetupDefinition, error) {
+// GetSetupByListing retrieves the single GitHub setup for a listing.
+// Returns an error if none exist.
+func (s *GitHubSetupService) GetSetupByListing(listingID string) (*GitHubSetupDefinition, error) {
 	if listingID == "" {
 		return nil, fmt.Errorf("listingID cannot be empty")
 	}
 	setups, err := s.repo.GetByListingID(listingID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch setups for listing %s: %w", listingID, err)
+		return nil, fmt.Errorf("failed to fetch GitHub setup for listing %s: %w", listingID, err)
 	}
-	return setups, nil
+	if len(setups) == 0 {
+		return nil, fmt.Errorf("no GitHub setup exists for listing %s", listingID)
+	}
+	// enforce single setup per listing
+	return setups[0], nil
+}
+
+// GetSetupByID returns a single GitHub setup by ID.
+func (s *GitHubSetupService) GetSetupByID(id string) (*GitHubSetupDefinition, error) {
+	return s.ensureSetupExists(id)
+}
+
+// ListSetupsByListing returns all GitHub setups attached to a listing.
+func (s *GitHubSetupService) ListSetupsByListing(listingID string) ([]*GitHubSetupDefinition, error) {
+	return s.ensureSetupsExistForListing(listingID)
 }
 
 // DeleteSetupByID deletes a setup by ID.
 func (s *GitHubSetupService) DeleteSetupByID(id string) error {
-	if id == "" {
-		return fmt.Errorf("id cannot be empty")
+	_, err := s.ensureSetupExists(id)
+	if err != nil {
+		return err
 	}
 	return s.repo.DeleteByID(id)
 }
 
 // DeleteSetupsByListing deletes all setups attached to a listing.
 func (s *GitHubSetupService) DeleteSetupsByListing(listingID string) error {
-	if listingID == "" {
-		return fmt.Errorf("listingID cannot be empty")
+	_, err := s.ensureSetupsExistForListing(listingID)
+	if err != nil {
+		return err
 	}
 	return s.repo.DeleteByListingID(listingID)
 }

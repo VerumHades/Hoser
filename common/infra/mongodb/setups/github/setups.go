@@ -1,6 +1,7 @@
-package githubsetups
+package listing
 
 import (
+	githubsetups "common/pkg/setups/github"
 	"context"
 	"errors"
 	"time"
@@ -8,100 +9,49 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-
-	"common/pkg/util"
 )
 
-// =================== DOMAIN ===================
-
-// GitHubSetupDefinition represents a setup linked to a listing.
-type GitHubSetupDefinition struct {
-	ID          string    `bson:"_id"`          // unique ID
-	ListingID   string    `bson:"listing_id"`   // associated listing
-	RepoURL     string    `bson:"repo_url"`     // GitHub repository URL
-	AccessToken string    `bson:"access_token"` // access token for private repos
-	CreatedAt   time.Time `bson:"created_at"`
-	UpdatedAt   time.Time `bson:"updated_at"`
-}
-
-// =================== REPOSITORY ===================
-
-type GitHubSetupRepository interface {
-	Save(definition *GitHubSetupDefinition) error
-	GetByListingID(listingID string) (*GitHubSetupDefinition, error)
-	Delete(listingID string) error
-	ListAll() ([]*GitHubSetupDefinition, error)
-}
-
-// =================== SERVICE ===================
-
-type GitHubSetupService struct {
-	repo GitHubSetupRepository
-}
-
-// NewService creates a new GitHubSetupService instance.
-func NewService(repo GitHubSetupRepository) *GitHubSetupService {
-	return &GitHubSetupService{repo: repo}
-}
-
-// GuardedSave validates and saves a setup definition.
-func (s *GitHubSetupService) GuardedSave(def *GitHubSetupDefinition) error {
-	if def.ListingID == "" {
-		return errors.New("listing ID cannot be empty")
-	}
-	if def.RepoURL == "" {
-		return errors.New("repository URL cannot be empty")
-	}
-	now := time.Now()
-	if def.ID == "" {
-		def.ID = util.GenerateUUID()
-		def.CreatedAt = now
-	}
-	def.UpdatedAt = now
-
-	return s.repo.Save(def)
-}
-
-// GetByListing retrieves a setup definition for a listing.
-func (s *GitHubSetupService) GetByListing(listingID string) (*GitHubSetupDefinition, error) {
-	if listingID == "" {
-		return nil, errors.New("listing ID cannot be empty")
-	}
-	return s.repo.GetByListingID(listingID)
-}
-
-// RemoveByListing deletes a setup definition for a listing.
-func (s *GitHubSetupService) RemoveByListing(listingID string) error {
-	if listingID == "" {
-		return errors.New("listing ID cannot be empty")
-	}
-	return s.repo.Delete(listingID)
-}
-
-// =================== MONGO IMPLEMENTATION ===================
-
-type MongoRepository struct {
+// MongoGitHubSetupRepository implements GitHubSetupRepository using MongoDB.
+type MongoGitHubSetupRepository struct {
 	collection *mongo.Collection
 }
 
-func NewMongoRepository(collection *mongo.Collection) *MongoRepository {
-	return &MongoRepository{collection: collection}
+// NewMongoGitHubSetupRepository creates a new repository instance.
+func NewMongoGitHubSetupRepository(collection *mongo.Collection) *MongoGitHubSetupRepository {
+	return &MongoGitHubSetupRepository{collection: collection}
 }
 
-func (r *MongoRepository) Save(def *GitHubSetupDefinition) error {
+// Save inserts or updates a githubsetups.GitHubSetupDefinition.
+func (r *MongoGitHubSetupRepository) Save(setup *githubsetups.GitHubSetupDefinition) error {
+	if setup == nil {
+		return errors.New("setup cannot be nil")
+	}
+	if setup.ID == "" {
+		return errors.New("setup ID cannot be empty")
+	}
+	now := time.Now()
+	if setup.CreatedAt.IsZero() {
+		setup.CreatedAt = now
+	}
+	setup.UpdatedAt = now
+
 	_, err := r.collection.UpdateByID(
 		context.Background(),
-		def.ID,
-		bson.M{"$set": def},
+		setup.ID,
+		bson.M{"$set": setup},
 		options.Update().SetUpsert(true),
 	)
 	return err
 }
 
-func (r *MongoRepository) GetByListingID(listingID string) (*GitHubSetupDefinition, error) {
-	var doc GitHubSetupDefinition
-	err := r.collection.FindOne(context.Background(), bson.M{"listing_id": listingID}).Decode(&doc)
-	if errors.Is(err, mongo.ErrNoDocuments) {
+// GetByID retrieves a setup by its ID.
+func (r *MongoGitHubSetupRepository) GetByID(id string) (*githubsetups.GitHubSetupDefinition, error) {
+	if id == "" {
+		return nil, errors.New("id cannot be empty")
+	}
+	var doc githubsetups.GitHubSetupDefinition
+	err := r.collection.FindOne(context.Background(), bson.M{"_id": id}).Decode(&doc)
+	if err == mongo.ErrNoDocuments {
 		return nil, nil
 	}
 	if err != nil {
@@ -110,21 +60,20 @@ func (r *MongoRepository) GetByListingID(listingID string) (*GitHubSetupDefiniti
 	return &doc, nil
 }
 
-func (r *MongoRepository) Delete(listingID string) error {
-	_, err := r.collection.DeleteOne(context.Background(), bson.M{"listing_id": listingID})
-	return err
-}
-
-func (r *MongoRepository) ListAll() ([]*GitHubSetupDefinition, error) {
-	cursor, err := r.collection.Find(context.Background(), bson.M{})
+// GetByListingID retrieves all setups for a listing.
+func (r *MongoGitHubSetupRepository) GetByListingID(listingID string) ([]*githubsetups.GitHubSetupDefinition, error) {
+	if listingID == "" {
+		return nil, errors.New("listingID cannot be empty")
+	}
+	cursor, err := r.collection.Find(context.Background(), bson.M{"listingid": listingID})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(context.Background())
 
-	var results []*GitHubSetupDefinition
+	var results []*githubsetups.GitHubSetupDefinition
 	for cursor.Next(context.Background()) {
-		var doc GitHubSetupDefinition
+		var doc githubsetups.GitHubSetupDefinition
 		if err := cursor.Decode(&doc); err != nil {
 			return nil, err
 		}
@@ -135,4 +84,22 @@ func (r *MongoRepository) ListAll() ([]*GitHubSetupDefinition, error) {
 	}
 
 	return results, nil
+}
+
+// DeleteByID deletes a setup by its ID.
+func (r *MongoGitHubSetupRepository) DeleteByID(id string) error {
+	if id == "" {
+		return errors.New("id cannot be empty")
+	}
+	_, err := r.collection.DeleteOne(context.Background(), bson.M{"_id": id})
+	return err
+}
+
+// DeleteByListingID deletes all setups for a listing.
+func (r *MongoGitHubSetupRepository) DeleteByListingID(listingID string) error {
+	if listingID == "" {
+		return errors.New("listingID cannot be empty")
+	}
+	_, err := r.collection.DeleteMany(context.Background(), bson.M{"listingid": listingID})
+	return err
 }

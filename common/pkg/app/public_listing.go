@@ -1,28 +1,32 @@
 package app
 
 import (
-	"common/pkg/listing"
 	"fmt"
+
+	"common/pkg/listing"
+	githubsetups "common/pkg/setups/github"
 )
 
-// PublicListingService handles listing access rules and ownership checks.
+// PublicListingService handles listing access rules, ownership checks, and GitHub setups.
 type PublicListingService struct {
-	listingFacade *ListingFacadeService
+	listingFacade      *ListingFacadeService
+	githubSetupService *githubsetups.GitHubSetupService
 }
 
 // NewPublicListingService creates a new PublicListingService.
-func NewPublicListingService(listingFacade *ListingFacadeService) *PublicListingService {
+func NewPublicListingService(listingFacade *ListingFacadeService, githubSetupService *githubsetups.GitHubSetupService) *PublicListingService {
 	return &PublicListingService{
-		listingFacade: listingFacade,
+		listingFacade:      listingFacade,
+		githubSetupService: githubSetupService,
 	}
 }
 
-// ListByAuthor returns all listings authored by a user.
+// =================== LISTING FUNCTIONS ===================
+
 func (s *PublicListingService) ListByAuthor(authorID string) ([]*listing.Listing, error) {
 	return s.listingFacade.ListByAuthor(authorID)
 }
 
-// SearchPublicListings returns all public listings matching the query.
 func (s *PublicListingService) SearchPublicListings(query string) ([]*listing.Listing, error) {
 	listings, err := s.listingFacade.SearchListings(query)
 	if err != nil {
@@ -39,8 +43,7 @@ func (s *PublicListingService) SearchPublicListings(query string) ([]*listing.Li
 	return publicListings, nil
 }
 
-// GetOwnedListing returns a listing only if the user is the owner.
-func (s *PublicListingService) GetOwnedListing(userID string, listingID string) (*listing.Listing, error) {
+func (s *PublicListingService) GetOwnedListing(userID, listingID string) (*listing.Listing, error) {
 	listingView, err := s.listingFacade.GetListing(listingID)
 	if err != nil {
 		return nil, err
@@ -53,7 +56,6 @@ func (s *PublicListingService) GetOwnedListing(userID string, listingID string) 
 	return listingView, nil
 }
 
-// GetPublicListing returns a listing only if it is public.
 func (s *PublicListingService) GetPublicListing(listingID string) (*listing.Listing, error) {
 	listingView, err := s.listingFacade.GetListing(listingID)
 	if err != nil {
@@ -67,34 +69,72 @@ func (s *PublicListingService) GetPublicListing(listingID string) (*listing.List
 	return listingView, nil
 }
 
-// CreateListing creates a new listing.
-func (s *PublicListingService) CreateListing(
-	authorID string,
-	title string,
-	description string,
-	accessMode listing.ListingAccessMode,
-) (*listing.Listing, error) {
+func (s *PublicListingService) CreateListing(authorID, title, description string, accessMode listing.ListingAccessMode) (*listing.Listing, error) {
 	return s.listingFacade.CreateListing(authorID, title, description, accessMode)
 }
 
-// UpdateListing updates an owned listing.
-func (s *PublicListingService) UpdateListing(
-	userID string,
-	listingID string,
-	update listing.ListingUpdate,
-) (*listing.Listing, error) {
+func (s *PublicListingService) UpdateListing(userID, listingID string, update listing.ListingUpdate) (*listing.Listing, error) {
 	if _, err := s.GetOwnedListing(userID, listingID); err != nil {
 		return nil, err
 	}
-
 	return s.listingFacade.UpdateListing(listingID, update)
 }
 
-// DeleteListing deletes an owned listing.
-func (s *PublicListingService) DeleteListing(userID string, listingID string) error {
+func (s *PublicListingService) DeleteListing(userID, listingID string) error {
 	if _, err := s.GetOwnedListing(userID, listingID); err != nil {
 		return err
 	}
-
 	return s.listingFacade.DeleteListing(listingID)
+}
+
+// =================== GITHUB SETUP FUNCTIONS ===================
+
+// GetSetupForListing returns the GitHub setup definition for a listing (guarded).
+func (s *PublicListingService) GetSetupForListing(userID, listingID string) (*githubsetups.GitHubSetupDefinition, error) {
+	listingView, err := s.GetOwnedListing(userID, listingID)
+	if err != nil {
+		return nil, err
+	}
+
+	definition, err := s.githubSetupService.GetSetupByListing(listingView.ID)
+	if err != nil {
+		return nil, err
+	}
+	return definition, nil
+}
+
+// AttachOrUpdateSetup attaches or updates a GitHub setup for an owned listing.
+func (s *PublicListingService) AttachOrUpdateSetup(userID, listingID, repoURL, accessToken string) (*githubsetups.GitHubSetupDefinition, error) {
+	listingView, err := s.GetOwnedListing(userID, listingID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if a setup already exists
+	existingSetup, err := s.githubSetupService.GetSetupByListing(listingView.ID)
+	if err != nil {
+		def, err := s.githubSetupService.CreateSetup(listingID, repoURL, accessToken)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return def, nil
+	}
+
+	def, err := s.githubSetupService.UpdateSetup(existingSetup.ID, &repoURL, &accessToken)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return def, nil
+}
+
+// RemoveSetup removes a GitHub setup from an owned listing.
+func (s *PublicListingService) RemoveSetup(userID, listingID string) error {
+	if _, err := s.GetOwnedListing(userID, listingID); err != nil {
+		return err
+	}
+	return s.githubSetupService.DeleteSetupsByListing(listingID)
 }

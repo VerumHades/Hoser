@@ -12,6 +12,7 @@ import (
 	librarymongodb "common/infra/mongodb/library"
 	listingmongodb "common/infra/mongodb/listing"
 	ratesmongodb "common/infra/mongodb/rates"
+	mongogithubsetups "common/infra/mongodb/setups/github"
 	usermongodb "common/infra/mongodb/user"
 
 	inmemconversion "common/infra/inmem/conversion"
@@ -27,6 +28,7 @@ import (
 	"common/pkg/listing"
 	"common/pkg/money"
 	"common/pkg/rates"
+	githubsetups "common/pkg/setups/github"
 	"common/pkg/user"
 	"fmt"
 	"log"
@@ -110,6 +112,7 @@ func main() {
 	instanceRepo := instancemongodb.NewInstanceRepository(db.Collection("instances"))
 	//currencyRepo := currencymongodb.NewCurrencyRepository(db.Collection("currencies"))
 	hardwareRateRepo := ratesmongodb.NewHardwareCostRepository(db.Collection("hardware_costs"))
+	githubSetupRepo := mongogithubsetups.NewMongoGitHubSetupRepository(db.Collection("github_setups"))
 
 	userService := user.NewUserService(userRepo)
 	userAuthentificationService := auth.NewAuthenticationService(userService)
@@ -121,6 +124,7 @@ func main() {
 
 	listingService := listing.NewListingService(listingRepo)
 	libraryService := library.NewLibraryService(libraryRepo)
+	githubSetupService := githubsetups.NewGitHubSetupService(githubSetupRepo)
 
 	billingAccountService := account.NewBillingAccountService(accountRepo)
 	paymentService := payment.NewPaymentService(paymentRepo)
@@ -156,7 +160,7 @@ func main() {
 	}
 
 	listingFacadeService := app.NewListingFacadeService(listingService, listingSearchService)
-	publicListingService := app.NewPublicListingService(listingFacadeService)
+	publicListingService := app.NewPublicListingService(listingFacadeService, githubSetupService)
 
 	userAppService := app.NewUserAppService(
 		userService,
@@ -251,13 +255,17 @@ func main() {
 	// ---------------------------
 	e.GET("/developer/listings", app.DeveloperListingsHandler)
 	dev := e.Group("/developer/listing")
+
+	dev.GET("/:listingId/setup", app.DeveloperGetSetupHandler)             // Get GitHub setup for a listing
+	dev.POST("/:listingId/setup", app.DeveloperAttachOrUpdateSetupHandler) // Attach or update GitHub setup
+	dev.DELETE("/:listingId/setup", app.DeveloperRemoveSetupHandler)       // Remove GitHub setup
+
 	dev.GET("/:id", app.DeveloperGetListingHandler)
 	dev.Use(app.DeveloperOnlyMiddleware)
 
 	dev.POST("", app.DeveloperAddListingHandler)
 	dev.PUT("", app.DeveloperUpdateListingHandler)
 	dev.DELETE("", app.DeveloperDeleteListingHandler)
-
 	// ---------------------------
 	// Start server
 	// ---------------------------
