@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"common/infra/configuration"
+	localdockerdeployer "common/infra/deployment"
 	accountmongodb "common/infra/mongodb/billing/account"
 	paymentmongodb "common/infra/mongodb/billing/payment"
 	instancemongodb "common/infra/mongodb/instance"
@@ -37,23 +38,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-// DudReconciliationHandler is a no-op implementation of ReconciliationHandler
-type DudReconciliationHandler struct{}
-
-// OnInstanceCreated is called when a new instance is created.
-// This implementation does nothing and always returns nil.
-func (h *DudReconciliationHandler) OnInstanceCreated(instance *instance.Instance) error {
-	// No-op
-	return nil
-}
-
-// OnInstanceUpdated is called when an instance is updated.
-// This implementation does nothing and always returns nil.
-func (h *DudReconciliationHandler) OnInstanceUpdated(instance *instance.Instance) error {
-	// No-op
-	return nil
-}
 
 func main() {
 	// ---------------------------
@@ -109,7 +93,7 @@ func main() {
 	}
 	accountRepo := accountmongodb.NewBillingAccountRepository(db.Collection("billing_accounts"))
 	paymentRepo := paymentmongodb.NewPaymentRepository(db.Collection("payments"), db.Collection("one_time_paymens"), db.Collection("subscription_payments"))
-	instanceRepo := instancemongodb.NewInstanceRepository(db.Collection("instances"))
+	instanceRepo := instancemongodb.NewMongoInstanceRepository(db.Collection("instances"), time.Second*5)
 	//currencyRepo := currencymongodb.NewCurrencyRepository(db.Collection("currencies"))
 	hardwareRateRepo := ratesmongodb.NewHardwareCostRepository(db.Collection("hardware_costs"))
 	githubSetupRepo := mongogithubsetups.NewMongoGitHubSetupRepository(db.Collection("github_setups"))
@@ -183,13 +167,18 @@ func main() {
 		paymentGatewayResolver,
 	)
 
-	instanceEngineService := *app.NewInstanceEngineService(
+	instanceSubscriptionService := *app.NewInstanceSubscriptionService(
 		instanceService,
 		billingAccountService,
 		toplevelPaymentService,
 		publicListingService,
 		hardwareCostCalculationService,
 	)
+
+	deployer := localdockerdeployer.NewPublicGitHubDockerDeployer(publicListingService, instanceService)
+
+	reconciler := app.NewInstanceSubscriptionReconciler(&instanceSubscriptionService, instanceService, deployer, time.Second)
+	reconciler.Start()
 
 	app := &handlers.App{
 		RunningConfiguration:           &runningConfiguration,
@@ -198,8 +187,9 @@ func main() {
 		ListingService:                 publicListingService,
 		BillingAccountService:          billingAccountService,
 		PaymentService:                 paymentService,
-		InstanceEngineService:          &instanceEngineService,
+		InstanceEngineService:          &instanceSubscriptionService,
 		HardwareCostCalculationService: hardwareCostCalculationService,
+		InstanceDeployer:               deployer,
 	}
 
 	e := echo.New()
@@ -249,6 +239,7 @@ func main() {
 	auth.GET("/instances/:id", app.UserGetInstanceHandler)                           // Get single instance
 	auth.GET("/billing/:billingId/instances", app.UserListInstancesByBillingHandler) // List instances by billing account
 	auth.GET("/instances", app.UserListInstancesByOwnerHandler)                      // List all instances for the authenticated user
+	auth.GET("/instances/:id/state", app.UserGetInstanceStateHandler)                // Get deployment state for an instance
 
 	// ---------------------------
 	// Developer-only routes

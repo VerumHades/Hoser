@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// InstanceEngineService orchestrates instance creation, payment, and hardware cost calculations.
-type InstanceEngineService struct {
+// InstanceSubscriptionService orchestrates instance creation, payment, and hardware cost calculations.
+type InstanceSubscriptionService struct {
 	instanceService                *instance.InstanceService
 	billingService                 *account.BillingAccountService
 	paymentService                 *PaymentService
@@ -18,15 +18,15 @@ type InstanceEngineService struct {
 	hardwareCostCalculationService *HardwareCostCalculationService
 }
 
-// NewInstanceEngineService creates a new instance engine service with the calculation service.
-func NewInstanceEngineService(
+// NewInstanceSubscriptionService creates a new instance engine service with the calculation service.
+func NewInstanceSubscriptionService(
 	instanceService *instance.InstanceService,
 	billingService *account.BillingAccountService,
 	paymentService *PaymentService,
 	publicListingService *PublicListingService,
 	hardwareCostCalculationService *HardwareCostCalculationService,
-) *InstanceEngineService {
-	return &InstanceEngineService{
+) *InstanceSubscriptionService {
+	return &InstanceSubscriptionService{
 		instanceService:                instanceService,
 		billingService:                 billingService,
 		paymentService:                 paymentService,
@@ -36,20 +36,17 @@ func NewInstanceEngineService(
 }
 
 // LaunchInstance launches a new instance for a user and automatically purchases the listing if not already owned.
-func (s *InstanceEngineService) LaunchInstance(ownerID, listingID, billingAccountID string, hardwareSpec *hardware.HardwareSpecification) (*instance.Instance, error) {
-	// Fetch the listing to get its price
+func (s *InstanceSubscriptionService) LaunchInstance(ownerID, listingID, billingAccountID string, hardwareSpec *hardware.HardwareSpecification) (*instance.Instance, error) {
 	listingView, err := s.publicListingService.GetPublicListing(listingID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if the user already bought the listing
 	hasBought, err := s.paymentService.HasUserBoughtListing(ownerID, listingID)
 	if err != nil {
 		return nil, err
 	}
 
-	// If not purchased, perform a one-time payment using the listing price
 	if !hasBought {
 		paymentMetadata := payment.OneTimePaymentMetadata{
 			UserID:    ownerID,
@@ -61,24 +58,24 @@ func (s *InstanceEngineService) LaunchInstance(ownerID, listingID, billingAccoun
 		}
 	}
 
-	// Create the instance
 	instanceObj, err := s.instanceService.CreateInstance(listingID, billingAccountID, hardwareSpec)
 	if err != nil {
 		return nil, err
 	}
+
+	s.instanceService.SetContractState(instanceObj.ID, instance.ContractActive)
 
 	return instanceObj, nil
 }
 
 // RenewInstanceHardware renews an instance with a new hardware spec and/or duration.
 // Charges only the difference between the already paid remaining period and the new total.
-func (s *InstanceEngineService) RenewInstanceHardware(
+func (s *InstanceSubscriptionService) RenewInstanceHardware(
 	instanceID string,
 	newHardwareSpec *hardware.HardwareSpecification,
 	duration time.Duration,
 ) (*instance.Instance, error) {
 
-	// Fetch the instance
 	currentInstance, err := s.instanceService.GetInstance(instanceID)
 	if err != nil {
 		return nil, err
@@ -88,11 +85,8 @@ func (s *InstanceEngineService) RenewInstanceHardware(
 	var remainingDuration time.Duration
 	if currentInstance.Expiry.After(now) {
 		remainingDuration = currentInstance.Expiry.Sub(now)
-	} else {
-		remainingDuration = 0
 	}
 
-	// Cost already paid for remaining time with current spec
 	alreadyPaid, err := s.hardwareCostCalculationService.CalculateCost(
 		currentInstance.HardwareSpecification,
 		remainingDuration,
@@ -103,7 +97,6 @@ func (s *InstanceEngineService) RenewInstanceHardware(
 		return nil, err
 	}
 
-	// Total cost for new spec over total duration
 	newTotalCost, err := s.hardwareCostCalculationService.CalculateCost(
 		newHardwareSpec,
 		duration,
@@ -119,7 +112,7 @@ func (s *InstanceEngineService) RenewInstanceHardware(
 		return nil, err
 	}
 	if amountToCharge.Amount < 0 {
-		amountToCharge = money.Money{Amount: 0, CurrencyCode: "USD"} // no refunds on downgrade
+		amountToCharge = money.Money{Amount: 0, CurrencyCode: "USD"}
 	}
 
 	expiry := now.Add(duration)
@@ -135,31 +128,33 @@ func (s *InstanceEngineService) RenewInstanceHardware(
 		}
 	}
 
-	// Update instance spec and expiry
-	updatedInstance, err := s.instanceService.UpdateHardwareSpecification(instanceID, newHardwareSpec)
+	updatedInstance, err := s.instanceService.SetExpiry(instanceID, expiry)
 	if err != nil {
 		return nil, err
 	}
-	updatedInstance, err = s.instanceService.SetExpiry(instanceID, expiry)
-	if err != nil {
-		return nil, err
+
+	if !newHardwareSpec.Equals(currentInstance.HardwareSpecification) {
+		updatedInstance, err = s.instanceService.SetHardware(instanceID, newHardwareSpec)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return updatedInstance, nil
 }
 
 // ListInstancesByBillingAccount lists all instances for a billing account.
-func (s *InstanceEngineService) ListInstancesByBillingAccount(billingID string) ([]*instance.Instance, error) {
+func (s *InstanceSubscriptionService) ListInstancesByBillingAccount(billingID string) ([]*instance.Instance, error) {
 	return s.instanceService.ListByBillingAccount(billingID)
 }
 
 // GetInstance retrieves an instance by ID.
-func (s *InstanceEngineService) GetInstance(instanceID string) (*instance.Instance, error) {
+func (s *InstanceSubscriptionService) GetInstance(instanceID string) (*instance.Instance, error) {
 	return s.instanceService.GetInstance(instanceID)
 }
 
 // ListInstancesByOwner lists all instances for a user by resolving billing accounts.
-func (s *InstanceEngineService) ListInstancesByOwner(ownerID string) ([]*instance.Instance, error) {
+func (s *InstanceSubscriptionService) ListInstancesByOwner(ownerID string) ([]*instance.Instance, error) {
 	accounts, err := s.billingService.ListByOwner(ownerID)
 	if err != nil {
 		return nil, err

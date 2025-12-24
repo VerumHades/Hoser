@@ -6,32 +6,47 @@ import (
 	"time"
 )
 
+// InstanceState defines the possible states of an instance.
 type InstanceState int
 
 const (
-	Building InstanceState = iota
-	Running
+	Running InstanceState = iota
 	Stopped
 
-	UpdatingHardware      // instance is being updated
-	ReconciliationPending // needs reconciliation
-	ErrorState            // encountered an unrecoverable error
-	Suspended             // temporarily inactive
+	BillingFailed
+	ErrorState
 )
 
-type Instance struct {
-	ID                    string
-	ListingID             string
-	BillingID             string
-	State                 InstanceState
-	HardwareSpecification *hardware.HardwareSpecification
-	DesiredHardwareSpec   *hardware.HardwareSpecification // desired spec for reconciliation
-	Expiry                time.Time                       // rental period expiry
+type ContractState int
 
-	// Reconciliation metadata
-	PendingUpdate bool      // true if a hardware change is pending
-	LastAttempt   time.Time // last reconciliation attempt
-	UpdateFailed  bool      // true if last update failed
+const (
+	ContractInactive ContractState = iota
+	ContractActive
+)
+
+/*
+	ContractState InstanceState   Reaction
+
+	Inactive      Running         The stop signal is given to the deployer
+	Active        Stopped         The start signal is give to the deployer
+	Active        BillingFailed   Retry payment, sets ContractState to Inactive on failiure
+*/
+
+type Instance struct {
+	ID        string
+	ListingID string
+	BillingID string
+
+	State         InstanceState
+	ContractState ContractState
+
+	HardwareSpecification *hardware.HardwareSpecification
+	UpdateHardware        bool
+
+	Expiry time.Time
+
+	RenewAutomatically bool
+	RenewalDuration    time.Duration
 }
 
 // InstanceRepository defines persistence operations for instances.
@@ -39,28 +54,35 @@ type InstanceRepository interface {
 	Save(instance *Instance) error
 	GetByID(id string) (*Instance, error)
 	Delete(id string) error
+
 	ListByListing(listingID string) ([]*Instance, error)
 	ListByBilling(billingID string) ([]*Instance, error)
+
+	ListExpired(cutoff time.Time) ([]*Instance, error)
+	ListByState(state InstanceState, contractState ContractState) ([]*Instance, error)
+	ListByPendingHardwareUpdate() ([]*Instance, error)
 }
 
-// InstanceService orchestrates business logic for instances.
+// InstanceService provides operations on instances.
 type InstanceService struct {
 	repo InstanceRepository
 }
 
-// NewInstanceService creates a new service instance.
+// NewInstanceService creates a new instance service.
 func NewInstanceService(repo InstanceRepository) *InstanceService {
 	return &InstanceService{repo: repo}
 }
 
-// CreateInstance creates a new instance from a listing and billing ID.
+// CreateInstance creates a new instance from listing and billing IDs.
 func (s *InstanceService) CreateInstance(listingID, billingID string, hardwareSpec *hardware.HardwareSpecification) (*Instance, error) {
 	instance := &Instance{
 		ID:                    util.GenerateUUID(),
 		ListingID:             listingID,
 		BillingID:             billingID,
-		State:                 Building,
+		ContractState:         ContractActive,
+		State:                 Stopped, // default to Running since Building isn't defined
 		HardwareSpecification: hardwareSpec,
+		RenewalDuration:       time.Hour,
 	}
 	if err := s.repo.Save(instance); err != nil {
 		return nil, err
@@ -68,17 +90,15 @@ func (s *InstanceService) CreateInstance(listingID, billingID string, hardwareSp
 	return instance, nil
 }
 
-func (s *InstanceService) UpdateHardwareSpecification(instanceID string, newHardwareSpec *hardware.HardwareSpecification) (*Instance, error) {
+// SetConcreteHardware sets the hardware and clears any desired spec.
+func (s *InstanceService) SetHardware(instanceID string, hardwareSpec *hardware.HardwareSpecification) (*Instance, error) {
 	instance, err := s.repo.GetByID(instanceID)
 	if err != nil {
 		return nil, err
 	}
 
-	instance.DesiredHardwareSpec = newHardwareSpec
-	instance.PendingUpdate = true
-	instance.State = UpdatingHardware
-	instance.UpdateFailed = false
-	instance.LastAttempt = time.Time{} // reset last attempt
+	instance.HardwareSpecification = hardwareSpec
+	instance.UpdateHardware = true
 
 	if err := s.repo.Save(instance); err != nil {
 		return nil, err
@@ -86,6 +106,7 @@ func (s *InstanceService) UpdateHardwareSpecification(instanceID string, newHard
 	return instance, nil
 }
 
+// SetExpiry updates the expiry date.
 func (s *InstanceService) SetExpiry(instanceID string, expiry time.Time) (*Instance, error) {
 	instance, err := s.repo.GetByID(instanceID)
 	if err != nil {
@@ -98,12 +119,68 @@ func (s *InstanceService) SetExpiry(instanceID string, expiry time.Time) (*Insta
 	return instance, nil
 }
 
+// SetState updates the instance state.
+func (s *InstanceService) SetState(instanceID string, state InstanceState) (*Instance, error) {
+	instance, err := s.repo.GetByID(instanceID)
+	if err != nil {
+		return nil, err
+	}
+	instance.State = state
+	if err := s.repo.Save(instance); err != nil {
+		return nil, err
+	}
+	return instance, nil
+}
+
+// SetContractState updates the contract state of the instance.
+func (s *InstanceService) SetContractState(instanceID string, contractState ContractState) (*Instance, error) {
+	instance, err := s.repo.GetByID(instanceID)
+	if err != nil {
+		return nil, err
+	}
+	instance.ContractState = contractState
+	if err := s.repo.Save(instance); err != nil {
+		return nil, err
+	}
+	return instance, nil
+}
+
 // GetInstance retrieves an instance by ID.
 func (s *InstanceService) GetInstance(instanceID string) (*Instance, error) {
 	return s.repo.GetByID(instanceID)
 }
 
-// ListByBillingAccount lists all instances associated with a billing account.
+// ListByListing retrieves all instances for a listing.
+func (s *InstanceService) ListByListing(listingID string) ([]*Instance, error) {
+	return s.repo.ListByListing(listingID)
+}
+
+// ListByBillingAccount retrieves all instances for a billing account.
 func (s *InstanceService) ListByBillingAccount(billingID string) ([]*Instance, error) {
 	return s.repo.ListByBilling(billingID)
+}
+
+// ListExpiredInstances retrieves expired instances.
+func (s *InstanceService) ListExpiredInstances(cutoff time.Time) ([]*Instance, error) {
+	return s.repo.ListExpired(cutoff)
+}
+
+// DeleteInstance deletes an instance.
+func (s *InstanceService) DeleteInstance(instanceID string) error {
+	return s.repo.Delete(instanceID)
+}
+
+// ListActiveNonRunning retrieves ContractActive instances that are not running.
+func (s *InstanceService) ListActiveNonRunning() ([]*Instance, error) {
+	return s.repo.ListByState(Stopped, ContractActive)
+}
+
+// ListInactiveRunning retrieves ContractInactive instances that are running.
+func (s *InstanceService) ListInactiveRunning() ([]*Instance, error) {
+	return s.repo.ListByState(Running, ContractInactive)
+}
+
+// ListInactiveRunning retrieves ContractInactive instances that are running.
+func (s *InstanceService) ListByPendingHardwareUpdate() ([]*Instance, error) {
+	return s.repo.ListByPendingHardwareUpdate()
 }
