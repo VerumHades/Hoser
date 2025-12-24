@@ -11,20 +11,27 @@ async function backend_request<T>(endpoint: string, type: string, body?: unknown
     if (body)
         request_body.body = JSON.stringify(body);
 
-    const response = await fetch(`${backend_constants.address}${endpoint}`, request_body);
 
-    let json = undefined
     try {
-        json = await response.json();
+        const response = await fetch(`${backend_constants.address}${endpoint}`, request_body);
+        
+        let json = undefined
+        try {
+            json = await response.json();
+        }
+        catch(err2){
+
+        }
+
+        return {
+            response,
+            ok: response.ok,
+            json
+        }
     }
     catch (err) {
-        console.error(err)
-    }
-
-    return {
-        response,
-        ok: response.ok,
-        json
+        throw err;
+        //console.error(err)
     }
 }
 
@@ -127,10 +134,24 @@ export interface ApiInstance {
     id: string;
     listingId: string;
     billingId: string;
-    state: string;
+    state: ApiInstanceState;
+    contractState: ApiContractState;
     hardwareSpecification: HardwareSpecification;
+    expiry: string;
 }
 
+export type ApiInstanceState =
+    | "BUILDING"
+    | "RUNNING"
+    | "STOPPED"
+    | "UPDATING_HARDWARE"
+    | "ERROR"
+    | "UNKNOWN";
+
+export type ApiContractState =
+    | "INACTIVE"
+    | "ACTIVE"
+    | "UNKNOWN";
 export interface LaunchInstanceRequest {
     listingId: string;
     billingAccountId: string;
@@ -162,6 +183,15 @@ interface GithubSetupResponse {
     repoUrl: string;
     createdAt: number;
 }
+
+export type DeployedInstanceStateEnum = "Running" | "Building" | "Stopped" | "ErrorState";
+
+export interface DeployedInstanceState {
+    state: DeployedInstanceStateEnum;
+    stateMessage: string;
+    error?: string; // optional
+}
+
 
 // =================== EXTENDED API ===================
 export const API = {
@@ -251,6 +281,11 @@ export const API = {
             },
             async list(): Promise<APIResult<ApiInstance[]>> {
                 return await backend_request(`/user/instances`, "GET");
+            },
+            state: {
+                async get(instanceId: string): Promise<APIResult<DeployedInstanceState>> {
+                    return await backend_request(`/user/instances/${instanceId}/state`, "GET");
+                }
             }
         }
     },

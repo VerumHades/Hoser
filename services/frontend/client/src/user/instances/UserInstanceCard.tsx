@@ -1,38 +1,122 @@
-import type { ApiInstance } from "../../backend"
-import clsx from "clsx"
+import { useEffect, useState } from "react"
+import { API, type ApiInstance, type DeployedInstanceState } from "../../backend"
+import { formatBytes } from "../../components/common"
+import { ConsolePrompt } from "../../components/view/ConsolePrompt"
 
 type UserInstanceCardProps = {
     instance: ApiInstance
 }
 
-function StatusBadge({ status }: { status: string }) {
-    const color = clsx(
-        "px-2 py-1 rounded text-xs font-semibold inline-block",
-        status === "running" && "bg-green-100 text-green-800",
-        status === "stopped" && "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
-        status === "error" && "bg-red-100 text-red-800"
+function HardwareRow({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex justify-between text-sm">
+            <span className="text-slate-500 dark:text-slate-400">{label}</span>
+            <span className="font-mono text-slate-800 dark:text-slate-200">{value}</span>
+        </div>
     )
-    return <span className={color}>{status.toUpperCase()}</span>
+}
+
+/**
+ * Provides a colored banner for instance or contract states.
+ */
+function StateBanner({ label, state }: { label: string; state: string }) {
+    const stateColors: Record<string, string> = {
+        BUILDING: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+        RUNNING: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+        STOPPED: "bg-slate-100 text-slate-800 dark:bg-slate-800/50 dark:text-slate-300",
+        UPDATING_HARDWARE: "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300",
+        ERROR: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+        UNKNOWN: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300",
+        INACTIVE: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-300",
+        ACTIVE: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+    }
+
+    const colorClass = stateColors[state] ?? stateColors.UNKNOWN
+
+    return (
+        <div className={`rounded-lg px-3 py-1 text-xs font-semibold ${colorClass}`}>
+            {label}: {state}
+        </div>
+    )
 }
 
 export function UserInstanceCard({ instance }: UserInstanceCardProps) {
+    const hardwareSpecification = instance.hardwareSpecification
+    const desiredHardwareSpecification = instance.desiredHardwareSpecification
+    const hasHardwareDrift =
+        desiredHardwareSpecification !== undefined &&
+        JSON.stringify(desiredHardwareSpecification) !== JSON.stringify(hardwareSpecification)
+
+    const [deploymentState, setDeploymentState] = useState<DeployedInstanceState | null>(null)
+    const [loadingState, setLoadingState] = useState(true)
+
+    useEffect(() => {
+        let isMounted = true
+
+        async function fetchState() {
+            try {
+                setLoadingState(true)
+                const response = await API.user.instances.state.get(instance.id)
+                if (isMounted) setDeploymentState(response.json)
+            } catch (err) {
+                console.error("Failed to fetch deployment state:", err)
+            } finally {
+                if (isMounted) setLoadingState(false)
+            }
+        }
+
+        fetchState()
+        const interval = setInterval(fetchState, 5000)
+        return () => {
+            isMounted = false
+            clearInterval(interval)
+        }
+    }, [instance.id])
+
     return (
-        <div className="border rounded-xl p-4 shadow-sm hover:shadow-md transition bg-white dark:bg-slate-900 dark:border-slate-800 flex flex-col gap-3">
-            <div className="flex justify-between items-center">
-                <h3 className="font-semibold text-lg truncate">{instance.listingTitle || instance.listingId}</h3>
-                <StatusBadge status={instance.state} />
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-lg transition flex flex-col gap-4">
+            
+            {/* Header: Status and Contract */}
+            <div className="flex flex-col sm:flex-row justify-between gap-2">
+                <div className="flex gap-2">
+                    <StateBanner label="Instance" state={instance.state} />
+                    <StateBanner label="Contract" state={instance.contractState} />
+                </div>
+                {hasHardwareDrift && (
+                    <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-300 text-center">
+                        Hardware update pending
+                    </div>
+                )}
             </div>
 
-            <div className="font-mono text-sm text-slate-700 dark:text-slate-300 space-y-1">
-                <p><strong>Instance ID:</strong> {instance.id}</p>
-                <p><strong>Billing Account:</strong> {instance.billingId}</p>
+            {/* Deployment State & Errors */}
+            {deploymentState && (
+                <div className="flex flex-col gap-2 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+                    {deploymentState.stateMessage && (
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            {deploymentState.stateMessage}
+                        </div>
+                    )}
+                    {deploymentState.state === "ErrorState" && deploymentState.error && (
+                        <ConsolePrompt errorText={deploymentState.error} />
+                    )}
+                </div>
+            )}
+
+            {/* Hardware specifications */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4">
+                <HardwareRow
+                    label="CPU"
+                    value={hardwareSpecification?.cpu !== undefined ? `${hardwareSpecification.cpu} cores` : "—"}
+                />
+                <HardwareRow label="Memory" value={formatBytes(hardwareSpecification?.ramBytes)} />
+                <HardwareRow label="Disk" value={formatBytes(hardwareSpecification?.diskBytes)} />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-sm text-slate-700 dark:text-slate-300">
-                <p><strong>CPU:</strong> {instance.hardwareSpecification?.cpu}</p>
-                <p><strong>Memory:</strong> {instance.hardwareSpecification?.memory} MB</p>
-                <p><strong>Storage:</strong> {instance.hardwareSpecification?.storage} GB</p>
-                <p><strong>GPU:</strong> {instance.hardwareSpecification?.gpu || "None"}</p>
+            {/* Billing info */}
+            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>Billing Account</span>
+                <span className="font-mono">{instance.billingId}</span>
             </div>
         </div>
     )

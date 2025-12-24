@@ -90,8 +90,22 @@ func (s *PublicListingService) DeleteListing(userID, listingID string) error {
 // =================== GITHUB SETUP FUNCTIONS ===================
 
 // GetSetupForListing returns the GitHub setup definition for a listing (guarded).
-func (s *PublicListingService) GetSetupForListing(userID, listingID string) (*githubsetups.GitHubSetupDefinition, error) {
+func (s *PublicListingService) GetSetupForListingPrivate(userID, listingID string) (*githubsetups.GitHubSetupDefinition, error) {
 	listingView, err := s.GetOwnedListing(userID, listingID)
+	if err != nil {
+		return nil, err
+	}
+
+	definition, err := s.githubSetupService.GetSetupByListing(listingView.ID)
+	if err != nil {
+		return nil, err
+	}
+	return definition, nil
+}
+
+// GetSetupForListing returns the GitHub setup definition for a listing (guarded).
+func (s *PublicListingService) GetSetupForListing(listingID string) (*githubsetups.GitHubSetupDefinition, error) {
+	listingView, err := s.listingFacade.GetListing(listingID)
 	if err != nil {
 		return nil, err
 	}

@@ -10,7 +10,7 @@ type InstanceViewMode = "table" | "cards"
 export default function UserInstances() {
     const [instances, setInstances] = useState<ApiInstance[] | null>(null)
     const [loading, setLoading] = useState(true)
-    const [viewMode, setViewMode] = useState<InstanceViewMode>("table")
+    const [viewMode, setViewMode] = useState<InstanceViewMode>("cards")
 
     useEffect(() => {
         const fetchInstances = async () => {

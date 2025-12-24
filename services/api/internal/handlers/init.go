@@ -34,8 +34,9 @@ type App struct {
 	ListingService                 *app.PublicListingService
 	BillingAccountService          *account.BillingAccountService
 	PaymentService                 *payment.PaymentService
-	InstanceEngineService          *app.InstanceEngineService
+	InstanceEngineService          *app.InstanceSubscriptionService
 	HardwareCostCalculationService *app.HardwareCostCalculationService
+	InstanceDeployer               app.InstanceDeployer
 
 	RunningConfiguration *Configuration
 }

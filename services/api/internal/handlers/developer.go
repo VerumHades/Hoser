@@ -301,7 +301,7 @@ func (app *App) DeveloperGetSetupHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
 	}
 
-	setup, err := app.ListingService.GetSetupForListing(userID, listingID)
+	setup, err := app.ListingService.GetSetupForListingPrivate(userID, listingID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "GitHub setup not found")
 	}
