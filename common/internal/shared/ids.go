@@ -20,3 +20,8 @@ type ListingID string
 
 // SetupID represents a unique identifier for a setup.
 type SetupID string
+
+type CurrencyCode string
+
+// SavedListingID represents the unique identifier for a saved listing.
+type SavedListingID string
