@@ -25,3 +25,5 @@ type CurrencyCode string
 
 // SavedListingID represents the unique identifier for a saved listing.
 type SavedListingID string
+
+type PayoutID string

@@ -1,8 +1,8 @@
-package app
+package instance
 
 import (
-	"common/pkg/hardware"
-	"common/pkg/instance"
+	"common/internal/domain/instance"
+	"common/internal/shared"
 	"fmt"
 	"time"
 )
@@ -23,7 +23,7 @@ type DeployedInstanceState struct {
 }
 
 type InstanceDeployer interface {
-	RefreshHardware(instanceID string, newSpec *hardware.HardwareSpecification) error
+	RefreshHardware(instanceID string, newSpec *shared.HardwareSpecification) error
 	GetInstanceState(instanceID string) (DeployedInstanceState, error)
 	StartInstance(instanceID string) error
 	StopInstance(instanceID string) error
@@ -31,16 +31,16 @@ type InstanceDeployer interface {
 
 type InstanceSubscriptionReconciler struct {
 	instanceSubscriptionService *InstanceSubscriptionService
-	instanceService             *instance.InstanceService
+	instanceRepository          *instance.InstanceRepository
 	deployer                    InstanceDeployer
 	checkInterval               time.Duration
 	stopChan                    chan struct{}
 }
 
-func NewInstanceSubscriptionReconciler(engineService *InstanceSubscriptionService, instanceService *instance.InstanceService, deployer InstanceDeployer, interval time.Duration) *InstanceSubscriptionReconciler {
+func NewInstanceSubscriptionReconciler(engineService *InstanceSubscriptionService, instanceService *instance.InstanceRepository, deployer InstanceDeployer, interval time.Duration) *InstanceSubscriptionReconciler {
 	return &InstanceSubscriptionReconciler{
 		instanceSubscriptionService: engineService,
-		instanceService:             instanceService,
+		instanceRepository:          instanceService,
 		deployer:                    deployer,
 		checkInterval:               interval,
 		stopChan:                    make(chan struct{}),
@@ -91,114 +91,135 @@ func (r *InstanceSubscriptionReconciler) reconcile() error {
 	return nil
 }
 
-// handleExpiredInstances checks instances past expiry and attempts renewal.
+// handleExpiredInstances checks instances past expiry and attempts renewal in batches.
 func (r *InstanceSubscriptionReconciler) handleExpiredInstances(now time.Time) error {
-	expiredInstances, err := r.instanceService.ListExpiredInstances(now)
-	if err != nil {
-		return err
-	}
+	const batchSize = 50
+	var lastSeenInstanceID shared.InstanceID
 
-	for _, inst := range expiredInstances {
-		// skip instances without pending updates
-		if inst.ContractState != instance.ContractActive {
-			continue
+	for {
+		expiredInstances, err := r.instanceRepository.FetchNextBatchExpiredBefore(now, lastSeenInstanceID, batchSize)
+		if err != nil {
+			return err
+		}
+		if len(expiredInstances) == 0 {
+			break
 		}
 
-		if !inst.RenewAutomatically {
-			_, err := r.instanceService.SetContractState(inst.ID, instance.ContractInactive)
+		for _, inst := range expiredInstances {
+			if inst.ContractState != instance.ContractActive {
+				continue
+			}
+
+			if !inst.RenewAutomatically {
+				if _, err := r.instanceRepository.SetContractState(inst.ID, instance.ContractInactive); err != nil {
+					return err
+				}
+				continue
+			}
+
+			_, err := r.instanceSubscriptionService.RenewInstanceHardware(inst.ID, inst.HardwareSpecification)
+			if err != nil {
+				r.setInstanceState(inst.ID, instance.ContractInactive, instance.BillingFailed)
+				continue
+			}
+		}
+
+		lastSeenInstanceID = expiredInstances[len(expiredInstances)-1].ID
+	}
+
+	return nil
+}
+
+// handlePendingUpdates applies any scheduled hardware updates in batches.
+func (r *InstanceSubscriptionReconciler) handlePendingUpdates() error {
+	const batchSize = 50
+	var lastSeenInstanceID shared.InstanceID
+
+	for {
+		pendingInstances, err := r.instanceRepository.FetchNextBatchPendingHardwareUpdate(lastSeenInstanceID, batchSize)
+		if err != nil {
+			return err
+		}
+		if len(pendingInstances) == 0 {
+			break
+		}
+
+		for _, inst := range pendingInstances {
+			if inst.ContractState != instance.ContractActive {
+				continue
+			}
+			if err := r.deployer.RefreshHardware(inst.ID, inst.HardwareSpecification); err != nil {
+				return err
+			}
+		}
+
+		lastSeenInstanceID = pendingInstances[len(pendingInstances)-1].ID
+	}
+
+	return nil
+}
+
+// startActiveInstances starts all active but non-running instances in batches.
+func (r *InstanceSubscriptionReconciler) startActiveInstances() error {
+	const batchSize = 50
+	var lastSeenInstanceID shared.InstanceID
+
+	for {
+		activeNonRunning, err := r.instanceRepository.FetchNextBatchByState(instance.Running, instance.ContractActive, lastSeenInstanceID, batchSize)
+		if err != nil {
+			return fmt.Errorf("fetching active non-running instances: %w", err)
+		}
+		if len(activeNonRunning) == 0 {
+			break
+		}
+
+		for _, inst := range activeNonRunning {
+			if err := r.deployer.StartInstance(inst.ID); err != nil {
+				_, _ = r.instanceRepository.SetState(inst.ID, instance.ErrorState)
+				fmt.Printf("failed to start instance %s: %v\n", inst.ID, err)
+				continue
+			}
+			_, err = r.instanceRepository.SetState(inst.ID, instance.Running)
 			if err != nil {
 				return err
 			}
-			return nil
+			fmt.Printf("started instance %s\n", inst.ID)
 		}
 
-		_, err := r.instanceSubscriptionService.RenewInstanceHardware(
-			inst.ID,
-			inst.HardwareSpecification,
-			inst.RenewalDuration,
-		)
-
-		if err != nil {
-			r.setInstanceState(inst.ID, instance.ContractInactive, instance.BillingFailed)
-			continue
-		}
-	}
-
-	return nil
-}
-func (r *InstanceSubscriptionReconciler) setInstanceState(instanceID string, constractState instance.ContractState, state instance.InstanceState) error {
-	_, err := r.instanceService.SetContractState(instanceID, constractState)
-	if err != nil {
-		return err
-	}
-
-	_, err = r.instanceService.SetState(instanceID, state)
-	if err != nil {
-		return err
+		lastSeenInstanceID = activeNonRunning[len(activeNonRunning)-1].ID
 	}
 
 	return nil
 }
 
-// handlePendingUpdates applies any scheduled hardware updates.
-func (r *InstanceSubscriptionReconciler) handlePendingUpdates() error {
-	pendingInstances, err := r.instanceService.ListByPendingHardwareUpdate()
-	if err != nil {
-		return err
-	}
-
-	for _, inst := range pendingInstances {
-		if inst.ContractState != instance.ContractActive {
-			continue
-		}
-
-		if err := r.deployer.RefreshHardware(inst.ID, inst.HardwareSpecification); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *InstanceSubscriptionReconciler) startActiveInstances() error {
-	activeNonRunning, err := r.instanceService.ListActiveNonRunning()
-	if err != nil {
-		return fmt.Errorf("fetching active non-running instances: %w", err)
-	}
-
-	for _, inst := range activeNonRunning {
-		if err := r.deployer.StartInstance(inst.ID); err != nil {
-			_, err = r.instanceService.SetState(inst.ID, instance.ErrorState)
-			fmt.Printf("failed to start instance %s: %v\n", inst.ID, err)
-			continue
-		}
-		_, err = r.instanceService.SetState(inst.ID, instance.Running)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("started instance %s\n", inst.ID)
-	}
-
-	return nil
-}
-
+// stopInactiveInstances stops all inactive but running instances in batches.
 func (r *InstanceSubscriptionReconciler) stopInactiveInstances() error {
-	inactiveRunning, err := r.instanceService.ListInactiveRunning()
-	if err != nil {
-		return fmt.Errorf("fetching inactive running instances: %w", err)
-	}
+	const batchSize = 50
+	var lastSeenInstanceID shared.InstanceID
 
-	for _, inst := range inactiveRunning {
-		if err := r.deployer.StopInstance(inst.ID); err != nil {
-			_, err = r.instanceService.SetState(inst.ID, instance.ErrorState)
-			fmt.Printf("failed to stop instance %s: %v\n", inst.ID, err)
-			continue
-		}
-		_, err = r.instanceService.SetState(inst.ID, instance.Stopped)
+	for {
+		inactiveRunning, err := r.instanceRepository.FetchNextBatchByState(instance.Stopped, instance.ContractInactive, lastSeenInstanceID, batchSize)
 		if err != nil {
-			return err
+			return fmt.Errorf("fetching inactive running instances: %w", err)
 		}
-		fmt.Printf("stopped instance %s\n", inst.ID)
+		if len(inactiveRunning) == 0 {
+			break
+		}
+
+		for _, inst := range inactiveRunning {
+			if err := r.deployer.StopInstance(inst.ID); err != nil {
+				_, _ = r.instanceRepository.SetState(inst.ID, instance.ErrorState)
+				fmt.Printf("failed to stop instance %s: %v\n", inst.ID, err)
+				continue
+			}
+			_, err = r.instanceRepository.SetState(inst.ID, instance.Stopped)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("stopped instance %s\n", inst.ID)
+		}
+
+		lastSeenInstanceID = inactiveRunning[len(inactiveRunning)-1].ID
 	}
 
 	return nil
