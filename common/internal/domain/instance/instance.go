@@ -93,6 +93,27 @@ func (i *Instance) ContractState() ContractState {
 	return i.contractState
 }
 
+// ID returns the unique identifier.
+func (i *Instance) ShouldRenew() bool {
+	return i.renewAutomatically
+}
+
+func (i *Instance) RenewalDuration() time.Duration {
+	return i.renewalDuration
+}
+
+func (i *Instance) HardwareSpecification() *shared.HardwareSpecification {
+	return i.hardwareSpecification
+}
+
+func (i *Instance) SetHardwareSpecification(hardware *shared.HardwareSpecification) {
+	i.hardwareSpecification = hardware
+}
+
+func (i *Instance) RemainingDurationUntilExpiry() time.Duration {
+	return time.Since(i.expiry)
+}
+
 // Validate ensures the instance is in a valid state.
 func (i *Instance) Validate() error {
 	if i.id == "" {

@@ -14,6 +14,8 @@ type Currency struct {
 	minorUnitDecimalPlaces int
 }
 
+var USD = Currency{code: "USD", minorUnitDecimalPlaces: 2}
+
 // NewCurrency creates a validated Currency value object.
 func NewCurrency(code shared.CurrencyCode, minorUnitDecimalPlaces int) (Currency, error) {
 	if code == "" {

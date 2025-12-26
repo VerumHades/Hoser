@@ -7,17 +7,21 @@ import (
 	"fmt"
 )
 
-// UserListingService exposes only safe operations for end-users.
 type UserListingService struct {
 	listingRepository      listing.ListingRepository
 	savedListingRepository user.SavedListingRepository
 	searchService          listing.ListingSearchService
 }
 
-func NewUserListingService(repo listing.ListingRepository, search listing.ListingSearchService) *UserListingService {
+func NewUserListingService(
+	listingRepository listing.ListingRepository,
+	savedListingRepository user.SavedListingRepository,
+	searchService listing.ListingSearchService,
+) *UserListingService {
 	return &UserListingService{
-		listingRepository: repo,
-		searchService:     search,
+		listingRepository:      listingRepository,
+		savedListingRepository: savedListingRepository,
+		searchService:          searchService,
 	}
 }
 
@@ -43,16 +47,24 @@ func (s *UserListingService) SaveListingToLibrary(userID shared.UserID, listingI
 	if err != nil {
 		return nil, err
 	}
-	if err := s.savedListingRepository.Save(item); err != nil {
+	item, err = s.savedListingRepository.Save(item)
+	if err != nil {
 		return nil, fmt.Errorf("failed to save listing to library: %w", err)
 	}
 
 	return item, nil
 }
 
-// ListUserLibrary returns all saved listings for a user.
-func (s *UserListingService) ListUserLibrary(userID shared.UserID) ([]*user.SavedListing, error) {
-	return s.savedListingRepository.GetByUserID(userID)
+func (s *UserListingService) FetchNextUserLibraryBatch(
+	userID shared.UserID,
+	lastSeenSavedListingID shared.SavedListingID,
+	maximumBatchSize int,
+) ([]*user.SavedListing, error) {
+	return s.savedListingRepository.FetchNextBatchByUser(
+		userID,
+		lastSeenSavedListingID,
+		maximumBatchSize,
+	)
 }
 
 // RemoveListingFromLibrary removes a listing from a user's library.
@@ -77,16 +89,26 @@ func (s *UserListingService) GetListing(listingID shared.ListingID) (*listing.Li
 }
 
 // ListByAuthor returns listings authored by a specific user.
-func (s *UserListingService) ListByAuthor(authorID shared.UserID) ([]*listing.Listing, error) {
-	return s.listingRepository.ListByAuthor(authorID)
+func (s *UserListingService) FetchNextListingsByAuthor(
+	authorID shared.UserID,
+	lastSeenListingID shared.ListingID,
+	maximumBatchSize int,
+) ([]*listing.Listing, error) {
+	return s.listingRepository.FetchNextBatchByAuthor(
+		authorID,
+		lastSeenListingID,
+		maximumBatchSize,
+	)
 }
 
-// SearchListings allows free-text search.
-func (s *UserListingService) SearchListings(query string) ([]*listing.Listing, error) {
-	return s.searchService.SearchListings(query)
-}
-
-// ListAllListings returns all listings (optional for user admin dashboards)
-func (s *UserListingService) ListAllListings() ([]*listing.Listing, error) {
-	return s.listingRepository.ListAll()
+func (s *UserListingService) SearchNextListingsBatch(
+	query string,
+	lastSeenListingID shared.ListingID,
+	maximumBatchSize int,
+) ([]*listing.Listing, error) {
+	return s.searchService.SearchNextBatch(
+		query,
+		lastSeenListingID,
+		maximumBatchSize,
+	)
 }
