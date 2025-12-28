@@ -1,14 +1,38 @@
 package money
 
-import "common/internal/shared"
+import (
+	"common/internal/shared"
+	"context"
+)
 
-type CurrencyRepository interface {
-	Save(currency Currency) (Currency, error)
+// CurrencyCommandRepository defines write operations for currencies.
+type CurrencyCommandRepository interface {
+	// Create persists a new currency within a transaction.
+	Create(
+		ctx context.Context,
+		transaction shared.Transaction,
+		currency Currency,
+	) (Currency, error)
 
-	FindByCode(code shared.CurrencyCode) (Currency, error)
+	// Update modifies an existing currency within a transaction.
+	Update(
+		ctx context.Context,
+		transaction shared.Transaction,
+		currency Currency,
+	) (Currency, error)
+}
 
+// CurrencyQueryRepository defines read-only operations for currencies.
+type CurrencyQueryRepository interface {
+	// FindByCode retrieves a currency by its code.
+	FindByCode(
+		ctx context.Context,
+		code shared.CurrencyCode,
+	) (Currency, error)
+
+	// FetchNextBatch returns currencies in batches.
 	FetchNextBatch(
-		lastSeenCurrencyCode shared.CurrencyCode,
-		maximumBatchSize int,
-	) ([]Currency, error)
+		ctx context.Context,
+		request shared.BatchRequest,
+	) (currencies []Currency, nextCursor shared.Cursor, err error)
 }

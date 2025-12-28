@@ -2,6 +2,7 @@ package auth
 
 import (
 	"common/internal/domain/user"
+	"context"
 	"errors"
 
 	"golang.org/x/crypto/bcrypt"
@@ -9,19 +10,19 @@ import (
 
 // AuthenticationService handles user authentication workflows.
 type AuthenticationService struct {
-	userRepository user.UserRepository
+	userQueryRepository user.UserQueryRepository
 }
 
 // NewAuthenticationService creates a new AuthenticationService.
-func NewAuthenticationService(userRepository user.UserRepository) *AuthenticationService {
+func NewAuthenticationService(userRepository user.UserQueryRepository) *AuthenticationService {
 	return &AuthenticationService{
-		userRepository: userRepository,
+		userQueryRepository: userRepository,
 	}
 }
 
 // AuthenticateUser verifies a user's credentials and returns the user if valid.
-func (service *AuthenticationService) AuthenticateUser(username string, password string) (*user.User, error) {
-	user, err := service.userRepository.GetByUsername(username)
+func (service *AuthenticationService) AuthenticateUser(context context.Context, username string, password string) (*user.User, error) {
+	user, err := service.userQueryRepository.GetByUsername(context, username)
 	if err != nil || user == nil {
 		return nil, errors.New("invalid credentials")
 	}

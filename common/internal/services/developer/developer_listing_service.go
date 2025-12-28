@@ -3,129 +3,58 @@ package listing
 import (
 	"common/internal/domain/listing"
 	"common/internal/shared"
+	"context"
 )
 
 // DeveloperListingService exposes operations for managing listings and GitHub setups.
 type DeveloperListingService struct {
-	listingRepository     listing.ListingRepository
-	searchService         listing.ListingSearchService
-	githubSetupRepository listing.GitHubSetupRepository
+	listingRepository     listing.ListingCommandRepository
+	searchIndex           listing.ListingSearchIndex
+	githubSetupRepository listing.GitHubSetupCommandRepository
 }
 
 // NewDeveloperListingService constructs a new DeveloperListingService.
 func NewDeveloperListingService(
-	listingRepository listing.ListingRepository,
-	searchService listing.ListingSearchService,
-	githubSetupRepository listing.GitHubSetupRepository,
+	listingRepository listing.ListingCommandRepository,
+	searchService listing.ListingSearchIndex,
+	githubSetupRepository listing.GitHubSetupCommandRepository,
 ) *DeveloperListingService {
 	return &DeveloperListingService{
 		listingRepository:     listingRepository,
-		searchService:         searchService,
+		searchIndex:           searchService,
 		githubSetupRepository: githubSetupRepository,
 	}
 }
 
 // CreateListing creates a listing, persists it, and indexes it.
-func (s *DeveloperListingService) CreateListing(listing *listing.Listing) (*listing.Listing, error) {
-	savedListing, err := s.listingRepository.Save(listing)
+func (s *DeveloperListingService) CreateListing(ctx context.Context, listing *listing.Listing) (*listing.Listing, error) {
+	savedListing, err := s.listingRepository.Create(ctx, nil, listing)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.searchService.IndexListing(savedListing); err != nil {
+	if err := s.searchIndex.Index(ctx, savedListing); err != nil {
 		return nil, err
 	}
 	return savedListing, nil
 }
 
 // UpdateListing updates a listing and reindexes it.
-func (s *DeveloperListingService) UpdateListing(listing *listing.Listing) (*listing.Listing, error) {
-	savedListing, err := s.listingRepository.Save(listing)
+func (s *DeveloperListingService) UpdateListing(ctx context.Context, listing *listing.Listing) (*listing.Listing, error) {
+	savedListing, err := s.listingRepository.Update(ctx, nil, listing)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.searchService.IndexListing(savedListing); err != nil {
+	if err := s.searchIndex.Index(ctx, savedListing); err != nil {
 		return nil, err
 	}
 	return savedListing, nil
 }
 
 // DeleteListing removes a listing and deletes it from the search index.
-func (s *DeveloperListingService) DeleteListing(listingID shared.ListingID) error {
-	listingView, err := s.listingRepository.GetByID(listingID)
+func (s *DeveloperListingService) DeleteListing(ctx context.Context, listingID shared.ListingID) error {
+	err := s.listingRepository.Delete(ctx, nil, listingID)
 	if err != nil {
 		return err
 	}
-	if err := s.listingRepository.Delete(listingID); err != nil {
-		return err
-	}
-	return s.searchService.RemoveListing(listingView.ID())
-}
-
-// CreateSetup creates a new GitHub setup for a listing.
-func (s *DeveloperGitHubSetupService) CreateSetup(
-	listingID shared.ListingID,
-	repoURL string,
-	accessToken string,
-) (*listing.GitHubSetupDefinition, error) {
-	setup, err := listing.NewGitHubSetup(listingID, repoURL, accessToken)
-	if err != nil {
-		return nil, err
-	}
-	return s.githubSetupRepository.Save(setup)
-}
-
-// UpdateSetup updates an existing GitHub setup by ID.
-func (s *DeveloperGitHubSetupService) UpdateSetup(
-	setupID shared.SetupID,
-	repoURL string,
-	accessToken string,
-) (*listing.GitHubSetupDefinition, error) {
-	existing, err := s.githubSetupRepository.GetByID(setupID)
-	if err != nil {
-		return nil, err
-	}
-	existing.RepoURL = repoURL
-	existing.AccessToken = accessToken
-	return s.githubSetupRepository.Save(existing)
-}
-
-// GetSetupByID retrieves a GitHub setup by ID.
-func (s *DeveloperGitHubSetupService) GetSetupByID(setupID shared.SetupID) (*listing.GitHubSetupDefinition, error) {
-	return s.githubSetupRepository.GetByID(setupID)
-}
-
-// ListSetupsByListing lists all GitHub setups for a given listing.
-func (s *DeveloperGitHubSetupService) ListSetupsByListing(
-	listingID shared.ListingID,
-	lastSeenSetupID shared.SetupID,
-	maximumBatchSize int,
-) ([]*listing.GitHubSetupDefinition, error) {
-	return s.githubSetupRepository.FetchNextBatchByListing(listingID, lastSeenSetupID, maximumBatchSize)
-}
-
-// DeleteSetupByID removes a GitHub setup by ID.
-func (s *DeveloperGitHubSetupService) DeleteSetupByID(setupID shared.SetupID) error {
-	return s.githubSetupRepository.DeleteByID(setupID)
-}
-
-// DeleteSetupsByListing removes all GitHub setups for a listing in batches.
-func (s *DeveloperGitHubSetupService) DeleteSetupsByListing(
-	listingID shared.ListingID,
-) error {
-	const batchSize = 100
-	for {
-		setups, err := s.githubSetupRepository.FetchNextBatchByListing(listingID, shared.SetupID(""), batchSize)
-		if err != nil {
-			return err
-		}
-		if len(setups) == 0 {
-			break
-		}
-		for _, setup := range setups {
-			if err := s.githubSetupRepository.DeleteByID(setup.ID); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return s.searchIndex.Remove(ctx, listingID)
 }

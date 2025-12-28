@@ -5,18 +5,27 @@ import (
 	"common/internal/domain/instance"
 	"common/internal/domain/money"
 	"common/internal/shared"
+	"context"
 
 	"fmt"
 	"time"
 )
 
-type PaymentService interface {
-	HasUserBoughtListing(userID shared.UserID, listingID shared.ListingID) (bool, error)
+type OwnershipQueryService interface {
+	HasUserBoughtListing(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (bool, error)
 }
 
-// PaymentProcessor defines the minimal interface to execute payments.
-type PaymentProcessor interface {
-	ProcessPayment(payment *billing.Payment, provider billing.PaymentProvider) (*billing.Payment, error)
+type PaymentProvider interface {
+	Pay(
+		ctx context.Context,
+		billingAccountID shared.BillingAccountID,
+		payment *billing.Payment,
+	) error
+	Payout(
+		ctx context.Context,
+		userID shared.UserID,
+		payout *billing.Payout,
+	) error
 }
 
 type HardwareCostCalculationService interface {
@@ -30,20 +39,20 @@ type HardwareCostCalculationService interface {
 
 // InstanceSubscriptionService orchestrates instance creation, payment, and hardware cost calculations.
 type InstanceSubscriptionService struct {
-	paymentService                 PaymentService
-	paymentProcessor               PaymentProcessor
+	paymentService                 OwnershipQueryService
+	paymentProvider                PaymentProvider
 	hardwareCostCalculationService HardwareCostCalculationService
 
-	instanceRepository       instance.InstanceRepository
-	paymentRepository        billing.PaymentRepository
-	payoutRepository         billing.PayoutRepository
-	billingAccountRepository billing.BillingAccountRepository
+	instanceCommandRepository instance.InstanceCommandRepository
+	instanceQueryRepository   instance.InstanceQueryRepository
+
+	billingAccountRepository billing.BillingAccountQueryRepository
 
 	currencyConcersionService money.CurrencyConversionService
 }
 
-func (s *InstanceSubscriptionService) CreateInstance(ownerID shared.UserID, listingID shared.ListingID, billingAccountID shared.BillingAccountID, hardwareSpec *shared.HardwareSpecification) (*instance.Instance, error) {
-	hasBought, err := s.paymentService.HasUserBoughtListing(ownerID, listingID)
+func (s *InstanceSubscriptionService) CreateInstance(ctx context.Context, ownerID shared.UserID, listingID shared.ListingID, billingAccountID shared.BillingAccountID, hardwareSpec *shared.HardwareSpecification) (*instance.Instance, error) {
+	hasBought, err := s.paymentService.HasUserBoughtListing(ctx, ownerID, listingID)
 	if err != nil {
 		return nil, err
 	}
@@ -61,17 +70,17 @@ func (s *InstanceSubscriptionService) CreateInstance(ownerID shared.UserID, list
 		return nil, err
 	}
 
-	return s.instanceRepository.Save(instanceObj)
+	return s.instanceCommandRepository.Create(ctx, nil, instanceObj)
 }
 
 // RenewInstanceHardware renews an instance with a new hardware spec and/or duration.
 // Charges only the difference between the already paid remaining period and the new total.
 func (s *InstanceSubscriptionService) RenewInstanceHardware(
+	ctx context.Context,
 	instanceID shared.InstanceID,
 	newHardwareSpec *shared.HardwareSpecification,
 ) (*instance.Instance, error) {
-
-	currentInstance, err := s.instanceRepository.GetByID(instanceID)
+	currentInstance, err := s.instanceQueryRepository.GetByID(ctx, instanceID)
 	if err != nil {
 		return nil, err
 	}
@@ -114,10 +123,11 @@ func (s *InstanceSubscriptionService) RenewInstanceHardware(
 		if err != nil {
 			return nil, err
 		}
-		_, err = s.payoutRepository.Save(payout)
-		if err != nil {
+
+		if err = s.paymentProvider.Payout(ctx, account.OwnerID(), payout); err != nil {
 			return nil, err
 		}
+
 	} else if alreadyPaid.AmountInMinorUnits() < newTotalCost.AmountInMinorUnits() {
 		amountToCharge, err := newTotalCost.Subtract(alreadyPaid, s.currencyConcersionService)
 
@@ -136,15 +146,7 @@ func (s *InstanceSubscriptionService) RenewInstanceHardware(
 			return nil, err
 		}
 
-		// Persist the payment before processing
-		savedPayment, err := s.paymentRepository.Save(payment)
-		if err != nil {
-			return nil, err
-		}
-
-		// Execute the payment through the processor
-		_, err = s.paymentProcessor.ProcessPayment(savedPayment, account.PaymentProvider())
-		if err != nil {
+		if err = s.paymentProvider.Pay(ctx, currentInstance.BillingAccountID(), payment); err != nil {
 			return nil, err
 		}
 	}
@@ -152,7 +154,7 @@ func (s *InstanceSubscriptionService) RenewInstanceHardware(
 	currentInstance.Renew()
 	currentInstance.SetHardwareSpecification(newHardwareSpec)
 
-	updatedInstance, err := s.instanceRepository.Save(currentInstance)
+	updatedInstance, err := s.instanceCommandRepository.Update(ctx, nil, currentInstance)
 	if err != nil {
 		return nil, err
 	}
