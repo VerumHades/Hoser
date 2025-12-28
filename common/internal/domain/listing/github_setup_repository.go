@@ -1,19 +1,53 @@
 package listing
 
-import "common/internal/shared"
+import (
+	"common/internal/shared"
+	"context"
+)
 
-// GitHubSetupRepository defines persistence operations for GitHub setups.
-type GitHubSetupRepository interface {
-	Save(setup *GitHubSetupDefinition) (*GitHubSetupDefinition, error)
+// GitHubSetupCommandRepository defines write operations for GitHub setups.
+type GitHubSetupCommandRepository interface {
+	// Create persists a new GitHub setup within a transaction.
+	Create(
+		ctx context.Context,
+		transaction shared.Transaction,
+		setup *GitHubSetupDefinition,
+	) (*GitHubSetupDefinition, error)
 
-	GetByID(setupID shared.SetupID) (*GitHubSetupDefinition, error)
+	// Update modifies an existing GitHub setup within a transaction.
+	Update(
+		ctx context.Context,
+		transaction shared.Transaction,
+		setup *GitHubSetupDefinition,
+	) (*GitHubSetupDefinition, error)
 
-	DeleteByID(setupID shared.SetupID) error
-	DeleteByListingID(listingID shared.ListingID) error
+	// DeleteByID removes a GitHub setup by its ID within a transaction.
+	DeleteByID(
+		ctx context.Context,
+		transaction shared.Transaction,
+		setupID shared.SetupID,
+	) error
 
-	FetchNextBatchByListing(
+	// DeleteByListingID removes all GitHub setups for a listing within a transaction.
+	DeleteByListingID(
+		ctx context.Context,
+		transaction shared.Transaction,
 		listingID shared.ListingID,
-		lastSeenSetupID shared.SetupID,
-		maximumBatchSize int,
-	) ([]*GitHubSetupDefinition, error)
+	) error
+}
+
+// GitHubSetupQueryRepository defines read-only operations for GitHub setups.
+type GitHubSetupQueryRepository interface {
+	// GetByID retrieves a GitHub setup by its ID.
+	GetByID(
+		ctx context.Context,
+		setupID shared.SetupID,
+	) (*GitHubSetupDefinition, error)
+
+	// FetchNextBatchByListing returns GitHub setups for a listing in batches.
+	FetchNextBatchByListing(
+		ctx context.Context,
+		listingID shared.ListingID,
+		request shared.BatchRequest,
+	) (setups []*GitHubSetupDefinition, nextCursor shared.Cursor, err error)
 }

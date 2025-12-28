@@ -2,45 +2,66 @@ package billing
 
 import (
 	"common/internal/shared"
+	"context"
 	"time"
 )
 
-// PayoutRepository defines persistence operations for payouts.
-type PayoutRepository interface {
-	// Save persists a payout (insert or update).
-	Save(payout *Payout) (*Payout, error)
+// PayoutCommandRepository defines persistence operations that modify payouts.
+type PayoutCommandRepository interface {
+	// Create persists a new payout within a transaction.
+	Create(
+		ctx context.Context,
+		transaction shared.Transaction,
+		payout *Payout,
+	) (*Payout, error)
 
+	// Update modifies an existing payout within a transaction.
+	Update(
+		ctx context.Context,
+		transaction shared.Transaction,
+		payout *Payout,
+	) (*Payout, error)
+
+	// Delete removes a payout by its ID within a transaction.
+	Delete(
+		ctx context.Context,
+		transaction shared.Transaction,
+		payoutID shared.PayoutID,
+	) error
+}
+
+// PayoutQueryRepository defines read-only operations for payouts.
+type PayoutQueryRepository interface {
 	// GetByID retrieves a payout by its ID.
-	GetByID(payoutID shared.PayoutID) (*Payout, error)
+	GetByID(
+		ctx context.Context,
+		payoutID shared.PayoutID,
+	) (*Payout, error)
 
-	// Delete removes a payout from storage.
-	Delete(payoutID shared.PayoutID) error
-
-	// FetchNextBatchByRecipient returns a batch of payouts for a recipient, ordered by creation date.
-	// lastSeenPayoutID allows pagination to continue from the last record in previous batch.
+	// FetchNextBatchByRecipient returns a batch of payouts for a recipient.
 	FetchNextBatchByRecipient(
+		ctx context.Context,
 		recipientID shared.UserID,
-		lastSeenPayoutID shared.PayoutID,
-		maximumBatchSize int,
-	) ([]*Payout, error)
+		request shared.BatchRequest,
+	) (payouts []*Payout, nextCursor shared.Cursor, err error)
 
-	// FetchNextBatchByStatus returns payouts filtered by status, paginated.
+	// FetchNextBatchByStatus returns payouts filtered by status.
 	FetchNextBatchByStatus(
+		ctx context.Context,
 		status PayoutStatus,
-		lastSeenPayoutID shared.PayoutID,
-		maximumBatchSize int,
-	) ([]*Payout, error)
+		request shared.BatchRequest,
+	) (payouts []*Payout, nextCursor shared.Cursor, err error)
 
-	// FetchNextBatchAvailableForClaim returns payouts that are claimable (status Available) in batches.
+	// FetchNextBatchAvailableForClaim returns claimable payouts (status Available).
 	FetchNextBatchAvailableForClaim(
-		lastSeenPayoutID shared.PayoutID,
-		maximumBatchSize int,
-	) ([]*Payout, error)
+		ctx context.Context,
+		request shared.BatchRequest,
+	) (payouts []*Payout, nextCursor shared.Cursor, er error)
 
-	// FetchNextBatchCreatedBefore returns payouts created before a certain timestamp.
+	// FetchNextBatchCreatedBefore returns payouts created before a cutoff timestamp.
 	FetchNextBatchCreatedBefore(
+		ctx context.Context,
 		cutoffTime time.Time,
-		lastSeenPayoutID shared.PayoutID,
-		maximumBatchSize int,
-	) ([]*Payout, error)
+		request shared.BatchRequest,
+	) (payouts []*Payout, nextCursor shared.Cursor, er error)
 }

@@ -4,37 +4,42 @@ import (
 	"common/internal/domain/listing"
 	"common/internal/domain/user"
 	"common/internal/shared"
+	"context"
 	"fmt"
 )
 
 type UserListingService struct {
-	listingRepository      listing.ListingRepository
-	savedListingRepository user.SavedListingRepository
-	searchService          listing.ListingSearchService
+	listingCommandRepo listing.ListingCommandRepository
+	listingQueryRepo   listing.ListingQueryRepository
+	savedCommandRepo   user.SavedListingCommandRepository
+	savedQueryRepo     user.SavedListingQueryRepository
+	searchIndex        listing.ListingSearchIndex
 }
 
 func NewUserListingService(
-	listingRepository listing.ListingRepository,
-	savedListingRepository user.SavedListingRepository,
-	searchService listing.ListingSearchService,
+	listingCommandRepo listing.ListingCommandRepository,
+	listingQueryRepo listing.ListingQueryRepository,
+	savedCommandRepo user.SavedListingCommandRepository,
+	savedQueryRepo user.SavedListingQueryRepository,
+	searchIndex listing.ListingSearchIndex,
 ) *UserListingService {
 	return &UserListingService{
-		listingRepository:      listingRepository,
-		savedListingRepository: savedListingRepository,
-		searchService:          searchService,
+		listingCommandRepo: listingCommandRepo,
+		listingQueryRepo:   listingQueryRepo,
+		savedCommandRepo:   savedCommandRepo,
+		savedQueryRepo:     savedQueryRepo,
+		searchIndex:        searchIndex,
 	}
 }
 
-// SaveListingToLibrary saves a public listing to the user's library.
-func (s *UserListingService) SaveListingToLibrary(userID shared.UserID, listingID shared.ListingID) (*user.SavedListing, error) {
-	// Check if listing exists
-	listing, err := s.listingRepository.GetByID(listingID)
+// SaveListingToLibrary saves a public listing to a user's library.
+func (s *UserListingService) SaveListingToLibrary(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (*user.SavedListing, error) {
+	listing, err := s.listingQueryRepo.GetByID(ctx, listingID)
 	if err != nil {
 		return nil, fmt.Errorf("listing %s not found: %w", listingID, err)
 	}
 
-	// Prevent duplicate entries
-	exists, err := s.savedListingRepository.ExistsByUserAndListing(userID, listingID)
+	exists, err := s.savedQueryRepo.ExistsByUserAndListing(ctx, userID, listingID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check library existence: %w", err)
 	}
@@ -42,73 +47,49 @@ func (s *UserListingService) SaveListingToLibrary(userID shared.UserID, listingI
 		return nil, fmt.Errorf("listing %s already saved in user %s library", listingID, userID)
 	}
 
-	// Save listing to library
 	item, err := user.NewSavedListing(userID, listing.ID())
 	if err != nil {
 		return nil, err
 	}
-	item, err = s.savedListingRepository.Save(item)
+
+	savedItem, err := s.savedCommandRepo.Create(ctx, nil, item)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save listing to library: %w", err)
 	}
 
-	return item, nil
+	return savedItem, nil
 }
 
-func (s *UserListingService) FetchNextUserLibraryBatch(
-	userID shared.UserID,
-	lastSeenSavedListingID shared.SavedListingID,
-	maximumBatchSize int,
-) ([]*user.SavedListing, error) {
-	return s.savedListingRepository.FetchNextBatchByUser(
-		userID,
-		lastSeenSavedListingID,
-		maximumBatchSize,
-	)
+// FetchNextUserLibraryBatch retrieves the next batch of saved listings for a user.
+func (s *UserListingService) FetchNextUserLibraryBatch(ctx context.Context, userID shared.UserID, batchRequest shared.BatchRequest) ([]*user.SavedListing, shared.Cursor, error) {
+	return s.savedQueryRepo.FetchNextBatchByUser(ctx, userID, batchRequest)
 }
 
 // RemoveListingFromLibrary removes a listing from a user's library.
-func (s *UserListingService) RemoveListingFromLibrary(userID shared.UserID, itemID shared.SavedListingID) error {
-	// Fetch the library item
-	item, err := s.savedListingRepository.GetByID(itemID)
+func (s *UserListingService) RemoveListingFromLibrary(ctx context.Context, userID shared.UserID, itemID shared.SavedListingID, transaction shared.Transaction) error {
+	item, err := s.savedQueryRepo.GetByID(ctx, itemID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch library item %s: %w", itemID, err)
 	}
 
-	// Verify ownership
 	if item.UserID() != userID {
 		return fmt.Errorf("library item %s does not belong to user %s", itemID, userID)
 	}
 
-	return s.savedListingRepository.Delete(itemID)
+	return s.savedCommandRepo.Delete(ctx, transaction, itemID)
 }
 
-// GetListing returns a single listing by ID.
-func (s *UserListingService) GetListing(listingID shared.ListingID) (*listing.Listing, error) {
-	return s.listingRepository.GetByID(listingID)
+// GetListing retrieves a single listing by ID.
+func (s *UserListingService) GetListing(ctx context.Context, listingID shared.ListingID) (*listing.Listing, error) {
+	return s.listingQueryRepo.GetByID(ctx, listingID)
 }
 
-// ListByAuthor returns listings authored by a specific user.
-func (s *UserListingService) FetchNextListingsByAuthor(
-	authorID shared.UserID,
-	lastSeenListingID shared.ListingID,
-	maximumBatchSize int,
-) ([]*listing.Listing, error) {
-	return s.listingRepository.FetchNextBatchByAuthor(
-		authorID,
-		lastSeenListingID,
-		maximumBatchSize,
-	)
+// FetchNextListingsByAuthor retrieves listings by a specific author in batches.
+func (s *UserListingService) FetchNextListingsByAuthor(ctx context.Context, authorID shared.UserID, batchRequest shared.BatchRequest) ([]*listing.Listing, shared.Cursor, error) {
+	return s.listingQueryRepo.FetchNextBatchByAuthor(ctx, authorID, batchRequest)
 }
 
-func (s *UserListingService) SearchNextListingsBatch(
-	query string,
-	lastSeenListingID shared.ListingID,
-	maximumBatchSize int,
-) ([]*listing.Listing, error) {
-	return s.searchService.SearchNextBatch(
-		query,
-		lastSeenListingID,
-		maximumBatchSize,
-	)
+// SearchNextListingsBatch retrieves listings matching a query in batches.
+func (s *UserListingService) SearchNextListingsBatch(ctx context.Context, query string, batchRequest shared.BatchRequest) ([]*listing.Listing, shared.Cursor, error) {
+	return s.searchIndex.SearchNextBatch(ctx, query, batchRequest)
 }

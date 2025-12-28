@@ -1,123 +1,107 @@
 package user
 
 import (
+	"context"
 	"fmt"
 
 	"common/internal/domain/billing"
 	"common/internal/domain/money"
 	"common/internal/shared"
+	"common/internal/util"
 )
 
-// PaymentProcessor defines the minimal interface to execute payments.
-type PaymentProcessor interface {
-	ProcessPayment(payment *billing.Payment, provider billing.PaymentProvider) (*billing.Payment, error)
+type PaymentProvider interface {
+	Pay(
+		ctx context.Context,
+		billingAccountID shared.BillingAccountID,
+		payment *billing.Payment,
+	) error
+	Payout(
+		ctx context.Context,
+		userID shared.UserID,
+		payout *billing.Payout,
+	) error
 }
 
 // UserPurchaseService handles all user listing purchase logic.
 type UserPurchaseService struct {
-	billingAccountRepository billing.BillingAccountRepository
-	paymentRepository        billing.PaymentRepository
-	paymentProcessor         PaymentProcessor
+	billingAccountRepository billing.BillingAccountQueryRepository
+	paymentRepository        billing.PaymentQueryRepository
+
+	paymentProvider PaymentProvider
 }
 
 // NewUserPurchaseService constructs a new UserPurchaseService.
 func NewUserPurchaseService(
-	billingAccountRepository billing.BillingAccountRepository,
-	paymentRepository billing.PaymentRepository,
-	paymentProcessor PaymentProcessor,
+	billingAccountRepository billing.BillingAccountQueryRepository,
+	paymentRepository billing.PaymentQueryRepository,
+	paymentProvider PaymentProvider,
 ) *UserPurchaseService {
 	return &UserPurchaseService{
 		billingAccountRepository: billingAccountRepository,
 		paymentRepository:        paymentRepository,
-		paymentProcessor:         paymentProcessor,
+		paymentProvider:          paymentProvider,
 	}
 }
 
 // HasUserBoughtListing checks if a user already owns a listing.
-func (s *UserPurchaseService) HasUserBoughtListing(userID shared.UserID, listingID shared.ListingID) (bool, error) {
-	lastSeenAccountID := shared.BillingAccountID("")
-	batchSize := 100
-
-	for {
-		accounts, err := s.billingAccountRepository.FetchNextBatchByOwner(userID, lastSeenAccountID, batchSize)
-		if err != nil {
-			return false, err
-		}
-		if len(accounts) == 0 {
-			break
-		}
-
-		for _, account := range accounts {
-			lastSeenAccountID = account.ID()
-			lastSeenPaymentID := shared.PaymentID("")
-
-			for {
-				payments, err := s.paymentRepository.FetchNextBatchByBillingAccount(account.ID(), lastSeenPaymentID, batchSize)
-				if err != nil {
-					return false, err
-				}
-				if len(payments) == 0 {
-					break
-				}
-
-				for _, payment := range payments {
-					lastSeenPaymentID = payment.ID()
-					if payment.OneTimeMetadata() != nil &&
-						payment.OneTimeMetadata().UserID() == userID &&
-						payment.OneTimeMetadata().ListingID() == listingID {
-						return true, nil
+func (s *UserPurchaseService) HasUserBoughtListing(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (bool, error) {
+	// Look for a matching payment across all billing accounts
+	foundPayment, err := util.LookupInBatches(
+		ctx,
+		100,
+		func(ctx context.Context, request shared.BatchRequest) ([]*billing.BillingAccount, shared.Cursor, error) {
+			return s.billingAccountRepository.FetchNextBatchByOwner(ctx, userID, request)
+		},
+		func(ctx context.Context, account *billing.BillingAccount) (*billing.Payment, error) {
+			return util.LookupInBatches(
+				ctx,
+				100,
+				func(ctx context.Context, request shared.BatchRequest) ([]*billing.Payment, shared.Cursor, error) {
+					return s.paymentRepository.FetchNextBatchByBillingAccount(ctx, account.ID(), request)
+				},
+				func(ctx context.Context, payment *billing.Payment) (*billing.Payment, error) {
+					metadata := payment.OneTimeMetadata()
+					if metadata != nil &&
+						metadata.UserID() == userID &&
+						metadata.ListingID() == listingID {
+						return payment, nil
 					}
-				}
-			}
-		}
+					return nil, nil
+				},
+			)
+		},
+	)
+
+	if err != nil {
+		return false, err
 	}
 
-	return false, nil
+	return foundPayment != nil, nil
 }
 
 // PurchaseListing ensures a user owns a listing and executes the payment if necessary.
 func (s *UserPurchaseService) PurchaseListing(
+	ctx context.Context,
 	userID shared.UserID,
 	listingID shared.ListingID,
 	billingAccountID shared.BillingAccountID,
 	amount money.Money,
-) (*billing.Payment, error) {
-
+) error {
 	// Check ownership internally
-	hasBought, err := s.HasUserBoughtListing(userID, listingID)
+	hasBought, err := s.HasUserBoughtListing(ctx, userID, listingID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check ownership: %w", err)
+		return fmt.Errorf("failed to check ownership: %w", err)
 	}
 	if hasBought {
-		return nil, fmt.Errorf("user %s has already purchased listing %s", userID, listingID)
-	}
-
-	// Fetch the billing account
-	account, err := s.billingAccountRepository.GetByID(billingAccountID)
-	if err != nil {
-		return nil, fmt.Errorf("billing account not found: %w", err)
-	}
-	if !account.IsActive() {
-		return nil, fmt.Errorf("billing account is not active")
+		return fmt.Errorf("user %s has already purchased listing %s", userID, listingID)
 	}
 
 	// Create the payment entity
 	payment, err := billing.NewOneTimePayment(billingAccountID, amount, listingID, userID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// Persist the payment before processing
-	savedPayment, err := s.paymentRepository.Save(payment)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute the payment through the processor
-	finalPayment, err := s.paymentProcessor.ProcessPayment(savedPayment, account.PaymentProvider())
-	if err != nil {
-		return finalPayment, err
-	}
-
-	return finalPayment, nil
+	return s.paymentProvider.Pay(ctx, billingAccountID, payment)
 }

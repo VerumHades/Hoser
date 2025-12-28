@@ -2,16 +2,32 @@ package billing
 
 import (
 	"common/internal/shared"
+	"context"
 )
 
-type BillingAccountRepository interface {
-	Save(account *BillingAccount) (*BillingAccount, error)
+type BillingAccountCommandRepository interface {
+	Create(
+		context context.Context,
+		transaction shared.Transaction,
+		account *BillingAccount,
+	) error
 
-	GetByID(accountID shared.BillingAccountID) (*BillingAccount, error)
+	Update(
+		context context.Context,
+		transaction shared.Transaction,
+		account *BillingAccount,
+	) error
+}
+
+type BillingAccountQueryRepository interface {
+	GetByID(
+		context context.Context,
+		accountID shared.BillingAccountID,
+	) (account *BillingAccount, err error)
 
 	FetchNextBatchByOwner(
+		context context.Context,
 		ownerID shared.UserID,
-		lastSeenAccountID shared.BillingAccountID,
-		maximumBatchSize int,
-	) ([]*BillingAccount, error)
+		request shared.BatchRequest,
+	) (accounts []*BillingAccount, nextCursor shared.Cursor, err error)
 }

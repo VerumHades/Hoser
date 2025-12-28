@@ -27,3 +27,7 @@ type CurrencyCode string
 type SavedListingID string
 
 type PayoutID string
+
+type AccountID string
+type LedgerTransactionID string
+type LedgerEntryID string

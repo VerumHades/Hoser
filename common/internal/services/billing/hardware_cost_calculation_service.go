@@ -1,83 +1,62 @@
 package application
 
 import (
+	"context"
 	"time"
 
-	"common/internal/domain/billing"
-	"common/internal/domain/money"
-
+	"common/internal/domain/rates"
 	"common/internal/shared"
 )
 
 // HardwareCostCalculationService calculates hardware costs over time using rates from a repository.
 type HardwareCostCalculationService struct {
-	rateRepository     billing.HardwareCostRepository
-	currencyRepository money.CurrencyRepository
-	conversionService  money.CurrencyConversionService
+	rateRepository rates.HardwareCostQueryRepository
 }
 
 // NewHardwareCostCalculationService creates a new calculation service.
 func NewHardwareCostCalculationService(
-	rateRepository billing.HardwareCostRepository,
-	conversionService money.CurrencyConversionService,
+	rateRepository rates.HardwareCostQueryRepository,
 ) *HardwareCostCalculationService {
 	return &HardwareCostCalculationService{
-		rateRepository:    rateRepository,
-		conversionService: conversionService,
+		rateRepository: rateRepository,
 	}
 }
 
-// GetRateAt fetches the hardware cost rate at a given time.
-func (s *HardwareCostCalculationService) GetRateAt(at time.Time) (*billing.HardwareCostRate, error) {
-	return s.rateRepository.GetActiveRate(at)
-}
-
-// CalculateCost computes the total cost for a hardware specification over a given duration, optionally converting currency.
+// CalculateCost computes the total cost (in minor units) for a hardware specification over a duration.
 func (s *HardwareCostCalculationService) CalculateCost(
+	ctx context.Context,
 	spec *shared.HardwareSpecification,
 	duration time.Duration,
 	at time.Time,
-	targetCurrencyCode shared.CurrencyCode,
-) (money.Money, error) {
+) (int64, error) {
+	// Convert duration to hours, rounding up partial hours
+	hours := int64(duration.Hours())
+	if hours == 0 {
+		hours = 1
+	}
 
-	rate, err := s.GetRateAt(at)
+	totalCost := int64(0)
+
+	// CPU
+	cpuRate, err := s.rateRepository.GetActiveRate(ctx, rates.ResourceCPU, at)
 	if err != nil {
-		return money.Money{}, err
+		return 0, err
 	}
+	totalCost += cpuRate.CostInCents() * spec.CPUCount * hours
 
-	targetCurrency, err := s.currencyRepository.FindByCode(targetCurrencyCode)
+	// RAM
+	ramRate, err := s.rateRepository.GetActiveRate(ctx, rates.ResourceRAM, at)
 	if err != nil {
-		return money.Money{}, err
+		return 0, err
 	}
-	totalCost, err := money.NewMoneyFromMinorUnits(0, targetCurrency)
+	totalCost += ramRate.CostInCents() * spec.RAMBytes * hours
+
+	// Disk
+	diskRate, err := s.rateRepository.GetActiveRate(ctx, rates.ResourceDisk, at)
 	if err != nil {
-		return money.Money{}, err
+		return 0, err
 	}
-
-	hours := duration.Hours()
-
-	type resource struct {
-		quantity int64
-		baseCost money.Money
-	}
-
-	resources := []resource{
-		{quantity: spec.CPUCount, baseCost: rate.CPUCost()},
-		{quantity: spec.RAMBytes, baseCost: rate.RAMCost()},
-		{quantity: spec.DiskBytes, baseCost: rate.DiskCost()},
-	}
-
-	for _, res := range resources {
-		cost, err := res.baseCost.Multiply(res.quantity * int64(hours))
-		if err != nil {
-			return money.Money{}, err
-		}
-
-		totalCost, err = cost.Add(totalCost, s.conversionService)
-		if err != nil {
-			return money.Money{}, err
-		}
-	}
+	totalCost += diskRate.CostInCents() * spec.DiskBytes * hours
 
 	return totalCost, nil
 }
