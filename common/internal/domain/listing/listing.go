@@ -3,7 +3,6 @@ package listing
 import (
 	"errors"
 
-	"common/internal/domain/money"
 	"common/internal/shared"
 )
 
@@ -26,17 +25,17 @@ type Listing struct {
 	description           string
 	accessMode            ListingAccessMode
 	hardwareSpecification *shared.HardwareSpecification
-	price                 money.Money
+	priceInMinorUnits     int64
 }
 
 // NewListing creates a new listing with a generated ID.
-func NewListing(authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price money.Money) (*Listing, error) {
+func NewListing(authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price int64) (*Listing, error) {
 	id := shared.ListingID(shared.GenerateUUID())
 	return NewListingWithID(id, authorID, title, description, accessMode, hardwareSpec, price)
 }
 
 // NewListingWithID creates a listing with an existing ID (for repository hydration).
-func NewListingWithID(id shared.ListingID, authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price money.Money) (*Listing, error) {
+func NewListingWithID(id shared.ListingID, authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price int64) (*Listing, error) {
 	listing := &Listing{
 		id:                    id,
 		authorID:              authorID,
@@ -44,7 +43,7 @@ func NewListingWithID(id shared.ListingID, authorID shared.UserID, title, descri
 		description:           description,
 		accessMode:            accessMode,
 		hardwareSpecification: hardwareSpec,
-		price:                 price,
+		priceInMinorUnits:     price,
 	}
 	if err := listing.Validate(); err != nil {
 		return nil, err
@@ -83,8 +82,8 @@ func (l *Listing) HardwareSpecification() *shared.HardwareSpecification {
 }
 
 // Price returns the listing's price.
-func (l *Listing) Price() money.Money {
-	return l.price
+func (l *Listing) PriceInMinorUnits() int64 {
+	return l.priceInMinorUnits
 }
 
 // SetTitle updates the listing's title.
@@ -107,8 +106,8 @@ func (l *Listing) SetAccessMode(mode ListingAccessMode) {
 }
 
 // SetPrice updates the listing's price.
-func (l *Listing) SetPrice(price money.Money) {
-	l.price = price
+func (l *Listing) SetPrice(price int64) {
+	l.priceInMinorUnits = price
 }
 
 // Validate ensures the listing is in a valid state.
@@ -125,8 +124,8 @@ func (l *Listing) Validate() error {
 	if l.hardwareSpecification == nil {
 		return errors.New("shared specification cannot be nil")
 	}
-	if l.price.IsZero() {
-		return errors.New("price cannot be zero")
+	if l.priceInMinorUnits > 0 {
+		return errors.New("price cannot be negative")
 	}
 	return nil
 }

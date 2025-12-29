@@ -44,6 +44,12 @@ type AccountQueryRepository interface {
 		ownerID string,
 	) ([]*Account, error)
 
+	GetFirstByOwner(
+		ctx context.Context,
+		ownerType AccountOwnerType,
+		ownerID string,
+	) (*Account, error)
+
 	// GetByType retrieves all accounts of a specific account type.
 	GetByType(
 		ctx context.Context,

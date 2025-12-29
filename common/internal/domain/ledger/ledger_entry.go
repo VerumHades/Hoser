@@ -13,11 +13,51 @@ type LedgerEntry struct {
 	createdAt          time.Time
 }
 
-// NewLedgerEntry constructs a new ledger entry while enforcing invariants.
-func NewLedgerEntry(id shared.LedgerEntryID, accountID shared.AccountID, amountInMinorUnits int64) (*LedgerEntry, error) {
-	if id == "" {
-		return nil, fmt.Errorf("ledger entry ID cannot be empty")
+type LedgerEntryPair struct {
+	accountID shared.AccountID
+	amount    int64
+}
+
+func LedgerEntryShorthand(accountID shared.AccountID, amount int64) LedgerEntryPair {
+	return LedgerEntryPair{
+		accountID: accountID,
+		amount:    amount,
 	}
+}
+
+func NewLedgerEntries(pairs ...struct {
+	accountID shared.AccountID
+	amount    int64
+}) ([]*LedgerEntry, error) {
+	entries := make([]*LedgerEntry, 0, len(pairs))
+	for _, p := range pairs {
+		e, err := NewLedgerEntry(p.accountID, p.amount)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
+// ReverseLedgerEntries returns a new slice of ledger entries that exactly
+// cancels out the effect of the given entries. Useful for refunds or rollbacks.
+func ReverseLedgerEntries(entries []*LedgerEntry) ([]*LedgerEntry, error) {
+	reversed := make([]*LedgerEntry, 0, len(entries))
+
+	for _, e := range entries {
+		reversedEntry, err := NewLedgerEntry(e.AccountID(), -e.AmountInMinorUnits())
+		if err != nil {
+			return nil, fmt.Errorf("failed to create reversed ledger entry for %s: %w", e.AccountID(), err)
+		}
+		reversed = append(reversed, reversedEntry)
+	}
+
+	return reversed, nil
+}
+
+// NewLedgerEntry constructs a new ledger entry while enforcing invariants.
+func NewLedgerEntry(accountID shared.AccountID, amountInMinorUnits int64) (*LedgerEntry, error) {
 	if accountID == "" {
 		return nil, fmt.Errorf("account ID cannot be empty")
 	}

@@ -12,7 +12,7 @@ type LedgerTransactionCommandRepository interface {
 		ctx context.Context,
 		transaction shared.Transaction,
 		ledgerTransaction *LedgerTransaction,
-	) (*LedgerTransaction, error)
+	) error
 
 	// Update allows modifications if absolutely necessary, e.g., metadata corrections.
 	// In most systems, ledger transactions are immutable, so this might not be used.
@@ -20,7 +20,7 @@ type LedgerTransactionCommandRepository interface {
 		ctx context.Context,
 		transaction shared.Transaction,
 		ledgerTransaction *LedgerTransaction,
-	) (*LedgerTransaction, error)
+	) error
 
 	// Delete removes a ledger transaction within a transaction.
 	// Usually discouraged in double-entry systems; only for special cases like testing or corrections.
@@ -45,6 +45,13 @@ type LedgerTransactionQueryRepository interface {
 		referenceType ReferenceType,
 		referenceID string,
 	) ([]*LedgerTransaction, error)
+
+	// GetByReference retrieves all ledger transactions for a given business entity.
+	GetLatestByReferenceAndAccount(
+		ctx context.Context,
+		accountID shared.AccountID,
+		referenceID string,
+	) (*LedgerTransaction, error)
 
 	// ListByAccount retrieves all ledger transactions affecting a specific account.
 	ListByAccount(

@@ -37,6 +37,11 @@ type ListingQueryRepository interface {
 		listingID shared.ListingID,
 	) (*Listing, error)
 
+	Exists(
+		ctx context.Context,
+		listingID shared.ListingID,
+	) (bool, error)
+
 	// FetchNextBatchByAuthor returns listings for a given author in batches.
 	FetchNextBatchByAuthor(
 		ctx context.Context,

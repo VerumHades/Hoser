@@ -37,6 +37,11 @@ type UserQueryRepository interface {
 		userID shared.UserID,
 	) (*User, error)
 
+	Exists(
+		ctx context.Context,
+		userID shared.UserID,
+	) (bool, error)
+
 	// GetByUsername retrieves a user by their username.
 	GetByUsername(
 		ctx context.Context,

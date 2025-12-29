@@ -4,80 +4,58 @@ import (
 	"context"
 	"fmt"
 
-	"common/internal/domain/billing"
-	"common/internal/domain/money"
+	"common/internal/domain/ledger"
+	"common/internal/domain/listing"
 	"common/internal/shared"
-	"common/internal/util"
 )
 
-type PaymentProvider interface {
-	Pay(
-		ctx context.Context,
-		billingAccountID shared.BillingAccountID,
-		payment *billing.Payment,
-	) error
-	Payout(
-		ctx context.Context,
-		userID shared.UserID,
-		payout *billing.Payout,
-	) error
+type AccountQueryService interface {
+	GetPlatformProfitAccountID(ctx context.Context) (shared.AccountID, error)
+	GetPlatformCutPercentage(ctx context.Context) (int, error)
+
+	GetListingOwnerAccountID(ctx context.Context, listingID shared.ListingID) (shared.AccountID, error)
+	GetUserAccountID(ctx context.Context, userID shared.UserID) (shared.AccountID, error)
 }
 
 // UserPurchaseService handles all user listing purchase logic.
 type UserPurchaseService struct {
-	billingAccountRepository billing.BillingAccountQueryRepository
-	paymentRepository        billing.PaymentQueryRepository
+	accountQueryService AccountQueryService
 
-	paymentProvider PaymentProvider
+	listingRepository listing.ListingQueryRepository
+
+	transactionRepository      ledger.LedgerTransactionCommandRepository
+	transactionQueryRepository ledger.LedgerTransactionQueryRepository
+	settlementQueryRepository  ledger.SettlementQueryRepository
 }
 
-// NewUserPurchaseService constructs a new UserPurchaseService.
-func NewUserPurchaseService(
-	billingAccountRepository billing.BillingAccountQueryRepository,
-	paymentRepository billing.PaymentQueryRepository,
-	paymentProvider PaymentProvider,
-) *UserPurchaseService {
-	return &UserPurchaseService{
-		billingAccountRepository: billingAccountRepository,
-		paymentRepository:        paymentRepository,
-		paymentProvider:          paymentProvider,
+func (s *UserPurchaseService) GetLastestUserListingTransaction(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (*ledger.LedgerTransaction, error) {
+	accountID, err := s.accountQueryService.GetUserAccountID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("user has no ledger account")
 	}
+	return s.transactionQueryRepository.GetLatestByReferenceAndAccount(ctx, accountID, string(listingID))
 }
 
 // HasUserBoughtListing checks if a user already owns a listing.
-func (s *UserPurchaseService) HasUserBoughtListing(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (bool, error) {
-	// Look for a matching payment across all billing accounts
-	foundPayment, err := util.LookupInBatches(
-		ctx,
-		100,
-		func(ctx context.Context, request shared.BatchRequest) ([]*billing.BillingAccount, shared.Cursor, error) {
-			return s.billingAccountRepository.FetchNextBatchByOwner(ctx, userID, request)
-		},
-		func(ctx context.Context, account *billing.BillingAccount) (*billing.Payment, error) {
-			return util.LookupInBatches(
-				ctx,
-				100,
-				func(ctx context.Context, request shared.BatchRequest) ([]*billing.Payment, shared.Cursor, error) {
-					return s.paymentRepository.FetchNextBatchByBillingAccount(ctx, account.ID(), request)
-				},
-				func(ctx context.Context, payment *billing.Payment) (*billing.Payment, error) {
-					metadata := payment.OneTimeMetadata()
-					if metadata != nil &&
-						metadata.UserID() == userID &&
-						metadata.ListingID() == listingID {
-						return payment, nil
-					}
-					return nil, nil
-				},
-			)
-		},
-	)
+func (s *UserPurchaseService) DoesUserOwnListing(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (bool, error) {
+	latest, err := s.GetLastestUserListingTransaction(ctx, userID, listingID)
+	if err != nil {
+		return false, err
+	}
+	if latest == nil {
+		return false, nil
+	}
 
+	if latest.ReferenceType() != ledger.ReferenceTypePurchase {
+		return false, nil
+	}
+
+	settlement, err := s.settlementQueryRepository.GetLastByLedgerTransactionID(ctx, latest.ID())
 	if err != nil {
 		return false, err
 	}
 
-	return foundPayment != nil, nil
+	return settlement.Status() == ledger.SettlementStatusCompleted, nil
 }
 
 // PurchaseListing ensures a user owns a listing and executes the payment if necessary.
@@ -85,23 +63,65 @@ func (s *UserPurchaseService) PurchaseListing(
 	ctx context.Context,
 	userID shared.UserID,
 	listingID shared.ListingID,
-	billingAccountID shared.BillingAccountID,
-	amount money.Money,
 ) error {
-	// Check ownership internally
-	hasBought, err := s.HasUserBoughtListing(ctx, userID, listingID)
+	listing, err := s.listingRepository.GetByID(ctx, listingID)
 	if err != nil {
-		return fmt.Errorf("failed to check ownership: %w", err)
+		return fmt.Errorf("failed to check listing existence: %w", err)
 	}
-	if hasBought {
+	if listing == nil {
+		return fmt.Errorf("listing %s does not exist", listingID)
+	}
+
+	accountID, err := s.accountQueryService.GetUserAccountID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user has no ledger account")
+	}
+
+	if latest, err := s.transactionQueryRepository.GetLatestByReferenceAndAccount(ctx, accountID, string(listingID)); err != nil {
+		return err
+	} else if latest != nil && latest.ReferenceType() == ledger.ReferenceTypePurchase {
+		return fmt.Errorf("an existing identical purchase is already processing")
+	}
+
+	if hasBought, err := s.DoesUserOwnListing(ctx, userID, listingID); err != nil {
+		return fmt.Errorf("failed to check ownership: %w", err)
+	} else if hasBought {
 		return fmt.Errorf("user %s has already purchased listing %s", userID, listingID)
 	}
 
-	// Create the payment entity
-	payment, err := billing.NewOneTimePayment(billingAccountID, amount, listingID, userID)
+	platformCutPercentage, err := s.accountQueryService.GetPlatformCutPercentage(ctx)
+
+	purchaseAmount := listing.PriceInMinorUnits()
+	platformCut := (purchaseAmount * int64(platformCutPercentage)) / 100
+	sellerAmount := purchaseAmount - platformCut
+
+	platformAccountID, err := s.accountQueryService.GetPlatformProfitAccountID(ctx)
+	if err != nil {
+		return err
+	}
+	sellerAccountID, err := s.accountQueryService.GetListingOwnerAccountID(ctx, listingID)
 	if err != nil {
 		return err
 	}
 
-	return s.paymentProvider.Pay(ctx, billingAccountID, payment)
+	entries, err := ledger.NewLedgerEntries(
+		ledger.LedgerEntryShorthand(accountID, -purchaseAmount),
+		ledger.LedgerEntryShorthand(platformAccountID, platformCut),
+		ledger.LedgerEntryShorthand(sellerAccountID, sellerAmount),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	transaction, err := ledger.NewLedgerTransaction(ledger.ReferenceTypePurchase, string(listingID), entries)
+	if err != nil {
+		return err
+	}
+	err = s.transactionRepository.Create(ctx, nil, transaction)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

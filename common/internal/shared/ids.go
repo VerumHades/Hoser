@@ -31,3 +31,8 @@ type PayoutID string
 type AccountID string
 type LedgerTransactionID string
 type LedgerEntryID string
+
+type PurchaseID string
+type SettlementID string
+
+type InstanceRentalContractID string
