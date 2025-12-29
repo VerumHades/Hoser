@@ -6,70 +6,66 @@ import (
 	"time"
 )
 
-// InstanceCommandRepository defines write operations for instances.
-type InstanceCommandRepository interface {
-	// Create persists a new instance within a transaction.
+// InstanceRentalContractCommandRepository defines write operations for rental contracts.
+type InstanceRentalContractCommandRepository interface {
 	Create(
 		ctx context.Context,
 		transaction shared.Transaction,
-		instance *Instance,
-	) (*Instance, error)
+		contract *InstanceRentalContract,
+	) error
 
-	// Update modifies an existing instance within a transaction.
 	Update(
 		ctx context.Context,
 		transaction shared.Transaction,
-		instance *Instance,
-	) (*Instance, error)
+		contract *InstanceRentalContract,
+	) error
 
-	// Delete removes an instance by its ID within a transaction.
 	Delete(
 		ctx context.Context,
 		transaction shared.Transaction,
-		instanceID shared.InstanceID,
+		contractID shared.InstanceRentalContractID,
 	) error
 }
 
-// InstanceQueryRepository defines read-only operations for instances.
-type InstanceQueryRepository interface {
-	// GetByID retrieves an instance by its ID.
+// InstanceRentalContractQueryRepository defines read-only operations for rental contracts.
+type InstanceRentalContractQueryRepository interface {
 	GetByID(
 		ctx context.Context,
-		instanceID shared.InstanceID,
-	) (*Instance, error)
+		contractID shared.InstanceRentalContractID,
+	) (*InstanceRentalContract, error)
 
-	// FetchNextBatchByListing returns instances for a given listing in batches.
+	Exists(
+		ctx context.Context,
+		contractID shared.InstanceRentalContractID,
+	) (bool, error)
+
 	FetchNextBatchByListing(
 		ctx context.Context,
 		listingID shared.ListingID,
 		request shared.BatchRequest,
-	) (instances []*Instance, nextCursor shared.Cursor, err error)
+	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
 
-	// FetchNextBatchByBillingAccount returns instances for a billing account in batches.
-	FetchNextBatchByBillingAccount(
+	FetchNextBatchByOwner(
 		ctx context.Context,
-		billingAccountID shared.BillingAccountID,
+		ownerID shared.UserID,
 		request shared.BatchRequest,
-	) (instances []*Instance, nextCursor shared.Cursor, err error)
+	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
 
-	// FetchNextBatchExpiredBefore returns instances expired before a cutoff time in batches.
+	FetchNextBatchActiveAt(
+		ctx context.Context,
+		at time.Time,
+		request shared.BatchRequest,
+	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
+
 	FetchNextBatchExpiredBefore(
 		ctx context.Context,
 		cutoffTime time.Time,
 		request shared.BatchRequest,
-	) (instances []*Instance, nextCursor shared.Cursor, err error)
+	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
 
-	// FetchNextBatchByState returns instances filtered by instance and contract state.
-	FetchNextBatchByState(
+	FetchNextBatchPendingRenewal(
 		ctx context.Context,
-		instanceState InstanceState,
-		contractState ContractState,
+		cutoffTime time.Time,
 		request shared.BatchRequest,
-	) (instances []*Instance, nextCursor shared.Cursor, err error)
-
-	// FetchNextBatchPendingHardwareUpdate returns instances pending hardware updates.
-	FetchNextBatchPendingHardwareUpdate(
-		ctx context.Context,
-		request shared.BatchRequest,
-	) (instances []*Instance, nextCursor shared.Cursor, err error)
+	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
 }

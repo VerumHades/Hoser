@@ -28,9 +28,22 @@ type LedgerTransaction struct {
 	entries       []*LedgerEntry
 }
 
+func NewLedgerTransaction(
+	referenceType ReferenceType,
+	referenceID string,
+	entries []*LedgerEntry,
+) (*LedgerTransaction, error) {
+	return NewLedgerTransactionWithID(
+		shared.LedgerTransactionID(shared.GenerateUUID()),
+		referenceType,
+		referenceID,
+		entries,
+	)
+}
+
 // NewLedgerTransaction constructs a LedgerTransaction with its entries,
 // enforcing the double-entry invariant (entries must sum to zero) and all other invariants.
-func NewLedgerTransaction(
+func NewLedgerTransactionWithID(
 	id shared.LedgerTransactionID,
 	referenceType ReferenceType,
 	referenceID string,
