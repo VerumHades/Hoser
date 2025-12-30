@@ -85,7 +85,6 @@ func (s *UserListingService) RemoveListingFromLibrary(
 	ctx context.Context,
 	userID shared.UserID,
 	itemID shared.SavedListingID,
-	transaction shared.Transaction,
 ) error {
 
 	savedListing, err := s.savedQueryRepository.GetByID(ctx, itemID)
@@ -97,7 +96,7 @@ func (s *UserListingService) RemoveListingFromLibrary(
 		return fmt.Errorf("library item %s does not belong to user %s", itemID, userID)
 	}
 
-	return s.savedCommandRepository.Delete(ctx, transaction, itemID)
+	return s.savedCommandRepository.Delete(ctx, nil, itemID)
 }
 
 //////////////////////////////
