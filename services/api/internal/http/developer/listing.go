@@ -17,7 +17,7 @@ type listingService interface {
 	DeleteListing(ctx context.Context, listingID shared.ListingID) error
 }
 
-type DeveloperAPI struct {
+type DeveloperListingAPI struct {
 	listingService listingService
 }
 
@@ -47,14 +47,6 @@ type UpdateListingRequest struct {
 	Hardware    *shared.HardwareSpecification `json:"hardware,omitempty"`
 	Price       *int64                        `json:"price,omitempty"`
 	AccessMode  *listing.ListingAccessMode    `json:"accessMode,omitempty"` // integer type
-}
-type ListingRequest struct {
-	ID          string                        `json:"id"`
-	Title       *string                       `json:"title,omitempty"`
-	Description *string                       `json:"description,omitempty"`
-	AccessMode  *int                          `json:"accessMode,omitempty"`
-	Price       *int64                        `json:"price,omitempty"`
-	Hardware    *shared.HardwareSpecification `json:"hardware,omitempty"`
 }
 
 type AddListingRequest struct {

@@ -52,10 +52,4 @@ type LedgerTransactionQueryRepository interface {
 		accountID shared.AccountID,
 		referenceID string,
 	) (*LedgerTransaction, error)
-
-	// ListByAccount retrieves all ledger transactions affecting a specific account.
-	ListByAccount(
-		ctx context.Context,
-		accountID shared.AccountID,
-	) ([]*LedgerTransaction, error)
 }

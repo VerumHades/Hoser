@@ -3,6 +3,7 @@ package listing
 import (
 	"common/pkg/shared"
 	"context"
+	"time"
 )
 
 // GitHubSetupCommandRepository defines write operations for GitHub setups.
@@ -36,18 +37,23 @@ type GitHubSetupCommandRepository interface {
 	) error
 }
 
+// / GitHubSetupCursor represents a stable pagination position
+// / for iterating over GitHub setups.
+type GitHubSetupCursor struct {
+	LastCreatedAt time.Time
+	LastSetupID   shared.SetupID
+}
+
 // GitHubSetupQueryRepository defines read-only operations for GitHub setups.
 type GitHubSetupQueryRepository interface {
-	// GetByID retrieves a GitHub setup by its ID.
 	GetByID(
 		ctx context.Context,
 		setupID shared.SetupID,
 	) (*GitHubSetupDefinition, error)
 
-	// FetchNextBatchByListing returns GitHub setups for a listing in batches.
 	FetchNextBatchByListing(
 		ctx context.Context,
 		listingID shared.ListingID,
-		request shared.BatchRequest,
-	) (setups []*GitHubSetupDefinition, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[GitHubSetupCursor],
+	) (setups []*GitHubSetupDefinition, nextCursor GitHubSetupCursor, err error)
 }

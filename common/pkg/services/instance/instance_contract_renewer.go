@@ -45,35 +45,37 @@ func NewInstanceSubscriptionRenewalReconciler(
 }
 
 func (r *InstanceContractRenewer) tick(ctx context.Context) error {
-	return util.ProcessInBatches(
-		ctx,
-		100,
-		func(ctx context.Context, request shared.BatchRequest) (items []*instance.InstanceRentalContract, nextCursor shared.Cursor, err error) {
-			return r.contractQueryRepository.FetchNextBatchPendingRenewal(ctx, time.Now(), request)
-		},
-		func(ctx context.Context, contract *instance.InstanceRentalContract) error {
-			return shared.WithTransaction(ctx, r.transactionProvider, func(transaction shared.Transaction) error {
-				contract.Cancel(time.Now())
+	fetchNextBatch := func(
+		ctx context.Context,
+		request shared.BatchRequest[instance.InstanceRentalContractCursor],
+	) ([]*instance.InstanceRentalContract, instance.InstanceRentalContractCursor, error) {
+		return r.contractQueryRepository.FetchNextBatchPendingRenewal(ctx, time.Now(), request)
+	}
 
-				err := r.contractCommandRepository.Update(ctx, transaction, contract)
-				if err != nil {
-					return err
-				}
+	for contract := range util.GenerateInBatches(ctx, 100, fetchNextBatch) {
+		if err := shared.WithTransaction(ctx, r.transactionProvider, func(transaction shared.Transaction) error {
+			contract.Cancel(time.Now())
 
-				newContract, err := contract.Renew(time.Now())
-				if err != nil {
-					return err
-				}
+			if err := r.contractCommandRepository.Update(ctx, transaction, contract); err != nil {
+				return err
+			}
 
-				err = r.contractCommandRepository.Create(ctx, transaction, newContract)
-				if err != nil {
-					return err
-				}
+			newContract, err := contract.Renew(time.Now())
+			if err != nil {
+				return err
+			}
 
-				return r.contractPaymentCreationService.CreateContractPaymentLedgerTransaction(ctx, newContract, transaction)
-			})
-		},
-	)
+			if err := r.contractCommandRepository.Create(ctx, transaction, newContract); err != nil {
+				return err
+			}
+
+			return r.contractPaymentCreationService.CreateContractPaymentLedgerTransaction(ctx, newContract, transaction)
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *InstanceContractRenewer) Start(ctx context.Context) {

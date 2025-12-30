@@ -47,16 +47,4 @@ type SettlementQueryRepository interface {
 		ctx context.Context,
 		ledgerTransactionID shared.LedgerTransactionID,
 	) (*Settlement, error)
-
-	// GetByAccountID retrieves all settlements for a specific account.
-	GetByAccountID(
-		ctx context.Context,
-		accountID shared.AccountID,
-	) ([]*Settlement, error)
-
-	// GetPendingByAccount retrieves all pending settlements for an account.
-	GetPendingByAccount(
-		ctx context.Context,
-		accountID shared.AccountID,
-	) ([]*Settlement, error)
 }

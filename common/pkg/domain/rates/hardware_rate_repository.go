@@ -25,19 +25,23 @@ type HardwareCostCommandRepository interface {
 	) (*HardwareCostRate, error)
 }
 
+// / HardwareCostRateCursor represents a stable pagination position
+// / for iterating over hardware cost rates.
+type HardwareCostRateCursor struct {
+	LastEffectiveDate time.Time
+	LastRateID        shared.HardwareCostRateID
+}
+
 // HardwareCostQueryRepository defines read-only operations for hardware cost rates.
 type HardwareCostQueryRepository interface {
-	// GetActiveRate returns the currently active hardware cost rate for a given resource.
 	GetActiveRate(
 		ctx context.Context,
 		resourceType HardwareResourceType,
 		at time.Time,
 	) (*HardwareCostRate, error)
 
-	// FetchNextBatchOrderedByEffectiveDate returns hardware cost rates in order of effective date.
-	// Useful for audits or migrations.
 	FetchNextBatchOrderedByEffectiveDate(
 		ctx context.Context,
-		request shared.BatchRequest,
-	) (rates []*HardwareCostRate, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[HardwareCostRateCursor],
+	) (rates []*HardwareCostRate, nextCursor HardwareCostRateCursor, err error)
 }

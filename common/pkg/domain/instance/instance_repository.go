@@ -27,6 +27,13 @@ type InstanceRentalContractCommandRepository interface {
 	) error
 }
 
+// / InstanceRentalContractCursor represents a stable pagination position
+// / for iterating over instance rental contracts.
+type InstanceRentalContractCursor struct {
+	LastCreatedAt  time.Time
+	LastContractID shared.InstanceRentalContractID
+}
+
 // InstanceRentalContractQueryRepository defines read-only operations for rental contracts.
 type InstanceRentalContractQueryRepository interface {
 	GetByID(
@@ -42,30 +49,30 @@ type InstanceRentalContractQueryRepository interface {
 	FetchNextBatchByListing(
 		ctx context.Context,
 		listingID shared.ListingID,
-		request shared.BatchRequest,
-	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[InstanceRentalContractCursor],
+	) (contracts []*InstanceRentalContract, nextCursor InstanceRentalContractCursor, err error)
 
 	FetchNextBatchByOwner(
 		ctx context.Context,
 		ownerID shared.UserID,
-		request shared.BatchRequest,
-	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[InstanceRentalContractCursor],
+	) (contracts []*InstanceRentalContract, nextCursor InstanceRentalContractCursor, err error)
 
 	FetchNextBatchActiveAt(
 		ctx context.Context,
 		at time.Time,
-		request shared.BatchRequest,
-	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[InstanceRentalContractCursor],
+	) (contracts []*InstanceRentalContract, nextCursor InstanceRentalContractCursor, err error)
 
 	FetchNextBatchExpiredBefore(
 		ctx context.Context,
 		cutoffTime time.Time,
-		request shared.BatchRequest,
-	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[InstanceRentalContractCursor],
+	) (contracts []*InstanceRentalContract, nextCursor InstanceRentalContractCursor, err error)
 
 	FetchNextBatchPendingRenewal(
 		ctx context.Context,
 		cutoffTime time.Time,
-		request shared.BatchRequest,
-	) (contracts []*InstanceRentalContract, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[InstanceRentalContractCursor],
+	) (contracts []*InstanceRentalContract, nextCursor InstanceRentalContractCursor, err error)
 }
