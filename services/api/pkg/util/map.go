@@ -1,4 +1,4 @@
-package utils
+package util
 
 func MergeMaps[K comparable, V any](m1, m2 map[K]V) map[K]V {
 	merged := make(map[K]V)

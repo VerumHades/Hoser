@@ -65,8 +65,8 @@ func (s *DeveloperGitHubSetupService) GetSetupByID(
 func (s *DeveloperGitHubSetupService) ListSetupsByListing(
 	ctx context.Context,
 	listingID shared.ListingID,
-	batchRequest shared.BatchRequest,
-) ([]*listing.GitHubSetupDefinition, shared.Cursor, error) {
+	batchRequest shared.BatchRequest[listing.GitHubSetupCursor],
+) ([]*listing.GitHubSetupDefinition, listing.GitHubSetupCursor, error) {
 	return s.queryRepository.FetchNextBatchByListing(ctx, listingID, batchRequest)
 }
 
@@ -78,22 +78,22 @@ func (s *DeveloperGitHubSetupService) DeleteSetupByID(
 	return s.commandRepository.DeleteByID(ctx, nil, setupID)
 }
 
-// DeleteSetupsByListing removes all GitHub setups for a listing in batches.
 func (s *DeveloperGitHubSetupService) DeleteSetupsByListing(
 	ctx context.Context,
 	listingID shared.ListingID,
 ) error {
-	return util.ProcessInBatches(
-		ctx,
-		100,
-		func(ctx context.Context, request shared.BatchRequest) (items []*listing.GitHubSetupDefinition, nextCursor shared.Cursor, err error) {
-			return s.queryRepository.FetchNextBatchByListing(ctx, listingID, request)
-		},
-		func(ctx context.Context, setup *listing.GitHubSetupDefinition) error {
-			if err := s.commandRepository.DeleteByID(ctx, nil, setup.ID()); err != nil {
-				return err
-			}
-			return nil
-		},
-	)
+	fetchNextBatch := func(
+		ctx context.Context,
+		request shared.BatchRequest[listing.GitHubSetupCursor],
+	) (items []*listing.GitHubSetupDefinition, nextCursor listing.GitHubSetupCursor, err error) {
+		return s.queryRepository.FetchNextBatchByListing(ctx, listingID, request)
+	}
+
+	for setup := range util.GenerateInBatches(ctx, 100, fetchNextBatch) {
+		if err := s.commandRepository.DeleteByID(ctx, nil, setup.ID()); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

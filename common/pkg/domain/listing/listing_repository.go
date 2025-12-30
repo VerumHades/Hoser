@@ -3,6 +3,7 @@ package listing
 import (
 	"common/pkg/shared"
 	"context"
+	"time"
 )
 
 // ListingCommandRepository defines write operations for listings.
@@ -29,9 +30,15 @@ type ListingCommandRepository interface {
 	) error
 }
 
+// / ListingCursor represents a stable pagination position
+// / for iterating over listings.
+type ListingCursor struct {
+	LastCreatedAt time.Time
+	LastListingID shared.ListingID
+}
+
 // ListingQueryRepository defines read-only operations for listings.
 type ListingQueryRepository interface {
-	// GetByID retrieves a listing by its ID.
 	GetByID(
 		ctx context.Context,
 		listingID shared.ListingID,
@@ -42,16 +49,14 @@ type ListingQueryRepository interface {
 		listingID shared.ListingID,
 	) (bool, error)
 
-	// FetchNextBatchByAuthor returns listings for a given author in batches.
 	FetchNextBatchByAuthor(
 		ctx context.Context,
 		authorID shared.UserID,
-		request shared.BatchRequest,
-	) (listings []*Listing, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[ListingCursor],
+	) (listings []*Listing, nextCursor ListingCursor, err error)
 
-	// FetchNextBatchAll returns all listings in batches.
 	FetchNextBatchAll(
 		ctx context.Context,
-		request shared.BatchRequest,
-	) (listings []*Listing, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[ListingCursor],
+	) (listings []*Listing, nextCursor ListingCursor, err error)
 }

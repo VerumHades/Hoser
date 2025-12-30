@@ -3,6 +3,7 @@ package user
 import (
 	"common/pkg/shared"
 	"context"
+	"time"
 )
 
 // SavedListingCommandRepository defines write operations for user saved listings.
@@ -29,25 +30,29 @@ type SavedListingCommandRepository interface {
 	) error
 }
 
+// / SavedListingCursor represents a stable pagination position
+// / for iterating over user saved listings.
+type SavedListingCursor struct {
+	LastCreatedAt   time.Time
+	LastSavedItemID shared.SavedListingID
+}
+
 // SavedListingQueryRepository defines read-only operations for user saved listings.
 type SavedListingQueryRepository interface {
-	// GetByID retrieves a saved listing by its ID.
 	GetByID(
 		ctx context.Context,
 		itemID shared.SavedListingID,
 	) (*SavedListing, error)
 
-	// ExistsByUserAndListing checks if a user has saved a specific listing.
 	ExistsByUserAndListing(
 		ctx context.Context,
 		userID shared.UserID,
 		listingID shared.ListingID,
 	) (bool, error)
 
-	// FetchNextBatchByUser returns a batch of saved listings for a user.
 	FetchNextBatchByUser(
 		ctx context.Context,
 		userID shared.UserID,
-		request shared.BatchRequest,
-	) (savedListings []*SavedListing, nextCursor shared.Cursor, err error)
+		request shared.BatchRequest[SavedListingCursor],
+	) (savedListings []*SavedListing, nextCursor SavedListingCursor, err error)
 }

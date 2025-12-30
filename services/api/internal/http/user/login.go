@@ -1,4 +1,4 @@
-package handlers
+package user
 
 import (
 	"net/http"
@@ -19,29 +19,31 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-func (app *App) LoginHandler(c echo.Context) error {
+func (api *UserAPI) LoginHandler(context echo.Context) error {
+	requestContext := context.Request().Context()
+
 	type LoginRequest struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 
 	req := new(LoginRequest)
-	if err := c.Bind(req); err != nil {
+	if err := context.Bind(req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	user, err := app.UserAuth.AuthenticateUser(req.Username, req.Password)
+	user, err := api.userAuthentificationService.AuthenticateUser(requestContext, req.Username, req.Password)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid credentials")
 	}
 
 	// Create JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ToPublicView().ID,
+		"user_id": user.ID(),
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte(app.RunningConfiguration.JWTSecret))
+	tokenString, err := token.SignedString([]byte(api.runningConfiguration.JWTSecret))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate token")
 	}
@@ -55,14 +57,14 @@ func (app *App) LoginHandler(c echo.Context) error {
 	cookie.Path = "/"
 	cookie.SameSite = http.SameSiteNoneMode // allow cross-origin
 	cookie.Expires = time.Now().Add(24 * time.Hour)
-	c.SetCookie(cookie)
+	context.SetCookie(cookie)
 
-	return c.JSON(http.StatusOK, map[string]string{
+	return context.JSON(http.StatusOK, map[string]string{
 		"message": "Logged in successfully",
 	})
 }
 
-func (app *App) LogoutHandler(c echo.Context) error {
+func (api *UserAPI) LogoutHandler(c echo.Context) error {
 	cookie := new(http.Cookie)
 	cookie.Name = "jwt"
 	cookie.Value = ""
@@ -74,26 +76,5 @@ func (app *App) LogoutHandler(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Logged out successfully",
-	})
-}
-
-// UserDataHandler returns info about the currently authenticated user
-func (app *App) UserDataHandler(c echo.Context) error {
-	userID, err := app.GetUserIDFromContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
-
-	user, err := app.UserAppService.GetUser(userID)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
-
-	return c.JSON(http.StatusOK, struct {
-		Username    string `json:"username"`
-		IsDeveloper bool   `json:"isDeveloper"`
-	}{
-		Username:    user.ToPrivateView().Username,
-		IsDeveloper: user.ToPublicView().IsDev,
 	})
 }

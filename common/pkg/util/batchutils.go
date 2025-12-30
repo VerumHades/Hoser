@@ -9,69 +9,36 @@ import (
 type BatchProcessorFunc[T any] func(ctx context.Context, item T) error
 
 // NextBatchFunc defines the function signature to fetch the next batch of items.
-type NextBatchFunc[T any] func(ctx context.Context, request shared.BatchRequest) (items []T, nextCursor shared.Cursor, err error)
+type NextBatchFunc[T any, CursorType any] func(ctx context.Context, request shared.BatchRequest[CursorType]) (items []T, nextCursor CursorType, err error)
 
-// ProcessInBatches iteratively fetches and processes items in batches until no more items remain.
-// T is the type of items being processed.
-func ProcessInBatches[T any](
+// GenerateInBatches returns a channel of items fetched batch by batch.
+// Caller can range over the channel, and it closes automatically when done.
+func GenerateInBatches[T any, CursorType any](
 	ctx context.Context,
 	maxBatchSize int,
-	fetchNextBatch NextBatchFunc[T],
-	processItem BatchProcessorFunc[T],
-) error {
-	request := shared.BatchRequest{
-		MaxBatchSize: maxBatchSize,
-	}
-	for {
-		items, nextCursor, err := fetchNextBatch(ctx, request)
-		if err != nil {
-			return err
-		}
-		if len(items) == 0 {
-			break
-		}
-		for _, item := range items {
-			if err := processItem(ctx, item); err != nil {
-				return err
-			}
-		}
-		request.Cursor = nextCursor
-	}
-	return nil
-}
-
-type ItemCheckFunction[T any, K any] func(ctx context.Context, item T) (K, error)
-
-func LookupInBatches[T any, K any](
-	ctx context.Context,
-	maxBatchSize int,
-	fetchNextBatch func(ctx context.Context, request shared.BatchRequest) ([]T, shared.Cursor, error),
-	checkItem func(ctx context.Context, item T) (*K, error),
-) (*K, error) {
-	request := shared.BatchRequest{MaxBatchSize: maxBatchSize}
-
-	for {
-		items, nextCursor, err := fetchNextBatch(ctx, request)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(items) == 0 {
-			break
-		}
-
-		for _, item := range items {
-			result, err := checkItem(ctx, item)
+	fetchNextBatch NextBatchFunc[T, CursorType],
+) <-chan T {
+	out := make(chan T)
+	go func() {
+		defer close(out)
+		request := shared.BatchRequest[CursorType]{MaxBatchSize: maxBatchSize}
+		for {
+			items, nextCursor, err := fetchNextBatch(ctx, request)
 			if err != nil {
-				return nil, err
+				return
 			}
-			if result != nil {
-				return result, nil
+			if len(items) == 0 {
+				break
 			}
+			for _, item := range items {
+				select {
+				case out <- item:
+				case <-ctx.Done():
+					return
+				}
+			}
+			request.Cursor = nextCursor
 		}
-
-		request.Cursor = nextCursor
-	}
-
-	return nil, nil
+	}()
+	return out
 }
