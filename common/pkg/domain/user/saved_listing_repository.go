@@ -15,13 +15,6 @@ type SavedListingCommandRepository interface {
 		item *SavedListing,
 	) (*SavedListing, error)
 
-	// Update modifies an existing saved listing within a transaction.
-	Update(
-		ctx context.Context,
-		transaction shared.Transaction,
-		item *SavedListing,
-	) (*SavedListing, error)
-
 	// Delete removes a saved listing by its ID within a transaction.
 	Delete(
 		ctx context.Context,

@@ -1,12 +1,27 @@
-package user
+package authentification
 
 import (
+	"common/pkg/domain/user"
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
 )
+
+type UserAuthentificationAPIConfiguration struct {
+	JWTSecret string `env:"JWT_SECRET" default:"SECRET"`
+}
+
+type userAuthentificationService interface {
+	AuthenticateUser(context context.Context, username string, password string) (*user.User, error)
+}
+
+type UserAuthentificationAPI struct {
+	runningConfiguration        UserAuthentificationAPIConfiguration
+	userAuthentificationService userAuthentificationService
+}
 
 // LoginRequest defines the expected login payload
 type LoginRequest struct {
@@ -19,7 +34,7 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-func (api *UserAPI) LoginHandler(context echo.Context) error {
+func (api *UserAuthentificationAPI) LoginHandler(context echo.Context) error {
 	requestContext := context.Request().Context()
 
 	type LoginRequest struct {
@@ -64,7 +79,7 @@ func (api *UserAPI) LoginHandler(context echo.Context) error {
 	})
 }
 
-func (api *UserAPI) LogoutHandler(c echo.Context) error {
+func (api *UserAuthentificationAPI) LogoutHandler(c echo.Context) error {
 	cookie := new(http.Cookie)
 	cookie.Name = "jwt"
 	cookie.Value = ""

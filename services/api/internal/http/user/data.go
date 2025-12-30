@@ -1,14 +1,29 @@
 package user
 
 import (
+	"api/internal/http/authentification"
+	"common/pkg/domain/user"
+	"common/pkg/shared"
+	"context"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
 
+type userQueryService interface {
+	GetByID(context context.Context, userID shared.UserID) (*user.User, error)
+}
+
+type UserProfileAPI struct {
+	userQueryService userQueryService
+}
+
+func (api *UserProfileAPI) RegisterRoutes(group *echo.Group) {
+	group.GET("/data", authentification.WithAuthenticatedUser(api.UserDataHandler))
+}
+
 // UserDataHandler returns info about the currently authenticated user
-func (api *UserAPI) UserDataHandler(context echo.Context) error {
-	userID, _ := GetAuthenticatedUserID(context)
+func (api *UserProfileAPI) UserDataHandler(userID shared.UserID, context echo.Context) error {
 	requestContext := context.Request().Context()
 
 	user, err := api.userQueryService.GetByID(requestContext, userID)

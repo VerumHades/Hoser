@@ -1,65 +1,128 @@
 package user
 
 import (
+	"api/internal/http/authentification"
 	"api/pkg/util"
 	"common/pkg/domain/user"
 	"common/pkg/shared"
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
 
-// =================== TYPES ===================
-type ApiListingBase struct {
-	ID          string  `json:"id"`
-	Title       *string `json:"title,omitempty"`
-	Description *string `json:"description,omitempty"`
+type userLibraryQueryService interface {
+	ExistsByUserAndListing(
+		ctx context.Context,
+		userID shared.UserID,
+		listingID shared.ListingID,
+	) (bool, error)
+
+	FetchNextBatchOfUserSavedListings(
+		ctx context.Context,
+		userID shared.UserID,
+		request shared.BatchRequest[user.UserSavedListingViewCursor],
+	) (items []*user.UserSavedListingView, nextCursor user.UserSavedListingViewCursor, err error)
 }
 
-// UserLibraryHandler returns all saved listings for the authenticated user.
-func (api *UserAPI) UserLibraryHandler(c echo.Context) error {
-	userID, err := GetAuthenticatedUserID(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
+type userLibraryCommandService interface {
+	SaveListingToLibrary(
+		ctx context.Context,
+		userID shared.UserID,
+		listingID shared.ListingID,
+	) (*user.SavedListing, error)
 
+	RemoveListingFromLibrary(
+		ctx context.Context,
+		userID shared.UserID,
+		saveID shared.SavedListingID,
+	) error
+}
+
+type UserLibraryAPI struct {
+	userLibraryQueryService   userLibraryQueryService
+	userLibraryCommandService userLibraryCommandService
+}
+
+// --------------------
+// Route registration
+// --------------------
+
+func (api *UserLibraryAPI) RegisterRoutes(group *echo.Group) {
+	group.GET("/library", authentification.WithAuthenticatedUser(api.ListLibraryHandler))
+	group.POST("/library", authentification.WithAuthenticatedUser(api.AddListingHandler))
+	group.DELETE("/library", authentification.WithAuthenticatedUser(api.RemoveListingHandler))
+	group.GET("/library/:listingId", authentification.WithAuthenticatedUser(api.HasListingHandler))
+}
+
+// --------------------
+// API DTOs
+// --------------------
+
+type ApiListingBase struct {
+	SavedListingID string  `json:"saved_listing_id"`
+	ListingID      string  `json:"listing_id"`
+	Title          *string `json:"title,omitempty"`
+	Description    *string `json:"description,omitempty"`
+	CreatedAt      string  `json:"created_at"`
+}
+
+// --------------------
+// Conversion functions
+// --------------------
+
+func convertUserSavedListingViewToApi(domainListing *user.UserSavedListingView) ApiListingBase {
+	return ApiListingBase{
+		SavedListingID: string(domainListing.SavedListingID),
+		ListingID:      string(domainListing.ListingID),
+		Title:          domainListing.Title,
+		Description:    domainListing.Description,
+		CreatedAt:      domainListing.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+func convertBatchOfUserSavedListingViews(domainListings []*user.UserSavedListingView) []ApiListingBase {
+	apiListings := make([]ApiListingBase, len(domainListings))
+	for i, listing := range domainListings {
+		apiListings[i] = convertUserSavedListingViewToApi(listing)
+	}
+	return apiListings
+}
+
+// --------------------
+// Handler wrapper
+// --------------------
+
+// --------------------
+// Handlers
+// --------------------
+
+func (api *UserLibraryAPI) ListLibraryHandler(userID shared.UserID, c echo.Context) error {
 	ctx := c.Request().Context()
 	batchSize := 50
 
-	// Decode cursor from query param if present
 	var cursor user.UserSavedListingViewCursor
 	if encoded := c.QueryParam("cursor"); encoded != "" {
-		if decodedCursor, err := util.DecodeCursor[user.UserSavedListingViewCursor](encoded); err == nil {
-			cursor = decodedCursor
+		if decoded, err := util.DecodeCursor[user.UserSavedListingViewCursor](encoded); err == nil {
+			cursor = decoded
 		}
 	}
 
-	// Create BatchRequest with typed cursor
 	batchRequest := shared.BatchRequest[user.UserSavedListingViewCursor]{
 		Cursor:       cursor,
 		MaxBatchSize: batchSize,
 	}
 
-	// Fetch batch of saved listings
 	savedItems, nextCursor, err := api.userLibraryQueryService.FetchNextBatchOfUserSavedListings(ctx, userID, batchRequest)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch library")
 	}
 
-	// Convert to API response objects
-	apiListings := make([]ApiListingBase, 0, len(savedItems))
-	for _, savedItem := range savedItems {
-		user, err := app.ListingService.GetPublicListing(savedItem.ListingID)
-		if err != nil {
-			continue // skip missing or private listings
-		}
-		apiListings = append(apiListings, app.MakeApiDeveloperListing(user).ApiListingBase)
-	}
-
-	// Encode cursor for next request
+	apiListings := convertBatchOfUserSavedListingViews(savedItems)
 	encodedCursor, _ := util.EncodeCursor(nextCursor)
 
-	resp := PaginatedResponse[ApiListingBase, user.SavedListingCursor]{
+	resp := util.PaginatedResponse[ApiListingBase, user.UserSavedListingViewCursor]{
 		Items:  apiListings,
 		Cursor: encodedCursor,
 	}
@@ -67,79 +130,52 @@ func (api *UserAPI) UserLibraryHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-// UserAddListingToLibraryHandler saves a user to the authenticated user's library
-func (app *App) UserAddListingToLibraryHandler(c echo.Context) error {
-	userID, err := app.GetUserIDFromContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
+func (api *UserLibraryAPI) AddListingHandler(userID shared.UserID, c echo.Context) error {
+	ctx := c.Request().Context()
 
 	var req struct {
-		ListingID string `json:"id"`
+		ListingID shared.ListingID `json:"id"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	_, err = app.UserAppService.SaveListingToLibrary(userID, req.ListingID)
+	_, err := api.userLibraryCommandService.SaveListingToLibrary(ctx, userID, req.ListingID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save user to library")
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save listing to library")
 	}
 
 	return c.NoContent(http.StatusOK)
 }
 
-// UserRemoveListingFromLibraryHandler removes a saved user from the authenticated user's library
-func (app *App) UserRemoveListingFromLibraryHandler(c echo.Context) error {
-	userID, err := app.GetUserIDFromContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
+func (api *UserLibraryAPI) RemoveListingHandler(userID shared.UserID, c echo.Context) error {
+	ctx := c.Request().Context()
 
 	var req struct {
-		ItemID string `json:"id"`
+		ItemID shared.SavedListingID `json:"id"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	if err := app.UserAppService.RemoveListingFromLibrary(userID, req.ItemID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove user from library")
+	if err := api.userLibraryCommandService.RemoveListingFromLibrary(ctx, userID, req.ItemID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove listing from library")
 	}
 
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (app *App) HasListingInLibraryHandler(c echo.Context) error {
-	// Extract user ID from JWT
-	userID, err := app.GetUserIDFromContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
-	}
-
-	// Get user ID from URL path
+func (api *UserLibraryAPI) HasListingHandler(userID shared.UserID, c echo.Context) error {
+	ctx := c.Request().Context()
 	listingID := c.Param("listingId")
 	if listingID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
 	}
 
-	// List the user's library
-	libraryItems, err := app.UserAppService.ListUserLibrary(userID)
+	exists, err := api.userLibraryQueryService.ExistsByUserAndListing(ctx, userID, shared.ListingID(listingID))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch user library")
 	}
 
-	// Check if the user exists in the library
-	hasListing := false
-	for _, item := range libraryItems {
-		if item.ListingID == listingID {
-			hasListing = true
-			break
-		}
-	}
-
-	// Return result
-	return c.JSON(http.StatusOK, map[string]bool{
-		"hasListing": hasListing,
-	})
+	return c.JSON(http.StatusOK, map[string]bool{"hasListing": exists})
 }
