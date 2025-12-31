@@ -1,4 +1,4 @@
-package user
+package userapi
 
 import (
 	"api/internal/http/authentification"
@@ -45,12 +45,24 @@ type UserLibraryAPI struct {
 	userLibraryCommandService userLibraryCommandService
 }
 
+// NewUserLibraryAPI constructs a UserLibraryAPI.
+func NewUserLibraryAPI(
+	userLibraryQueryService userLibraryQueryService,
+	userLibraryCommandService userLibraryCommandService,
+) *UserLibraryAPI {
+	return &UserLibraryAPI{
+		userLibraryQueryService:   userLibraryQueryService,
+		userLibraryCommandService: userLibraryCommandService,
+	}
+}
+
 // --------------------
 // Route registration
 // --------------------
 
 func (api *UserLibraryAPI) RegisterRoutes(group *echo.Group) {
 	group.GET("/library", authentification.WithAuthenticatedUser(api.ListLibraryHandler))
+
 	group.POST("/library", authentification.WithAuthenticatedUser(api.AddListingHandler))
 	group.DELETE("/library", authentification.WithAuthenticatedUser(api.RemoveListingHandler))
 	group.GET("/library/:listingId", authentification.WithAuthenticatedUser(api.HasListingHandler))
@@ -82,14 +94,6 @@ func convertUserSavedListingViewToApi(domainListing *user.UserSavedListingView) 
 	}
 }
 
-func convertBatchOfUserSavedListingViews(domainListings []*user.UserSavedListingView) []ApiListingBase {
-	apiListings := make([]ApiListingBase, len(domainListings))
-	for i, listing := range domainListings {
-		apiListings[i] = convertUserSavedListingViewToApi(listing)
-	}
-	return apiListings
-}
-
 // --------------------
 // Handler wrapper
 // --------------------
@@ -99,35 +103,18 @@ func convertBatchOfUserSavedListingViews(domainListings []*user.UserSavedListing
 // --------------------
 
 func (api *UserLibraryAPI) ListLibraryHandler(userID shared.UserID, c echo.Context) error {
-	ctx := c.Request().Context()
-	batchSize := 50
-
-	var cursor user.UserSavedListingViewCursor
-	if encoded := c.QueryParam("cursor"); encoded != "" {
-		if decoded, err := util.DecodeCursor[user.UserSavedListingViewCursor](encoded); err == nil {
-			cursor = decoded
-		}
-	}
-
-	batchRequest := shared.BatchRequest[user.UserSavedListingViewCursor]{
-		Cursor:       cursor,
-		MaxBatchSize: batchSize,
-	}
-
-	savedItems, nextCursor, err := api.userLibraryQueryService.FetchNextBatchOfUserSavedListings(ctx, userID, batchRequest)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch library")
-	}
-
-	apiListings := convertBatchOfUserSavedListingViews(savedItems)
-	encodedCursor, _ := util.EncodeCursor(nextCursor)
-
-	resp := util.PaginatedResponse[ApiListingBase, user.UserSavedListingViewCursor]{
-		Items:  apiListings,
-		Cursor: encodedCursor,
-	}
-
-	return c.JSON(http.StatusOK, resp)
+	return util.HandleBatchRequest(
+		c,
+		func(
+			ctx context.Context,
+			request shared.BatchRequest[user.UserSavedListingViewCursor],
+		) (items []*user.UserSavedListingView, nextCursor user.UserSavedListingViewCursor, err error) {
+			return api.userLibraryQueryService.FetchNextBatchOfUserSavedListings(ctx, userID, request)
+		},
+		func(elements []*user.UserSavedListingView) (views []ApiListingBase) {
+			return util.MapList(elements, convertUserSavedListingViewToApi)
+		},
+	)
 }
 
 func (api *UserLibraryAPI) AddListingHandler(userID shared.UserID, c echo.Context) error {

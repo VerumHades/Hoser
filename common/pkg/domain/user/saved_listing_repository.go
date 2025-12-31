@@ -26,8 +26,7 @@ type SavedListingCommandRepository interface {
 // / SavedListingCursor represents a stable pagination position
 // / for iterating over user saved listings.
 type SavedListingCursor struct {
-	LastCreatedAt   time.Time
-	LastSavedItemID shared.SavedListingID
+	LastCreatedAt time.Time
 }
 
 // SavedListingQueryRepository defines read-only operations for user saved listings.

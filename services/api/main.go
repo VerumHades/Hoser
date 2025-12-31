@@ -1,49 +1,44 @@
 package main
 
 import (
-	"api/internal/handlers"
+	mongodbinstance "common/pkg/infrastructure/mongodb/instance"
+	mongodbledger "common/pkg/infrastructure/mongodb/ledger"
+	mongodblisting "common/pkg/infrastructure/mongodb/listing"
+	mongodbrates "common/pkg/infrastructure/mongodb/rates"
+	mongodbuser "common/pkg/infrastructure/mongodb/user"
+	"common/pkg/services/auth"
 	"context"
 	"time"
 
-	"common/infra/configuration"
-	localdockerdeployer "common/infra/deployment"
-	accountmongodb "common/infra/mongodb/billing/account"
-	paymentmongodb "common/infra/mongodb/billing/payment"
-	instancemongodb "common/infra/mongodb/instance"
-	librarymongodb "common/infra/mongodb/library"
-	listingmongodb "common/infra/mongodb/listing"
-	ratesmongodb "common/infra/mongodb/rates"
-	mongogithubsetups "common/infra/mongodb/setups/github"
-	usermongodb "common/infra/mongodb/user"
-
-	inmemconversion "common/infra/inmem/conversion"
-	listingmem "common/infra/inmem/listing"
-	inmempayments "common/infra/inmem/payments"
-
-	"common/pkg/app"
-	"common/pkg/auth"
-	"common/pkg/billing/account"
-	"common/pkg/billing/payments/payment"
-	"common/pkg/instance"
-	"common/pkg/library"
-	"common/pkg/listing"
-	"common/pkg/money"
-	"common/pkg/rates"
-	githubsetups "common/pkg/setups/github"
-	"common/pkg/user"
 	"fmt"
 	"log"
+
+	"common/pkg/infrastructure/configuration"
 
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type Configuration struct {
+	Port              string   `env:"PORT" default:"8080"`
+	Address           string   `env:"ADDRESS" default:"localhost"`
+	AllowedOrigins    []string `env:"ALLOWED_ORIGINS" separator:","`
+	JWTSecret         string   `env:"JWT_SECRET" default:"SECRET"`
+	InterserverSecret string   `env:"INTERSERVER_SECRET" default:"SECRET"`
+
+	MongoDatabaseName     string `env:"MONGO_DATABASE" default:"apiDatabase"`
+	MongoDatabaseUserName string `env:"MONGO_USER" default:"apiUser"`
+	MongoDatabasePassword string `env:"MONGO_PASSWORD" default:"apiUserPassword"`
+	MongoDatabaseHost     string `env:"MONGO_HOST" default:"localhost"`
+	MongoDatabasePort     string `env:"MONGO_PORT" default:"27017"`
+}
+
 func main() {
 	// ---------------------------
 	// Load configuration
 	// ---------------------------
-	runningConfiguration, err := configuration.Load[handlers.Configuration]()
+	runningConfiguration, err := configuration.Load[Configuration]()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -77,26 +72,34 @@ func main() {
 	// Choose a database
 	db := client.Database(runningConfiguration.MongoDatabaseName)
 
-	// 3. Initialize collections & repositories
-	userRepo, err := usermongodb.NewUserRepository(db.Collection("users"))
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	userRepo := mongodbuser.NewMongoUserRepository(db.Collection("users"))
+	listingRepo := mongodblisting.NewMongoListingRepository(db.Collection("listings"))
+	libraryRepo := mongodbuser.NewMongoSavedListingRepository(db.Collection("libraries"))
+	accountRepo := mongodbledger.NewMongoAccountRepository(db.Collection("billing_accounts"))
+	ledgerTransactionRepo := mongodbledger.NewMongoLedgerTransactionRepository(db.Collection("ledger_transaction"))
+	settlementRepo := mongodbledger.NewMongoSettlementRepository(db.Collection("settlement"))
+	instanceRepo := mongodbinstance.NewMongoInstanceRentalContractRepository(db.Collection("instances"))
+	hardwareRateRepo := mongodbrates.NewMongoHardwareCostRateRepository(db.Collection("hardware_costs"))
+	githubSetupRepo := mongodblisting.NewMongoGitHubSetupRepository(db.Collection("github_setups"))
 
-	listingRepo := listingmongodb.NewListingRepository(db.Collection("listings"))
-
-	libraryRepo, err := librarymongodb.NewSavedListingRepository(db.Collection("libraries"))
-	if err != nil {
-		fmt.Println(err)
-		return
+	repositories := []interface {
+		EnsureIndexes(ctx context.Context) error
+	}{
+		userRepo,
+		listingRepo,
+		libraryRepo,
+		accountRepo,
+		ledgerTransactionRepo,
+		settlementRepo,
+		instanceRepo,
+		hardwareRateRepo,
+		githubSetupRepo,
 	}
-	accountRepo := accountmongodb.NewBillingAccountRepository(db.Collection("billing_accounts"))
-	paymentRepo := paymentmongodb.NewPaymentRepository(db.Collection("payments"), db.Collection("one_time_paymens"), db.Collection("subscription_payments"))
-	instanceRepo := instancemongodb.NewMongoInstanceRepository(db.Collection("instances"), time.Second*5)
-	//currencyRepo := currencymongodb.NewCurrencyRepository(db.Collection("currencies"))
-	hardwareRateRepo := ratesmongodb.NewHardwareCostRepository(db.Collection("hardware_costs"))
-	githubSetupRepo := mongogithubsetups.NewMongoGitHubSetupRepository(db.Collection("github_setups"))
+	for _, repo := range repositories {
+		if err = repo.EnsureIndexes(ctx); err != nil {
+			fmt.Println(err)
+		}
+	}
 
 	userService := user.NewUserService(userRepo)
 	userAuthentificationService := auth.NewAuthenticationService(userService)

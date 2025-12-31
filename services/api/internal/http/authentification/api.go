@@ -23,6 +23,17 @@ type UserAuthentificationAPI struct {
 	userAuthentificationService userAuthentificationService
 }
 
+// NewUserAuthentificationAPI constructs a UserAuthentificationAPI with required dependencies.
+func NewUserAuthentificationAPI(
+	runningConfiguration UserAuthentificationAPIConfiguration,
+	userAuthentificationService userAuthentificationService,
+) *UserAuthentificationAPI {
+	return &UserAuthentificationAPI{
+		runningConfiguration:        runningConfiguration,
+		userAuthentificationService: userAuthentificationService,
+	}
+}
+
 // LoginRequest defines the expected login payload
 type LoginRequest struct {
 	Username string `json:"username"`

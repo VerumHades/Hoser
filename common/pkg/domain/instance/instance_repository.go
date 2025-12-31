@@ -30,8 +30,7 @@ type InstanceRentalContractCommandRepository interface {
 // / InstanceRentalContractCursor represents a stable pagination position
 // / for iterating over instance rental contracts.
 type InstanceRentalContractCursor struct {
-	LastCreatedAt  time.Time
-	LastContractID shared.InstanceRentalContractID
+	LastCreatedAt time.Time
 }
 
 // InstanceRentalContractQueryRepository defines read-only operations for rental contracts.

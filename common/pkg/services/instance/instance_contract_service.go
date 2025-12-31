@@ -96,7 +96,7 @@ func (service *InstanceContractService) ChangeContractHardwareSpecification(
 	hardwareSpecification *shared.HardwareSpecification,
 ) error {
 	return service.withContract(ctx, contractID, func(ctx context.Context, contract *instance.InstanceRentalContract) error {
-		return shared.WithTransaction(ctx, service.transactionProvider, func(transaction shared.Transaction) error {
+		return shared.WithTransaction(ctx, service.transactionProvider, func(ctx context.Context, transaction shared.Transaction) error {
 			if err := service.paymentService.CreateContractRefundLedgerTransaction(ctx, contract, transaction); err != nil {
 				return err
 			}

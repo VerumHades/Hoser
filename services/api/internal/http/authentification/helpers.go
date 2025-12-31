@@ -1,4 +1,4 @@
-package authentification
+package apiauthentification
 
 import (
 	"common/pkg/shared"

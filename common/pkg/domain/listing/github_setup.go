@@ -19,7 +19,7 @@ type GitHubSetupDefinition struct {
 // NewGitHubSetup creates a new setup with a generated ID and timestamps.
 func NewGitHubSetup(listingID shared.ListingID, repoURL string, accessToken string) (*GitHubSetupDefinition, error) {
 	id := shared.SetupID(shared.GenerateUUID())
-	now := time.Now().UTC()
+	now := time.Now()
 	return NewGitHubSetupWithID(id, listingID, repoURL, accessToken, now, now)
 }
 

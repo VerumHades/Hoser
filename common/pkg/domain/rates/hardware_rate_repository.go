@@ -29,7 +29,6 @@ type HardwareCostCommandRepository interface {
 // / for iterating over hardware cost rates.
 type HardwareCostRateCursor struct {
 	LastEffectiveDate time.Time
-	LastRateID        shared.HardwareCostRateID
 }
 
 // HardwareCostQueryRepository defines read-only operations for hardware cost rates.

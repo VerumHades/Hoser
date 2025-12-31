@@ -22,21 +22,23 @@ type HardwareCostRate struct {
 	resource    HardwareResourceType
 	costInCents int64     // cost in minor units
 	validFrom   time.Time // when this rate became effective
+	createdAt   time.Time // timestamp of creation
 }
 
-// NewHardwareCostRate creates a new hardware cost rate with a generated ID.
+// NewHardwareCostRate creates a new hardware cost rate with a generated ID and current timestamp.
 func NewHardwareCostRate(resource HardwareResourceType, costInCents int64, validFrom time.Time) (*HardwareCostRate, error) {
 	id := shared.HardwareCostRateID(shared.GenerateUUID())
-	return NewHardwareCostRateWithID(id, resource, costInCents, validFrom)
+	return NewHardwareCostRateWithID(id, resource, costInCents, validFrom, time.Now())
 }
 
-// NewHardwareCostRateWithID creates a rate with an existing ID (for repository hydration).
-func NewHardwareCostRateWithID(id shared.HardwareCostRateID, resource HardwareResourceType, costInCents int64, validFrom time.Time) (*HardwareCostRate, error) {
+// NewHardwareCostRateWithID creates a rate with an existing ID and creation timestamp (for repository hydration).
+func NewHardwareCostRateWithID(id shared.HardwareCostRateID, resource HardwareResourceType, costInCents int64, validFrom, createdAt time.Time) (*HardwareCostRate, error) {
 	rate := &HardwareCostRate{
 		id:          id,
 		resource:    resource,
 		costInCents: costInCents,
 		validFrom:   validFrom,
+		createdAt:   createdAt,
 	}
 	if err := rate.Validate(); err != nil {
 		return nil, err
@@ -64,6 +66,11 @@ func (h *HardwareCostRate) ValidFrom() time.Time {
 	return h.validFrom
 }
 
+// CreatedAt returns the timestamp when the rate was created.
+func (h *HardwareCostRate) CreatedAt() time.Time {
+	return h.createdAt
+}
+
 // Validate ensures the hardware cost rate is valid.
 func (h *HardwareCostRate) Validate() error {
 	if h.id == "" {
@@ -80,6 +87,9 @@ func (h *HardwareCostRate) Validate() error {
 	}
 	if h.validFrom.IsZero() {
 		return errors.New("validFrom cannot be zero")
+	}
+	if h.createdAt.IsZero() {
+		return errors.New("createdAt cannot be zero")
 	}
 	return nil
 }

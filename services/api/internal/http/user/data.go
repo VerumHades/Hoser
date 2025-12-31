@@ -1,4 +1,4 @@
-package user
+package userapi
 
 import (
 	"api/internal/http/authentification"
@@ -16,6 +16,15 @@ type userQueryService interface {
 
 type UserProfileAPI struct {
 	userQueryService userQueryService
+}
+
+// NewUserProfileAPI constructs a UserProfileAPI.
+func NewUserProfileAPI(
+	userQueryService userQueryService,
+) *UserProfileAPI {
+	return &UserProfileAPI{
+		userQueryService: userQueryService,
+	}
 }
 
 func (api *UserProfileAPI) RegisterRoutes(group *echo.Group) {
