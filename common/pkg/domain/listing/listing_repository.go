@@ -34,7 +34,6 @@ type ListingCommandRepository interface {
 // / for iterating over listings.
 type ListingCursor struct {
 	LastCreatedAt time.Time
-	LastListingID shared.ListingID
 }
 
 // ListingQueryRepository defines read-only operations for listings.
@@ -42,6 +41,12 @@ type ListingQueryRepository interface {
 	GetByID(
 		ctx context.Context,
 		listingID shared.ListingID,
+	) (*Listing, error)
+
+	GetByIDAndAuthor(
+		ctx context.Context,
+		listingID shared.ListingID,
+		userID shared.UserID,
 	) (*Listing, error)
 
 	Exists(

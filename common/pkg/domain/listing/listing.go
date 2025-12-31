@@ -2,6 +2,8 @@ package listing
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	"common/pkg/shared"
 )
@@ -26,16 +28,17 @@ type Listing struct {
 	accessMode            ListingAccessMode
 	hardwareSpecification *shared.HardwareSpecification
 	priceInMinorUnits     int64
+	createdAt             time.Time
 }
 
-// NewListing creates a new listing with a generated ID.
+// NewListing creates a new listing with a generated ID and current timestamp.
 func NewListing(authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price int64) (*Listing, error) {
 	id := shared.ListingID(shared.GenerateUUID())
-	return NewListingWithID(id, authorID, title, description, accessMode, hardwareSpec, price)
+	return NewListingWithID(id, authorID, title, description, accessMode, hardwareSpec, price, time.Now())
 }
 
-// NewListingWithID creates a listing with an existing ID (for repository hydration).
-func NewListingWithID(id shared.ListingID, authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price int64) (*Listing, error) {
+// NewListingWithID creates a listing with an existing ID and specified creation time.
+func NewListingWithID(id shared.ListingID, authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price int64, createdAt time.Time) (*Listing, error) {
 	listing := &Listing{
 		id:                    id,
 		authorID:              authorID,
@@ -44,11 +47,17 @@ func NewListingWithID(id shared.ListingID, authorID shared.UserID, title, descri
 		accessMode:            accessMode,
 		hardwareSpecification: hardwareSpec,
 		priceInMinorUnits:     price,
+		createdAt:             createdAt,
 	}
 	if err := listing.Validate(); err != nil {
 		return nil, err
 	}
 	return listing, nil
+}
+
+// CreatedAt returns the listing creation timestamp.
+func (l *Listing) CreatedAt() time.Time {
+	return l.createdAt
 }
 
 // ID returns the listing's unique identifier.
@@ -86,28 +95,35 @@ func (l *Listing) PriceInMinorUnits() int64 {
 	return l.priceInMinorUnits
 }
 
-// SetTitle updates the listing's title.
 func (l *Listing) SetTitle(title string) error {
 	if title == "" {
-		return errors.New("title cannot be empty")
+		return fmt.Errorf("title cannot be empty")
 	}
 	l.title = title
 	return nil
 }
 
-// SetDescription updates the listing description.
-func (l *Listing) SetDescription(description string) {
+func (l *Listing) SetDescription(description string) error {
 	l.description = description
+	return nil
 }
 
-// SetAccessMode updates the listing's access mode.
-func (l *Listing) SetAccessMode(mode ListingAccessMode) {
-	l.accessMode = mode
+func (l *Listing) SetHardware(hardware *shared.HardwareSpecification) error {
+	l.hardwareSpecification = hardware
+	return nil
 }
 
-// SetPrice updates the listing's price.
-func (l *Listing) SetPrice(price int64) {
+func (l *Listing) SetPriceInMinorUnits(price int64) error {
+	if price < 0 {
+		return fmt.Errorf("price cannot be negative")
+	}
 	l.priceInMinorUnits = price
+	return nil
+}
+
+func (l *Listing) SetAccessMode(mode ListingAccessMode) error {
+	l.accessMode = mode
+	return nil
 }
 
 // Validate ensures the listing is in a valid state.
@@ -122,10 +138,13 @@ func (l *Listing) Validate() error {
 		return errors.New("title cannot be empty")
 	}
 	if l.hardwareSpecification == nil {
-		return errors.New("shared specification cannot be nil")
+		return errors.New("hardware specification cannot be nil")
 	}
-	if l.priceInMinorUnits > 0 {
+	if l.priceInMinorUnits < 0 {
 		return errors.New("price cannot be negative")
+	}
+	if l.createdAt.IsZero() {
+		return errors.New("createdAt cannot be zero")
 	}
 	return nil
 }

@@ -1,7 +1,8 @@
-package developer
+package developerapi
 
 import (
 	"api/internal/http/authentification"
+	"api/pkg/util"
 	"common/pkg/domain/listing"
 	"common/pkg/shared"
 	"context"
@@ -11,21 +12,42 @@ import (
 )
 
 type listingService interface {
-	CreateListing(ctx context.Context, l *listing.Listing) (*listing.Listing, error)
+	CreateListing(ctx context.Context, l *listing.Listing) error
 	UpdateListing(
 		ctx context.Context,
 		listingID shared.ListingID,
 		updateFunc func(l *listing.Listing) error,
-	) (*listing.Listing, error)
+	) (l *listing.Listing, err error)
 	DeleteListing(ctx context.Context, listingID shared.ListingID) error
 
-	ListByAuthor(ctx context.Context, authorID string) ([]*listing.Listing, error)
-	GetOwnedListing(ctx context.Context, authorID string, listingID string) (*listing.Listing, error)
+	FetchNextBatchByAuthor(
+		ctx context.Context,
+		authorID shared.UserID,
+		request shared.BatchRequest[listing.ListingCursor],
+	) (listings []*listing.Listing, nextCursor listing.ListingCursor, err error)
+
+	GetOwnedListing(ctx context.Context, listingID shared.ListingID, userID shared.UserID) (*listing.Listing, error)
+}
+
+type userService interface {
+	IsUserDeveloper(ctx context.Context, userID shared.UserID) (bool, error)
 }
 
 // DeveloperListingAPI is the API layer for developer-specific listing endpoints
 type DeveloperListingAPI struct {
 	listingService listingService
+	userService    userService
+}
+
+// NewDeveloperListingAPI constructs a DeveloperListingAPI with required dependencies.
+func NewDeveloperListingAPI(
+	listingService listingService,
+	userService userService,
+) *DeveloperListingAPI {
+	return &DeveloperListingAPI{
+		listingService: listingService,
+		userService:    userService,
+	}
 }
 
 // --------------------
@@ -67,7 +89,7 @@ type AddListingRequest struct {
 }
 
 type UpdateListingRequest struct {
-	ID          string                        `json:"id"`
+	ID          shared.ListingID              `json:"id"`
 	Title       *string                       `json:"title,omitempty"`
 	Description *string                       `json:"description,omitempty"`
 	Hardware    *shared.HardwareSpecification `json:"hardware,omitempty"`
@@ -102,18 +124,18 @@ func DeveloperToPublicListing(dev ApiDeveloperListing) ApiPublicListing {
 // --------------------
 
 func (api *DeveloperListingAPI) ListListingsHandler(userID shared.UserID, c echo.Context) error {
-	ctx := c.Request().Context()
-	dbListings, err := api.listingService.ListByAuthor(ctx, userID)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
-	}
-
-	listings := make([]ApiDeveloperListing, len(dbListings))
-	for i, l := range dbListings {
-		listings[i] = MakeApiDeveloperListing(l)
-	}
-
-	return c.JSON(http.StatusOK, listings)
+	return util.HandleBatchRequest(
+		c,
+		func(
+			ctx context.Context,
+			request shared.BatchRequest[listing.ListingCursor],
+		) (items []*listing.Listing, nextCursor listing.ListingCursor, err error) {
+			return api.listingService.FetchNextBatchByAuthor(ctx, userID, request)
+		},
+		func(elements []*listing.Listing) (views []ApiDeveloperListing) {
+			return util.MapList(elements, MakeApiDeveloperListing)
+		},
+	)
 }
 
 func (api *DeveloperListingAPI) GetListingHandler(userID shared.UserID, c echo.Context) error {
@@ -123,7 +145,7 @@ func (api *DeveloperListingAPI) GetListingHandler(userID shared.UserID, c echo.C
 		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
 	}
 
-	l, err := api.listingService.GetOwnedListing(ctx, userID, listingID)
+	l, err := api.listingService.GetOwnedListing(ctx, shared.ListingID(listingID), userID)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "Listing not found")
 	}
@@ -138,19 +160,13 @@ func (api *DeveloperListingAPI) AddListingHandler(userID shared.UserID, c echo.C
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	newListing := &listing.Listing{
-		Title:       req.Title,
-		Description: req.Description,
-		AuthorID:    userID,
-		AccessMode:  listing.Private,
-	}
+	newListing, err := listing.NewListing(userID, req.Title, req.Description, listing.Private, &shared.HardwareSpecification{}, 0)
 
-	created, err := api.listingService.CreateListing(ctx, newListing)
-	if err != nil {
+	if err = api.listingService.CreateListing(ctx, newListing); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create listing")
 	}
 
-	return c.JSON(http.StatusOK, MakeApiDeveloperListing(created))
+	return c.JSON(http.StatusOK, MakeApiDeveloperListing(newListing))
 }
 
 func (api *DeveloperListingAPI) UpdateListingHandler(userID shared.UserID, c echo.Context) error {
@@ -162,20 +178,21 @@ func (api *DeveloperListingAPI) UpdateListingHandler(userID shared.UserID, c ech
 
 	updated, err := api.listingService.UpdateListing(ctx, req.ID, func(l *listing.Listing) error {
 		if req.Title != nil {
-			l.Title = *req.Title
+			l.SetTitle(*req.Title)
 		}
 		if req.Description != nil {
-			l.Description = *req.Description
+			l.SetDescription(*req.Description)
 		}
 		if req.Hardware != nil {
-			l.HardwareSpecification = req.Hardware
+			l.SetHardware(req.Hardware)
 		}
 		if req.Price != nil {
-			l.Price = *req.Price
+			l.SetPriceInMinorUnits(*req.Price)
 		}
 		if req.AccessMode != nil {
-			l.AccessMode = *req.AccessMode
+			l.SetAccessMode(*req.AccessMode)
 		}
+
 		return nil
 	})
 	if err != nil {

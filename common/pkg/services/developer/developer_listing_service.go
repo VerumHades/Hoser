@@ -43,13 +43,13 @@ func (s *DeveloperListingService) CreateListing(ctx context.Context, listing *li
 }
 
 // UpdateListing updates a listing and reindexes it.
-func (s *DeveloperListingService) UpdateListing(ctx context.Context, listingID shared.ListingID, updateFunction func(listing *listing.Listing) error) error {
+func (s *DeveloperListingService) UpdateListing(ctx context.Context, listingID shared.ListingID, updateFunction func(listing *listing.Listing) error) (*listing.Listing, error) {
 	existingListing, err := util.GetExistingEntity(ctx, listingID, s.listingQueryRepository)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return shared.WithTransaction(ctx, s.transactionProvider, func(transaction shared.Transaction) error {
+	err = shared.WithTransaction(ctx, s.transactionProvider, func(ctx context.Context, transaction shared.Transaction) error {
 		if err := updateFunction(existingListing); err != nil {
 			return err
 		}
@@ -64,6 +64,12 @@ func (s *DeveloperListingService) UpdateListing(ctx context.Context, listingID s
 
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return existingListing, nil
 }
 
 // DeleteListing removes a listing and deletes it from the search index.
@@ -73,4 +79,16 @@ func (s *DeveloperListingService) DeleteListing(ctx context.Context, listingID s
 		return err
 	}
 	return s.searchIndex.Remove(ctx, listingID)
+}
+
+func (s *DeveloperListingService) GetOwnedListing(ctx context.Context, listingID shared.ListingID, userID shared.UserID) (*listing.Listing, error) {
+	return s.listingQueryRepository.GetByIDAndAuthor(ctx, listingID, userID)
+}
+
+func (s *DeveloperListingService) FetchNextBatchByAuthor(
+	ctx context.Context,
+	authorID shared.UserID,
+	request shared.BatchRequest[listing.ListingCursor],
+) (listings []*listing.Listing, nextCursor listing.ListingCursor, err error) {
+	return s.listingQueryRepository.FetchNextBatchByAuthor(ctx, authorID, request)
 }

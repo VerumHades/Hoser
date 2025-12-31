@@ -1,87 +1,180 @@
-package developer
+package developerapi
 
 import (
-	"fmt"
+	"api/internal/http/authentification"
+	"context"
 	"net/http"
+
+	"common/pkg/shared"
 
 	"github.com/labstack/echo/v4"
 )
 
-// =================== GITHUB SETUP HANDLERS ===================
+// --------------------
+// Services
+// --------------------
 
-type GithubSetupResponse struct {
-	RepoURL     string `json:"repoUrl"`
-	AccessToken string `json:"accessToken,omitempty"` // optional, maybe masked
+type listingSetupService interface {
+	GetPrivateSetupForOwnedListing(
+		ctx context.Context,
+		userID shared.UserID,
+		listingID shared.ListingID,
+	) (*ListingGithubSetup, error)
+
+	AttachOrUpdateSetup(
+		ctx context.Context,
+		userID shared.UserID,
+		listingID shared.ListingID,
+		repositoryURL string,
+		accessToken string,
+	) (*ListingGithubSetup, error)
+
+	RemoveSetup(
+		ctx context.Context,
+		userID shared.UserID,
+		listingID shared.ListingID,
+	) error
 }
 
-// DeveloperGetSetupHandler returns the GitHub setup for a listing owned by the user
-func (app *App) DeveloperGetSetupHandler(c echo.Context) error {
-	userID, err := app.GetUserIDFromContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
+// --------------------
+// API
+// --------------------
 
-	listingID := c.Param("listingId")
+type DeveloperListingSetupAPI struct {
+	listingSetupService listingSetupService
+}
+
+func NewDeveloperListingSetupAPI(
+	listingSetupService listingSetupService,
+) *DeveloperListingSetupAPI {
+	return &DeveloperListingSetupAPI{
+		listingSetupService: listingSetupService,
+	}
+}
+
+// --------------------
+// Route registration
+// --------------------
+
+func (api *DeveloperListingSetupAPI) RegisterRoutes(group *echo.Group) {
+	group.GET(
+		"/listings/:id/setup/github",
+		authentification.WithAuthenticatedUser(api.GetGithubSetupHandler),
+	)
+	group.PUT(
+		"/listings/:id/setup/github",
+		authentification.WithAuthenticatedUser(api.AttachOrUpdateGithubSetupHandler),
+	)
+	group.DELETE(
+		"/listings/:id/setup/github",
+		authentification.WithAuthenticatedUser(api.RemoveGithubSetupHandler),
+	)
+}
+
+// --------------------
+// DTOs
+// --------------------
+
+type GithubSetupResponse struct {
+	RepositoryURL string `json:"repoUrl"`
+}
+
+type AttachOrUpdateGithubSetupRequest struct {
+	RepositoryURL string `json:"repoUrl"`
+	AccessToken   string `json:"accessToken"`
+}
+
+// --------------------
+// Domain projection
+// --------------------
+
+type ListingGithubSetup struct {
+	RepositoryURL string
+}
+
+// --------------------
+// Handlers
+// --------------------
+
+func (api *DeveloperListingSetupAPI) GetGithubSetupHandler(
+	userID shared.UserID,
+	c echo.Context,
+) error {
+	ctx := c.Request().Context()
+	listingID := shared.ListingID(c.Param("id"))
 	if listingID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
 	}
 
-	setup, err := app.ListingService.GetSetupForListingPrivate(userID, listingID)
+	setup, err := api.listingSetupService.GetPrivateSetupForOwnedListing(
+		ctx,
+		userID,
+		listingID,
+	)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, "GitHub setup not found")
 	}
 
-	// Only expose safe fields
-	response := GithubSetupResponse{
-		RepoURL:     setup.RepoURL,
-		AccessToken: "", // never send the raw token
-	}
-
-	return c.JSON(http.StatusOK, response)
+	return c.JSON(
+		http.StatusOK,
+		GithubSetupResponse{
+			RepositoryURL: setup.RepositoryURL,
+		},
+	)
 }
 
-// AttachOrUpdateSetupHandler attaches or updates a GitHub setup for a listing
-func (app *App) DeveloperAttachOrUpdateSetupHandler(c echo.Context) error {
-	userID, err := app.GetUserIDFromContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
-
-	listingID := c.Param("listingId")
+func (api *DeveloperListingSetupAPI) AttachOrUpdateGithubSetupHandler(
+	userID shared.UserID,
+	c echo.Context,
+) error {
+	ctx := c.Request().Context()
+	listingID := shared.ListingID(c.Param("id"))
 	if listingID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
 	}
 
-	var req struct {
-		RepoURL     string `json:"repoUrl"`
-		AccessToken string `json:"accessToken"`
-	}
-	if err := c.Bind(&req); err != nil {
+	var request AttachOrUpdateGithubSetupRequest
+	if err := c.Bind(&request); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	setup, err := app.ListingService.AttachOrUpdateSetup(userID, listingID, req.RepoURL, req.AccessToken)
+	setup, err := api.listingSetupService.AttachOrUpdateSetup(
+		ctx,
+		userID,
+		listingID,
+		request.RepositoryURL,
+		request.AccessToken,
+	)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to attach/update setup %s", err))
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			"Failed to attach or update GitHub setup",
+		)
 	}
 
-	return c.JSON(http.StatusOK, setup)
+	return c.JSON(
+		http.StatusOK,
+		GithubSetupResponse{
+			RepositoryURL: setup.RepositoryURL,
+		},
+	)
 }
 
-// RemoveSetupHandler removes the GitHub setup for a listing
-func (app *App) DeveloperRemoveSetupHandler(c echo.Context) error {
-	userID, err := app.GetUserIDFromContext(c)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized)
-	}
-
-	listingID := c.Param("listingId")
+func (api *DeveloperListingSetupAPI) RemoveGithubSetupHandler(
+	userID shared.UserID,
+	c echo.Context,
+) error {
+	ctx := c.Request().Context()
+	listingID := shared.ListingID(c.Param("id"))
 	if listingID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
 	}
 
-	if err := app.ListingService.RemoveSetup(userID, listingID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove setup")
+	if err := api.listingSetupService.RemoveSetup(ctx, userID, listingID); err != nil {
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			"Failed to remove GitHub setup",
+		)
 	}
 
 	return c.NoContent(http.StatusNoContent)

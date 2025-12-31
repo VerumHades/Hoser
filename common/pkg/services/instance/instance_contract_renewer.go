@@ -53,7 +53,7 @@ func (r *InstanceContractRenewer) tick(ctx context.Context) error {
 	}
 
 	for contract := range util.GenerateInBatches(ctx, 100, fetchNextBatch) {
-		if err := shared.WithTransaction(ctx, r.transactionProvider, func(transaction shared.Transaction) error {
+		if err := shared.WithTransaction(ctx, r.transactionProvider, func(ctx context.Context, transaction shared.Transaction) error {
 			contract.Cancel(time.Now())
 
 			if err := r.contractCommandRepository.Update(ctx, transaction, contract); err != nil {

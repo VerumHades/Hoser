@@ -41,7 +41,6 @@ type GitHubSetupCommandRepository interface {
 // / for iterating over GitHub setups.
 type GitHubSetupCursor struct {
 	LastCreatedAt time.Time
-	LastSetupID   shared.SetupID
 }
 
 // GitHubSetupQueryRepository defines read-only operations for GitHub setups.

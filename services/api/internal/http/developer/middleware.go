@@ -1,6 +1,7 @@
-package developer
+package developerapi
 
 import (
+	"common/pkg/shared"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -11,13 +12,14 @@ func (api *DeveloperListingAPI) DeveloperCheckMiddleware(next echo.HandlerFunc) 
 	return func(context echo.Context) error {
 		// Retrieve authenticated user ID from context
 		userIDValue := context.Get("user_id")
-		userID, ok := userIDValue.(string)
+		userID, ok := userIDValue.(shared.UserID)
 		if !ok || userID == "" {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Missing authenticated user")
 		}
 
+		ctx := context.Request().Context()
 		// Check if the user has developer privileges
-		isDeveloper, err := api.UserService.IsUserDeveloper(userID)
+		isDeveloper, err := api.userService.IsUserDeveloper(ctx, userID)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to verify user role")
 		}

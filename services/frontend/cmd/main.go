@@ -1,7 +1,7 @@
 package main
 
 import (
-	"common/infra/configuration"
+	"common/pkg/infrastructure/configuration"
 	"fmt"
 	"log"
 	"os"
