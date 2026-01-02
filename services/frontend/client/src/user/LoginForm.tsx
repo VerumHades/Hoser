@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { toast, Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
-import backend_constants from "../backend_constants";
+import backend_constants from "../backend/constants";
 import { useUserSession } from "../components/restriction/UserSession";
 
 export default function LoginForm() {

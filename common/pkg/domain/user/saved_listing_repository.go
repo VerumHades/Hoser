@@ -36,6 +36,12 @@ type SavedListingQueryRepository interface {
 		itemID shared.SavedListingID,
 	) (*SavedListing, error)
 
+	GetByUserAndListing(
+		ctx context.Context,
+		userID shared.UserID,
+		listingID shared.ListingID,
+	) (*SavedListing, error)
+
 	ExistsByUserAndListing(
 		ctx context.Context,
 		userID shared.UserID,

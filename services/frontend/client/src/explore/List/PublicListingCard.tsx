@@ -1,6 +1,4 @@
 import React from "react";
-import { type Listing } from "../../backend";
-
 interface PublicListingCardProps {
     listing: Listing;
     onSelect?: () => void;

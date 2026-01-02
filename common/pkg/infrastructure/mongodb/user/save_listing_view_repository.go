@@ -38,16 +38,23 @@ func (repo *MongoUserSavedListingViewRepository) FetchNextBatchOfUserSavedListin
 	request shared.BatchRequest[user.UserSavedListingViewCursor],
 ) ([]*user.UserSavedListingView, user.UserSavedListingViewCursor, error) {
 
+	matchFilter := bson.M{
+		"user_id": userID,
+	}
+
+	if !request.Cursor.LastCreatedAt.IsZero() {
+		matchFilter["createdAt"] = bson.M{
+			"$gt": request.Cursor.LastCreatedAt,
+		}
+	}
+
 	pipeline := mongo.Pipeline{
 		// Match saved listings for the user after the cursor
-		{{Key: "$match", Value: bson.M{
-			"userID":    userID,
-			"createdAt": bson.M{"$gt": request.Cursor.LastCreatedAt},
-		}}},
+		{{Key: "$match", Value: matchFilter}},
 		// Join with listings collection
 		{{Key: "$lookup", Value: bson.M{
 			"from":         repo.listingCollection.Name(),
-			"localField":   "listingID",
+			"localField":   "listing_id",
 			"foreignField": "_id",
 			"as":           "listing",
 		}}},
@@ -59,11 +66,11 @@ func (repo *MongoUserSavedListingViewRepository) FetchNextBatchOfUserSavedListin
 		{{Key: "$limit", Value: int64(request.MaxBatchSize)}},
 		// Project into the DTO shape
 		{{Key: "$project", Value: bson.M{
-			"savedListingID": "$_id",
-			"listingID":      "$listingID",
-			"title":          "$listing.title",
-			"description":    "$listing.description",
-			"createdAt":      "$createdAt",
+			"SavedListingID": "$_id",
+			"ListingID":      "$listing._id",
+			"Title":          "$listing.title",
+			"Description":    "$listing.description",
+			"CreatedAt":      "$createdAt",
 		}}},
 	}
 

@@ -1,8 +1,8 @@
 // src/components/listings/DeveloperListingLoader.tsx
 import { useEffect, useState } from "react"
-import { API, type DeveloperListing } from "../../backend"
-import DeveloperListingDisplay from "./DeveloperListing"
+import DeveloperListingEditor from "./DeveloperListingEditor"
 import { useParams } from "react-router-dom"
+import { DeveloperListingAPI, type DeveloperListing } from "../../backend/repositories/developer_listing"
 
 interface DeveloperListingLoaderProps {
     onClose?: () => void
@@ -33,9 +33,8 @@ export default function DeveloperListingLoader({
             setLoading(true)
             setError(null)
             try {
-                const response = await API.developer.listing.get(listingId)
-                if (!response.ok) throw new Error("Failed to fetch listing")
-                if (isMounted) setListing(response.json)
+                const response = await DeveloperListingAPI.get(listingId)
+                if (isMounted) setListing(response)
             } catch (err) {
                 if (isMounted) setError((err as Error).message || "Unknown error")
             } finally {
@@ -82,5 +81,5 @@ export default function DeveloperListingLoader({
         )
     }
 
-    return <DeveloperListingDisplay listing={listing} onShouldClose={onClose} />
+    return <DeveloperListingEditor listing={listing} onShouldClose={onClose} />
 }

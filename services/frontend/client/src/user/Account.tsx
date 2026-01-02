@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { BarChart3, Images, Library, User as UserIcon, Wallet, Menu, AppWindow } from "lucide-react";
-import backend_constants from "../backend_constants";
+import backend_constants from "../backend/constants";
 import RequireLogin from "../components/restriction/RequireLogin";
 import { useUserSession } from "../components/restriction/UserSession";
 
 import UserLibrary from "./library/Library";
 import DeveloperListings from "./developer/DeveloperListings";
-import UserBilling from "./billing/UserAccounts";
 import Logo from "../components/prefabs/Logo";
 import CreateInstance from "./library/CreateInstance";
 import UserInstances from "./instances/UserInstances";
@@ -71,7 +70,6 @@ const AccountPage: React.FC = () => {
                         <NavLink to="/dashboard/info" icon={<UserIcon />} label="Account Info" onClick={() => setIsSidebarOpen(false)} />
                         <NavLink to="/dashboard/library" icon={<Library />} label="My Library" onClick={() => setIsSidebarOpen(false)} />
                         <NavLink to="/dashboard/instances" icon={<AppWindow />} label="My Instances" onClick={() => setIsSidebarOpen(false)} />
-                        <NavLink to="/dashboard/billing" icon={<Wallet />} label="Billing" onClick={() => setIsSidebarOpen(false)} />
                         {session.user?.isDeveloper && (
                             <>
                                 <NavLink to="/dashboard/listings" icon={<Images />} label="Listings" onClick={() => setIsSidebarOpen(false)} />
@@ -100,7 +98,6 @@ const AccountPage: React.FC = () => {
                         <Route path="create-instance/:listingId" element={<CreateInstance />} />
                         <Route path="instances" element={<UserInstances />} />
                         <Route path="developer/listing/:id" element={<DeveloperListingLoader />} />
-                        <Route path="billing/*" element={<UserBilling />} />
                         {session.user?.isDeveloper && (
                             <>
                                 <Route path="listings" element={<DeveloperListings />} />

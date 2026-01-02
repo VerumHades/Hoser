@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import { createContext, useContext, useState } from "react";
 
 import { NavLink } from "react-router-dom";
-import { API, type User } from "../../backend";
+import { UserAPI, type User } from "../../backend/repositories/user";
 
 interface UserSessionType {
     user: User | undefined,
@@ -21,7 +21,7 @@ export function UserSession({ children }: UserSessionProps) {
 
     const refreshUser = () => {
         async function fetchUser() {
-            const u = await API.user.getData();
+            const u = await UserAPI.getData();
             setUser(u);
         }
         fetchUser();

@@ -138,6 +138,28 @@ func (repo *MongoSavedListingRepository) GetByID(
 	return mapSavedListingDocumentToEntity(&document)
 }
 
+func (repo *MongoSavedListingRepository) GetByUserAndListing(
+	ctx context.Context,
+	userID shared.UserID,
+	listingID shared.ListingID,
+) (*user.SavedListing, error) {
+	var document savedListingDocument
+
+	err := repo.collection.FindOne(
+		ctx,
+		bson.M{"listing_id": listingID, "user_id": userID},
+	).Decode(&document)
+
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, shared.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return mapSavedListingDocumentToEntity(&document)
+}
+
 func (repo *MongoSavedListingRepository) ExistsByUserAndListing(
 	ctx context.Context,
 	userID shared.UserID,

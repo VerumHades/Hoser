@@ -1,6 +1,6 @@
 import React from "react";
 import SelectBox from "../../components/input/SelectBox";
-import { ListingAccessModes } from "../../backend";
+import { ListingAccessModes } from "../../backend/types";
 
 interface VisibilitySettingsProps {
     accessMode: number;
