@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react"
-import { API, type ApiInstance } from "../../backend"
 import { CollectionViewContainer } from "../../components/view/CollectionViewContainer"
 import TableRow from "../../components/table/TableRow"
 import { UserInstanceRow } from "./UserInstanceRow"

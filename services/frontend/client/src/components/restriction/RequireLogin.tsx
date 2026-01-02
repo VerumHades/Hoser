@@ -1,8 +1,8 @@
 // src/components/RequireLogin.tsx
 import React from "react";
 import { NavLink } from "react-router-dom";
-import type { User } from "../../backend";
 import { useUserSession } from "./UserSession";
+import type { User } from "../../backend/repositories/user";
 
 interface RequireLoginProps {
     children: React.ReactNode;

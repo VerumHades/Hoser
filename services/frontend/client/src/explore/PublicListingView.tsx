@@ -1,8 +1,9 @@
 import { useEffect, useState, type JSX } from "react";
 import { useParams, type NavigateFunction } from "react-router-dom";
-import { API, type Listing } from "../backend";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
 import { BookmarkPlus, BookmarkCheck } from "lucide-react";
+import { ListingAPI, type Listing } from "../backend/repositories/listing";
+import { UserAPI } from "../backend/repositories/user";
 
 export function gotoListing(
     navigate: NavigateFunction,
@@ -30,18 +31,15 @@ export function PublicListingView(): JSX.Element {
                 return;
             }
 
-            const result = await API.listing.get(listingID);
-            if (result.ok) {
-                setListing(result.json);
+            try {
+                const result = await ListingAPI.get(listingID);
+                setListing(result);
 
-                // Check if the listing is in the user's library
-                const libraryResult = await API.user.library.check(listingID);
-                console.log(libraryResult)
-                if (libraryResult.ok) {
-                    setIsSaved(libraryResult.json.hasListing);
-                }
-            } else {
-                setHasError(true);
+                const libraryResult = await UserAPI.library.check(listingID);
+                setIsSaved(libraryResult);
+            }
+            catch (err){
+                setHasError(true)
             }
 
             setIsLoading(false);
@@ -56,10 +54,10 @@ export function PublicListingView(): JSX.Element {
         setIsToggling(true);
         try {
             if (isSaved) {
-                await API.user.library.delete(listing.id);
+                await UserAPI.library.delete(listing.id);
                 setIsSaved(false);
             } else {
-                await API.user.library.add(listing.id);
+                await UserAPI.library.add(listing.id);
                 setIsSaved(true);
             }
         } finally {

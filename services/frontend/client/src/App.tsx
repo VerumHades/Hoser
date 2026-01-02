@@ -6,7 +6,6 @@ import { UserSession } from "./components/restriction/UserSession";
 import AccountPage from "./user/Account";
 import { PublicListingView } from "./explore/PublicListingView";
 import PublicLandingPage from "./explore/PublicLandingPage";
-import { API } from "./backend";
 
 function App() {
     return (

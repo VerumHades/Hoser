@@ -110,15 +110,15 @@ func main() {
 		}
 	}
 
-	/*for i := 0; i < 100000; i++ {
+	/*for i := range 200000 {
 		accessMode := listing.Public
 		if i%2 == 0 {
 			accessMode = listing.Private
 		}
 		listing, _ := listing.NewListing(
 			"30225718-7120-4353-999b-55a1ec8fcd4c",
-			"Test Listing",
-			"Test Description", accessMode, &shared.HardwareSpecification{}, int64(i))
+			fmt.Sprintf("Test Listing %d %d", i, time.Now().Unix()),
+			fmt.Sprintf("Test Description %d %d", i, time.Now().Unix()), accessMode, &shared.HardwareSpecification{}, int64(i))
 
 		listingRepo.Create(ctx, nil, listing)
 	}*/

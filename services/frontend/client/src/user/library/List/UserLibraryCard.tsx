@@ -1,8 +1,8 @@
 import { ExternalLink, Play } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import type { Listing } from "../../../backend"
 import { gotoListing } from "../../../explore/PublicListingView"
 import { UserLibraryItem } from "./UserLibraryItem"
+import type { Listing } from "../../../backend/repositories/listing"
 
 type UserLibraryCardProps = {
     listing: Listing

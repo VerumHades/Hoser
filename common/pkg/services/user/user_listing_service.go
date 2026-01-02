@@ -84,19 +84,14 @@ func (s *UserListingService) FetchNextUserLibraryBatch(
 func (s *UserListingService) RemoveListingFromLibrary(
 	ctx context.Context,
 	userID shared.UserID,
-	itemID shared.SavedListingID,
+	listingID shared.ListingID,
 ) error {
-
-	savedListing, err := s.savedQueryRepository.GetByID(ctx, itemID)
+	savedListing, err := s.savedQueryRepository.GetByUserAndListing(ctx, userID, listingID)
 	if err != nil {
-		return fmt.Errorf("failed to fetch library item %s: %w", itemID, err)
+		return fmt.Errorf("failed to fetch library item %s: %w", listingID, err)
 	}
 
-	if savedListing.UserID() != userID {
-		return fmt.Errorf("library item %s does not belong to user %s", itemID, userID)
-	}
-
-	return s.savedCommandRepository.Delete(ctx, nil, itemID)
+	return s.savedCommandRepository.Delete(ctx, nil, savedListing.ID())
 }
 
 //////////////////////////////

@@ -5,7 +5,9 @@ import HardwareSettings from "./hardware/HardwareSettings";
 import VisibilitySettings from "./VisibilitySettings";
 import PriceSettings from "./prices/PriceSettings";
 import DeleteListingPrompt from "./DeleteListingPrompt";
-import { API, type Money, type DeveloperListing, type HardwareSpecification, type GithubSetup } from "../../backend";
+import { DeveloperListingAPI, type DeveloperListing, type ListingGithubSetup } from "../../backend/repositories/developer_listing";
+import type { HardwareSpecification, ListingAccessMode } from "../../backend/types";
+import toast from "react-hot-toast";
 
 interface DeveloperListingDisplayProps {
     listing: DeveloperListing;
@@ -16,9 +18,9 @@ type ListingAction =
     | { type: "set"; listing: DeveloperListing }
     | { type: "setTitle"; title: string }
     | { type: "setDescription"; description: string }
-    | { type: "setAccessMode"; mode: number }
+    | { type: "setAccessMode"; mode: ListingAccessMode }
     | { type: "setHardware"; hardware: HardwareSpecification }
-    | { type: "setPrice"; currency: Money }
+    | { type: "setPrice"; currency: number }
     | { type: "reset"; backup: DeveloperListing };
 
 function listingReducer(state: DeveloperListing, action: ListingAction): DeveloperListing {
@@ -44,7 +46,7 @@ const Section = React.memo(function Section({ title, description, children }: { 
     );
 });
 
-export default function DeveloperListingDisplay({ listing: sourceListing, onShouldClose }: DeveloperListingDisplayProps) {
+export default function DeveloperListingEditor({ listing: sourceListing, onShouldClose }: DeveloperListingDisplayProps) {
     const [backupListing, setBackupListing] = useState<DeveloperListing>(sourceListing);
     const [listing, dispatch] = useReducer(listingReducer, sourceListing);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -56,19 +58,30 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
     }, [backupListing]);
 
     const saveChanges = useCallback(async () => {
-        const { json, ok } = await API.developer.listing.update(listing);
-        if (!ok) { resetChanges(); return; }
-        dispatch({ type: "reset", backup: json as DeveloperListing });
-        setBackupListing(json as DeveloperListing);
-        setHasUnsavedChanges(false);
+        try {
+            const updated = await DeveloperListingAPI.update(listing);
+
+            dispatch({ type: "reset", backup: updated });
+            setBackupListing(updated);
+            setHasUnsavedChanges(false);
+        }
+        catch(err){
+            toast.error(err+"")
+            resetChanges();
+        }
     }, [listing, resetChanges]);
 
     const deleteListing = useCallback(async () => {
-        if (!(await API.developer.listing.delete(listing.id)).ok) onShouldClose?.();
+        try{
+            await DeveloperListingAPI.delete(listing.id)
+            onShouldClose?.();
+        } catch(err){
+            toast.error(err+"")
+        } 
     }, [listing.id, onShouldClose]);
 
     // ---------------- GitHub Setup ----------------
-    const [setup, setSetup] = useState<GithubSetup | null>(null);
+    const [setup, setSetup] = useState<ListingGithubSetup | null>(null);
     const [loadingSetup, setLoadingSetup] = useState(true);
     const [setupDraft, setSetupDraft] = useState<{ repoUrl: string; accessToken: string }>({ repoUrl: "", accessToken: "" });
 
@@ -76,11 +89,13 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
         let canceled = false;
         async function fetchSetup() {
             setLoadingSetup(true);
-            const { ok, json } = await API.developer.listing.setup.get(listing.id);
-            if (!canceled && ok) {
-                setSetup(json as GithubSetup);
-                console.log(json)
-                setSetupDraft({ repoUrl: json?.repoUrl ?? "", accessToken: json?.accessToken ?? "" });
+            try {
+                const setup = await DeveloperListingAPI.githubSetup.get(listing.id);
+                setSetup(setup);
+                setSetupDraft({ repoUrl: setup?.repoUrl ?? "", accessToken: setup?.accessToken ?? "" });
+            }
+            catch(err){
+                toast.error(err+"")
             }
             setLoadingSetup(false);
         }
@@ -90,16 +105,27 @@ export default function DeveloperListingDisplay({ listing: sourceListing, onShou
 
     const saveSetup = useCallback(async () => {
         setLoadingSetup(true);
-        const { ok, json } = await API.developer.listing.setup.attachOrUpdate(listing.id, setupDraft.repoUrl, setupDraft.accessToken);
-        if (ok) setSetup(json as GithubSetup);
+        try {
+            setSetup(
+                await await DeveloperListingAPI.githubSetup.attachOrUpdate(listing.id, setupDraft.repoUrl, setupDraft.accessToken)
+            );
+        }
+        catch(err){
+            toast.error(err+"")
+        }
         setLoadingSetup(false);
     }, [listing.id, setupDraft]);
 
     const removeSetup = useCallback(async () => {
         setLoadingSetup(true);
-        const { ok } = await API.developer.listing.setup.remove(listing.id);
-        if (ok) setSetup(null);
-        setSetupDraft({ repoUrl: "", accessToken: "" });
+        try{
+            await DeveloperListingAPI.githubSetup.remove(listing.id);
+            setSetup(null);
+            setSetupDraft({ repoUrl: "", accessToken: "" });
+        }
+        catch(err){
+            toast.error(err+"")
+        }
         setLoadingSetup(false);
     }, [listing.id]);
 

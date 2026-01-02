@@ -36,9 +36,11 @@ export default function Query<ItemType>({
 }: QueryProps<ItemType>) {
     const [queryText, setQueryText] = useState("")
     const [results, setResults] = useState<ItemType[]>([])
+    
     const [cursorHistory, setCursorHistory] = useState<(string | undefined)[]>([undefined])
     const [currentCursorIndex, setCurrentCursorIndex] = useState(0)
     const [nextCursor, setNextCursor] = useState<string | undefined>(undefined)
+    
     const [isLoading, setIsLoading] = useState(false)
 
     const fetchBatch = useCallback(async (cursor?: string) => {

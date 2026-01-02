@@ -36,7 +36,7 @@ type APIUserLibraryCommandService interface {
 	RemoveListingFromLibrary(
 		ctx context.Context,
 		userID shared.UserID,
-		saveID shared.SavedListingID,
+		listingID shared.ListingID,
 	) error
 }
 
@@ -74,7 +74,7 @@ func (api *UserLibraryAPI) RegisterRoutes(group *echo.Group) {
 
 type ApiListingBase struct {
 	SavedListingID string  `json:"saved_listing_id"`
-	ListingID      string  `json:"listing_id"`
+	ListingID      string  `json:"id"`
 	Title          *string `json:"title,omitempty"`
 	Description    *string `json:"description,omitempty"`
 	CreatedAt      string  `json:"created_at"`
@@ -139,14 +139,14 @@ func (api *UserLibraryAPI) RemoveListingHandler(userID shared.UserID, c echo.Con
 	ctx := c.Request().Context()
 
 	var req struct {
-		ItemID shared.SavedListingID `json:"id"`
+		ItemID shared.ListingID `json:"id"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
 	if err := api.userLibraryCommandService.RemoveListingFromLibrary(ctx, userID, req.ItemID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove listing from library")
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove listing from library:"+err.Error())
 	}
 
 	return c.NoContent(http.StatusNoContent)

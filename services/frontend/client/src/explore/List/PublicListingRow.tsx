@@ -1,6 +1,5 @@
 import React from "react"
-import { type Listing } from "../../backend"
-
+import type { Listing } from "../../backend/repositories/listing"
 interface PublicListingRowProps {
     listing: Listing
     onSelect?: () => void

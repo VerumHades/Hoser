@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { API, type ApiInstance, type DeployedInstanceState } from "../../backend"
 import { formatBytes } from "../../components/common"
 import { ConsolePrompt } from "../../components/view/ConsolePrompt"
 
