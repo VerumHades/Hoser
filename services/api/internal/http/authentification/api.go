@@ -14,24 +14,30 @@ type UserAuthentificationAPIConfiguration struct {
 	JWTSecret string `env:"JWT_SECRET" default:"SECRET"`
 }
 
-type userAuthentificationService interface {
+type UserAuthentificationService interface {
 	AuthenticateUser(context context.Context, username string, password string) (*user.User, error)
 }
 
 type UserAuthentificationAPI struct {
 	runningConfiguration        UserAuthentificationAPIConfiguration
-	userAuthentificationService userAuthentificationService
+	userAuthentificationService UserAuthentificationService
 }
 
 // NewUserAuthentificationAPI constructs a UserAuthentificationAPI with required dependencies.
 func NewUserAuthentificationAPI(
 	runningConfiguration UserAuthentificationAPIConfiguration,
-	userAuthentificationService userAuthentificationService,
+	userAuthentificationService UserAuthentificationService,
 ) *UserAuthentificationAPI {
 	return &UserAuthentificationAPI{
 		runningConfiguration:        runningConfiguration,
 		userAuthentificationService: userAuthentificationService,
 	}
+}
+
+// RegisterRoutes registers the authentication routes to the provided Echo router.
+func (api *UserAuthentificationAPI) RegisterRoutes(group *echo.Group) {
+	group.POST("/login", api.LoginHandler)
+	group.POST("/logout", api.LogoutHandler)
 }
 
 // LoginRequest defines the expected login payload

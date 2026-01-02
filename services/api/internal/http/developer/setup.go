@@ -14,7 +14,7 @@ import (
 // Services
 // --------------------
 
-type listingSetupService interface {
+type APIDeveloperListingSetupService interface {
 	GetPrivateSetupForOwnedListing(
 		ctx context.Context,
 		userID shared.UserID,
@@ -41,11 +41,11 @@ type listingSetupService interface {
 // --------------------
 
 type DeveloperListingSetupAPI struct {
-	listingSetupService listingSetupService
+	listingSetupService APIDeveloperListingSetupService
 }
 
 func NewDeveloperListingSetupAPI(
-	listingSetupService listingSetupService,
+	listingSetupService APIDeveloperListingSetupService,
 ) *DeveloperListingSetupAPI {
 	return &DeveloperListingSetupAPI{
 		listingSetupService: listingSetupService,

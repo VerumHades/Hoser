@@ -6,12 +6,9 @@ import (
 	"fmt"
 )
 
-// UserID is a value object representing a unique user identifier.
-type UserID string
-
 // User represents a system account internally as an aggregate root.
 type User struct {
-	id           UserID
+	id           shared.UserID
 	username     string
 	passwordHash string
 	developer    bool
@@ -19,13 +16,13 @@ type User struct {
 
 // NewUser generates a new User entity with a generated ID.
 func NewUser(username, passwordHash string, developer bool) (*User, error) {
-	id := UserID(shared.GenerateUUID())
+	id := shared.UserID(shared.GenerateUUID())
 	return NewUserWithID(id, username, passwordHash, developer)
 }
 
 // NewUserWithID creates a User entity with an arbitrary ID.
 // Intended for repository hydration or reconstruction.
-func NewUserWithID(id UserID, username, passwordHash string, developer bool) (*User, error) {
+func NewUserWithID(id shared.UserID, username, passwordHash string, developer bool) (*User, error) {
 	user := &User{
 		id:           id,
 		username:     username,
@@ -39,7 +36,7 @@ func NewUserWithID(id UserID, username, passwordHash string, developer bool) (*U
 }
 
 // ID returns the user's unique identifier.
-func (u *User) ID() UserID {
+func (u *User) ID() shared.UserID {
 	return u.id
 }
 

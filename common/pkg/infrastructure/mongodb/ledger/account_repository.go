@@ -3,153 +3,163 @@ package mongodbledger
 import (
 	"context"
 	"errors"
+	"time"
 
 	"common/pkg/domain/ledger"
+	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
+	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MongoAccountRepository implements both AccountCommandRepository and AccountQueryRepository
 type MongoAccountRepository struct {
 	collection *mongo.Collection
 }
 
-// NewMongoAccountRepository constructs a repository backed by the given Mongo collection
-func NewMongoAccountRepository(collection *mongo.Collection) *MongoAccountRepository {
-	if collection == nil {
-		panic("mongo collection must not be nil")
+func NewMongoAccountRepository(reg *mongodbregistry.DatabaseRegistry) *MongoAccountRepository {
+	if reg.Accounts == nil {
+		panic("accounts collection must not be nil")
 	}
-
-	return &MongoAccountRepository{
-		collection: collection,
-	}
+	return &MongoAccountRepository{collection: reg.Accounts}
 }
 
-// EnsureAccountIndexes creates indexes for efficient queries
+// EnsureIndexes creates MongoDB indexes for accounts.
 func (repo *MongoAccountRepository) EnsureIndexes(ctx context.Context) error {
 	indexModels := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "_id", Value: 1}},
-			Options: options.Index().SetUnique(true),
-		},
-		{
 			Keys: bson.D{
-				{Key: "ownerType", Value: 1},
-				{Key: "ownerID", Value: 1},
+				{Key: "owner_type", Value: 1},
+				{Key: "owner_id", Value: 1},
 			},
 		},
 		{
 			Keys: bson.D{
-				{Key: "accountType", Value: 1},
+				{Key: "account_type", Value: 1},
 			},
 		},
 	}
-
 	_, err := repo.collection.Indexes().CreateMany(ctx, indexModels)
 	return err
 }
 
+// -------------------- Document Mapping --------------------
+
+type accountDocument struct {
+	ID          shared.AccountID        `bson:"_id"`
+	AccountType ledger.AccountType      `bson:"account_type"`
+	OwnerType   ledger.AccountOwnerType `bson:"owner_type"`
+	OwnerID     string                  `bson:"owner_id"`
+	CreatedAt   int64                   `bson:"created_at"` // nanoseconds
+}
+
+func mapEntityToDocument(entity *ledger.Account) *accountDocument {
+	return &accountDocument{
+		ID:          entity.ID(),
+		AccountType: entity.Type(),
+		OwnerType:   entity.OwnerType(),
+		OwnerID:     entity.OwnerID(),
+		CreatedAt:   entity.CreatedAt().UnixNano(),
+	}
+}
+
+func mapDocumentToEntity(doc *accountDocument) (*ledger.Account, error) {
+	return ledger.NewAccountWithID(
+		doc.ID,
+		doc.AccountType,
+		doc.OwnerType,
+		doc.OwnerID,
+		time.Unix(0, doc.CreatedAt),
+	)
+}
+
 // -------------------- Command Repository --------------------
 
-// Create inserts a new account inside a transaction
 func (repo *MongoAccountRepository) Create(
 	ctx context.Context,
 	transaction shared.Transaction,
-	account *ledger.Account,
+	accountEntity *ledger.Account,
 ) (*ledger.Account, error) {
-	if account == nil {
+	if accountEntity == nil {
 		return nil, errors.New("account cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
+	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
+	doc := mapEntityToDocument(accountEntity)
 
-	_, err := repo.collection.InsertOne(sessionCtx, account)
+	_, err := repo.collection.InsertOne(operationCtx, doc)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
-
-	return account, err
+	return accountEntity, err
 }
 
-// Update replaces an existing account inside a transaction
 func (repo *MongoAccountRepository) Update(
 	ctx context.Context,
 	transaction shared.Transaction,
-	account *ledger.Account,
+	accountEntity *ledger.Account,
 ) (*ledger.Account, error) {
-	if account == nil {
+	if accountEntity == nil {
 		return nil, errors.New("account cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
+	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
+	doc := mapEntityToDocument(accountEntity)
 
 	result, err := repo.collection.ReplaceOne(
-		sessionCtx,
-		bson.M{"_id": account.ID()},
-		account,
+		operationCtx,
+		bson.M{"_id": accountEntity.ID()},
+		doc,
 	)
 	if err != nil {
 		return nil, err
 	}
-
 	if result.MatchedCount == 0 {
 		return nil, shared.ErrNotFound
 	}
-
-	return account, nil
+	return accountEntity, nil
 }
 
-// Delete removes an account by ID inside a transaction
 func (repo *MongoAccountRepository) Delete(
 	ctx context.Context,
 	transaction shared.Transaction,
 	accountID shared.AccountID,
 ) error {
-	sessionCtx := transaction.SessionContext(ctx)
-
-	result, err := repo.collection.DeleteOne(sessionCtx, bson.M{"_id": accountID})
+	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
+	result, err := repo.collection.DeleteOne(operationCtx, bson.M{"_id": accountID})
 	if err != nil {
 		return err
 	}
-
 	if result.DeletedCount == 0 {
 		return shared.ErrNotFound
 	}
-
 	return nil
 }
 
 // -------------------- Query Repository --------------------
 
-// GetByID retrieves an account by its ID
 func (repo *MongoAccountRepository) GetByID(
 	ctx context.Context,
 	accountID shared.AccountID,
 ) (*ledger.Account, error) {
-	var account ledger.Account
-
-	err := repo.collection.FindOne(ctx, bson.M{"_id": accountID}).Decode(&account)
+	var doc accountDocument
+	err := repo.collection.FindOne(ctx, bson.M{"_id": accountID}).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
 	}
-
-	return &account, err
+	if err != nil {
+		return nil, err
+	}
+	return mapDocumentToEntity(&doc)
 }
 
-// GetByOwner retrieves all accounts owned by a specific owner
 func (repo *MongoAccountRepository) GetByOwner(
 	ctx context.Context,
 	ownerType ledger.AccountOwnerType,
 	ownerID string,
 ) ([]*ledger.Account, error) {
-	filter := bson.M{
-		"ownerType": ownerType,
-		"ownerID":   ownerID,
-	}
-
+	filter := bson.M{"owner_type": ownerType, "owner_id": ownerID}
 	cursor, err := repo.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -158,45 +168,42 @@ func (repo *MongoAccountRepository) GetByOwner(
 
 	var accounts []*ledger.Account
 	for cursor.Next(ctx) {
-		var account ledger.Account
-		if err := cursor.Decode(&account); err != nil {
+		var doc accountDocument
+		if err := cursor.Decode(&doc); err != nil {
 			return nil, err
 		}
-		accounts = append(accounts, &account)
+		entity, err := mapDocumentToEntity(&doc)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, entity)
 	}
 
 	return accounts, nil
 }
 
-// GetFirstByOwner retrieves the first account for a given owner
 func (repo *MongoAccountRepository) GetFirstByOwner(
 	ctx context.Context,
 	ownerType ledger.AccountOwnerType,
 	ownerID string,
 ) (*ledger.Account, error) {
-	filter := bson.M{
-		"ownerType": ownerType,
-		"ownerID":   ownerID,
-	}
-
-	var account ledger.Account
-	err := repo.collection.FindOne(ctx, filter).Decode(&account)
+	filter := bson.M{"owner_type": ownerType, "owner_id": ownerID}
+	var doc accountDocument
+	err := repo.collection.FindOne(ctx, filter).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
 	}
-
-	return &account, err
+	if err != nil {
+		return nil, err
+	}
+	return mapDocumentToEntity(&doc)
 }
 
-// GetByType retrieves all accounts of a specific account type
 func (repo *MongoAccountRepository) GetByType(
 	ctx context.Context,
 	accountType ledger.AccountType,
 ) ([]*ledger.Account, error) {
-	filter := bson.M{
-		"accountType": accountType,
-	}
-
+	filter := bson.M{"account_type": accountType}
 	cursor, err := repo.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -205,11 +212,15 @@ func (repo *MongoAccountRepository) GetByType(
 
 	var accounts []*ledger.Account
 	for cursor.Next(ctx) {
-		var account ledger.Account
-		if err := cursor.Decode(&account); err != nil {
+		var doc accountDocument
+		if err := cursor.Decode(&doc); err != nil {
 			return nil, err
 		}
-		accounts = append(accounts, &account)
+		entity, err := mapDocumentToEntity(&doc)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, entity)
 	}
 
 	return accounts, nil

@@ -38,6 +38,7 @@ func NewLedgerTransaction(
 		referenceType,
 		referenceID,
 		entries,
+		time.Now(),
 	)
 }
 
@@ -48,6 +49,7 @@ func NewLedgerTransactionWithID(
 	referenceType ReferenceType,
 	referenceID string,
 	entries []*LedgerEntry,
+	createdAt time.Time,
 ) (*LedgerTransaction, error) {
 	if id == "" {
 		return nil, fmt.Errorf("ledger transaction ID cannot be empty")
@@ -78,7 +80,7 @@ func NewLedgerTransactionWithID(
 		id:            id,
 		referenceType: referenceType,
 		referenceID:   referenceID,
-		createdAt:     time.Now(),
+		createdAt:     createdAt,
 		entries:       copiedEntries,
 	}, nil
 }

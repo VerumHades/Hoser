@@ -1,4 +1,4 @@
-package listing
+package developer
 
 import (
 	"common/pkg/domain/listing"
@@ -19,14 +19,18 @@ type DeveloperListingService struct {
 
 // NewDeveloperListingService constructs a new DeveloperListingService.
 func NewDeveloperListingService(
+	transactionProvider shared.TransactionProvider,
 	listingRepository listing.ListingCommandRepository,
+	listingQueryRepository listing.ListingQueryRepository,
 	searchService listing.ListingSearchIndex,
 	githubSetupRepository listing.GitHubSetupCommandRepository,
 ) *DeveloperListingService {
 	return &DeveloperListingService{
-		listingRepository:     listingRepository,
-		searchIndex:           searchService,
-		githubSetupRepository: githubSetupRepository,
+		transactionProvider:    transactionProvider,
+		listingRepository:      listingRepository,
+		listingQueryRepository: listingQueryRepository,
+		searchIndex:            searchService,
+		githubSetupRepository:  githubSetupRepository,
 	}
 }
 

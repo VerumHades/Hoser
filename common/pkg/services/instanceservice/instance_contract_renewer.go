@@ -1,8 +1,7 @@
-package instance
+package instanceservice
 
 import (
 	"common/pkg/domain/instance"
-	"common/pkg/domain/ledger"
 	"common/pkg/shared"
 	"common/pkg/util"
 	"context"
@@ -21,8 +20,7 @@ type InstanceContractRenewer struct {
 	contractQueryRepository   instance.InstanceRentalContractQueryRepository
 	contractCommandRepository instance.InstanceRentalContractCommandRepository
 
-	ledgerRepository ledger.LedgerTransactionCommandRepository
-	tickerWorker     *util.TickerWorker
+	tickerWorker *util.TickerWorker
 }
 
 func NewInstanceSubscriptionRenewalReconciler(

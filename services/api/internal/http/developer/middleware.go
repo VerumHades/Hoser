@@ -11,15 +11,14 @@ import (
 func (api *DeveloperListingAPI) DeveloperCheckMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(context echo.Context) error {
 		// Retrieve authenticated user ID from context
-		userIDValue := context.Get("user_id")
-		userID, ok := userIDValue.(shared.UserID)
+		userID, ok := context.Get("user_id").(string)
 		if !ok || userID == "" {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Missing authenticated user")
 		}
 
 		ctx := context.Request().Context()
 		// Check if the user has developer privileges
-		isDeveloper, err := api.userService.IsUserDeveloper(ctx, userID)
+		isDeveloper, err := api.userService.IsUserDeveloper(ctx, shared.UserID(userID))
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to verify user role")
 		}

@@ -1,51 +1,87 @@
 package mongodblisting
 
 import (
-	"common/pkg/domain/listing"
-	"common/pkg/shared"
 	"context"
 	"errors"
+	"time"
+
+	"common/pkg/domain/listing"
+	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
+	"common/pkg/shared"
+	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MongoListingRepository implements command and query repositories for listings.
 type MongoListingRepository struct {
 	collection *mongo.Collection
 }
 
-// NewMongoListingRepository constructs a repository backed by a Mongo collection.
-func NewMongoListingRepository(collection *mongo.Collection) *MongoListingRepository {
-	if collection == nil {
-		panic("mongo collection must not be nil")
+func NewMongoListingRepository(reg *mongodbregistry.DatabaseRegistry) *MongoListingRepository {
+	if reg.Listings == nil {
+		panic("listings collection must not be nil")
 	}
-	return &MongoListingRepository{collection: collection}
+	return &MongoListingRepository{collection: reg.Listings}
 }
 
-// EnsureIndexes creates required MongoDB indexes for listings.
+// EnsureIndexes creates MongoDB indexes for listings.
 func (repo *MongoListingRepository) EnsureIndexes(ctx context.Context) error {
 	indexModels := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "_id", Value: 1}},
-			Options: options.Index().SetUnique(true),
-		},
-		{
 			Keys: bson.D{
-				{Key: "authorID", Value: 1},
-				{Key: "createdAt", Value: 1},
+				{Key: "author_id", Value: 1},
+				{Key: "created_at", Value: 1},
 			},
 		},
 		{
 			Keys: bson.D{
-				{Key: "createdAt", Value: 1},
+				{Key: "created_at", Value: 1},
 			},
 		},
 	}
-
 	_, err := repo.collection.Indexes().CreateMany(ctx, indexModels)
 	return err
+}
+
+// -------------------- Document Mapping --------------------
+
+type listingDocument struct {
+	ID                    shared.ListingID              `bson:"_id"`
+	AuthorID              shared.UserID                 `bson:"author_id"`
+	Title                 string                        `bson:"title"`
+	Description           string                        `bson:"description"`
+	AccessMode            listing.ListingAccessMode     `bson:"access_mode"`
+	HardwareSpecification *shared.HardwareSpecification `bson:"hardware_spec"`
+	PriceInMinorUnits     int64                         `bson:"price_in_minor_units"`
+	CreatedAt             int64                         `bson:"created_at"` // nanoseconds
+}
+
+func mapEntityToDocument(entity *listing.Listing) *listingDocument {
+	return &listingDocument{
+		ID:                    entity.ID(),
+		AuthorID:              entity.AuthorID(),
+		Title:                 entity.Title(),
+		Description:           entity.Description(),
+		AccessMode:            entity.AccessMode(),
+		HardwareSpecification: entity.HardwareSpecification(),
+		PriceInMinorUnits:     entity.PriceInMinorUnits(),
+		CreatedAt:             entity.CreatedAt().UnixNano(),
+	}
+}
+
+func mapDocumentToEntity(doc *listingDocument) (*listing.Listing, error) {
+	return listing.NewListingWithID(
+		doc.ID,
+		doc.AuthorID,
+		doc.Title,
+		doc.Description,
+		doc.AccessMode,
+		doc.HardwareSpecification,
+		doc.PriceInMinorUnits,
+		time.Unix(0, doc.CreatedAt),
+	)
 }
 
 // -------------------- Command Repository --------------------
@@ -59,8 +95,10 @@ func (repo *MongoListingRepository) Create(
 		return errors.New("listing cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
-	_, err := repo.collection.InsertOne(sessionCtx, listingEntity)
+	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
+	document := mapEntityToDocument(listingEntity)
+
+	_, err := repo.collection.InsertOne(operationCtx, document)
 	if mongo.IsDuplicateKeyError(err) {
 		return shared.ErrAlreadyExists
 	}
@@ -76,8 +114,14 @@ func (repo *MongoListingRepository) Update(
 		return errors.New("listing cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
-	result, err := repo.collection.ReplaceOne(sessionCtx, bson.M{"_id": listingEntity.ID()}, listingEntity)
+	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
+	document := mapEntityToDocument(listingEntity)
+
+	result, err := repo.collection.ReplaceOne(
+		operationCtx,
+		bson.M{"_id": listingEntity.ID()},
+		document,
+	)
 	if err != nil {
 		return err
 	}
@@ -92,8 +136,8 @@ func (repo *MongoListingRepository) Delete(
 	transaction shared.Transaction,
 	listingID shared.ListingID,
 ) error {
-	sessionCtx := transaction.SessionContext(ctx)
-	result, err := repo.collection.DeleteOne(sessionCtx, bson.M{"_id": listingID})
+	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
+	result, err := repo.collection.DeleteOne(operationCtx, bson.M{"_id": listingID})
 	if err != nil {
 		return err
 	}
@@ -109,12 +153,15 @@ func (repo *MongoListingRepository) GetByID(
 	ctx context.Context,
 	listingID shared.ListingID,
 ) (*listing.Listing, error) {
-	var l listing.Listing
-	err := repo.collection.FindOne(ctx, bson.M{"_id": listingID}).Decode(&l)
+	var doc listingDocument
+	err := repo.collection.FindOne(ctx, bson.M{"_id": listingID}).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
 	}
-	return &l, err
+	if err != nil {
+		return nil, err
+	}
+	return mapDocumentToEntity(&doc)
 }
 
 func (repo *MongoListingRepository) GetByIDAndAuthor(
@@ -122,13 +169,16 @@ func (repo *MongoListingRepository) GetByIDAndAuthor(
 	listingID shared.ListingID,
 	userID shared.UserID,
 ) (*listing.Listing, error) {
-	var l listing.Listing
-	filter := bson.M{"_id": listingID, "authorID": userID}
-	err := repo.collection.FindOne(ctx, filter).Decode(&l)
+	var doc listingDocument
+	filter := bson.M{"_id": listingID, "author_id": userID}
+	err := repo.collection.FindOne(ctx, filter).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
 	}
-	return &l, err
+	if err != nil {
+		return nil, err
+	}
+	return mapDocumentToEntity(&doc)
 }
 
 func (repo *MongoListingRepository) Exists(
@@ -144,7 +194,7 @@ func (repo *MongoListingRepository) FetchNextBatchByAuthor(
 	authorID shared.UserID,
 	request shared.BatchRequest[listing.ListingCursor],
 ) ([]*listing.Listing, listing.ListingCursor, error) {
-	filter := bson.M{"authorID": authorID}
+	filter := bson.M{"author_id": authorID}
 	return repo.fetchBatch(ctx, filter, request)
 }
 
@@ -163,10 +213,10 @@ func (repo *MongoListingRepository) fetchBatch(
 	filter bson.M,
 	request shared.BatchRequest[listing.ListingCursor],
 ) ([]*listing.Listing, listing.ListingCursor, error) {
-	filter["createdAt"] = bson.M{"$gt": request.Cursor.LastCreatedAt}
+	filter["created_at"] = bson.M{"$gt": request.Cursor.LastCreatedAt.UnixNano()}
 
 	findOptions := options.Find().
-		SetSort(bson.D{{Key: "createdAt", Value: 1}}).
+		SetSort(bson.D{{Key: "created_at", Value: 1}}).
 		SetLimit(int64(request.MaxBatchSize))
 
 	cursor, err := repo.collection.Find(ctx, filter, findOptions)
@@ -177,11 +227,15 @@ func (repo *MongoListingRepository) fetchBatch(
 
 	var listings []*listing.Listing
 	for cursor.Next(ctx) {
-		var l listing.Listing
-		if err := cursor.Decode(&l); err != nil {
+		var doc listingDocument
+		if err := cursor.Decode(&doc); err != nil {
 			return nil, listing.ListingCursor{}, err
 		}
-		listings = append(listings, &l)
+		entity, err := mapDocumentToEntity(&doc)
+		if err != nil {
+			return nil, listing.ListingCursor{}, err
+		}
+		listings = append(listings, entity)
 	}
 
 	if len(listings) == 0 {

@@ -35,7 +35,7 @@ type Account struct {
 }
 
 // NewAccount constructs a new Account while enforcing invariants.
-func NewAccount(id shared.AccountID, accountType AccountType, ownerType AccountOwnerType, ownerID string) (*Account, error) {
+func NewAccountWithID(id shared.AccountID, accountType AccountType, ownerType AccountOwnerType, ownerID string, createdAt time.Time) (*Account, error) {
 	if id == "" {
 		return nil, fmt.Errorf("account ID cannot be empty")
 	}
@@ -57,8 +57,19 @@ func NewAccount(id shared.AccountID, accountType AccountType, ownerType AccountO
 		accountType: accountType,
 		ownerType:   ownerType,
 		ownerID:     ownerID,
-		createdAt:   time.Now(),
+		createdAt:   createdAt,
 	}, nil
+}
+
+// NewAccount constructs a new Account while enforcing invariants.
+func NewAccount(id shared.AccountID, accountType AccountType, ownerType AccountOwnerType, ownerID string) (*Account, error) {
+	return NewAccountWithID(
+		id,
+		accountType,
+		ownerType,
+		ownerID,
+		time.Now(),
+	)
 }
 
 // Getters for read access

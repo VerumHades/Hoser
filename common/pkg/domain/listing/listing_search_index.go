@@ -10,7 +10,6 @@ import (
 // / for iterating over search results for listings.
 type ListingSearchCursor struct {
 	LastCreatedAt time.Time
-	LastListingID shared.ListingID
 }
 
 // ListingSearchIndex defines operations for indexing and searching listings.

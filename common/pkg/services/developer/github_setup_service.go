@@ -1,4 +1,4 @@
-package listing
+package developer
 
 import (
 	"common/pkg/domain/listing"

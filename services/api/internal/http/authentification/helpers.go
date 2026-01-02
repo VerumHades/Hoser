@@ -1,4 +1,4 @@
-package apiauthentification
+package authentification
 
 import (
 	"common/pkg/shared"
@@ -11,12 +11,12 @@ type UserHandlerFunc func(userID shared.UserID, context echo.Context) error
 
 func WithAuthenticatedUser(userHandler UserHandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		userIDValue := c.Get("user_id")
-		userID, ok := userIDValue.(shared.UserID)
+		userID, ok := c.Get("user_id").(string)
+
 		if !ok || userID == "" {
 			return echo.NewHTTPError(http.StatusUnauthorized, "Missing authenticated user")
 		}
-		return userHandler(userID, c)
+		return userHandler(shared.UserID(userID), c)
 	}
 }
 

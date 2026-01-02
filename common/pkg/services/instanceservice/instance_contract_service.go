@@ -1,4 +1,4 @@
-package instance
+package instanceservice
 
 import (
 	"common/pkg/domain/instance"
@@ -24,6 +24,24 @@ type InstanceContractService struct {
 	contractQueryRepository   instance.InstanceRentalContractQueryRepository
 	contractCommandRepository instance.InstanceRentalContractCommandRepository
 	userQueryRepository       user.UserQueryRepository
+}
+
+func NewInstanceContractService(
+	paymentService ContractPaymentService,
+	transactionProvider shared.TransactionProvider,
+	listingQueryRepository listing.ListingQueryRepository,
+	contractQueryRepository instance.InstanceRentalContractQueryRepository,
+	contractCommandRepository instance.InstanceRentalContractCommandRepository,
+	userQueryRepository user.UserQueryRepository,
+) *InstanceContractService {
+	return &InstanceContractService{
+		paymentService:            paymentService,
+		transactionProvider:       transactionProvider,
+		listingQueryRepository:    listingQueryRepository,
+		contractQueryRepository:   contractQueryRepository,
+		contractCommandRepository: contractCommandRepository,
+		userQueryRepository:       userQueryRepository,
+	}
 }
 
 func (service *InstanceContractService) withContract(

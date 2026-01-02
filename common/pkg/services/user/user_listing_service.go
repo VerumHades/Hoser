@@ -1,4 +1,4 @@
-package user
+package userservices
 
 import (
 	"common/pkg/domain/listing"

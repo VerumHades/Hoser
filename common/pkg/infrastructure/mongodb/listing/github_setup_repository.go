@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"common/pkg/domain/listing"
+	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,21 +18,17 @@ type MongoGitHubSetupRepository struct {
 	collection *mongo.Collection
 }
 
-// NewMongoGitHubSetupRepository constructs a repository backed by a Mongo collection.
-func NewMongoGitHubSetupRepository(collection *mongo.Collection) *MongoGitHubSetupRepository {
-	if collection == nil {
-		panic("mongo collection must not be nil")
+// NewMongoGitHubSetupRepository constructs a repository using the registry.
+func NewMongoGitHubSetupRepository(reg *mongodbregistry.DatabaseRegistry) *MongoGitHubSetupRepository {
+	if reg.GithubSetups == nil {
+		panic("github setups collection must not be nil")
 	}
-	return &MongoGitHubSetupRepository{collection: collection}
+	return &MongoGitHubSetupRepository{collection: reg.GithubSetups}
 }
 
 // EnsureGitHubSetupIndexes ensures indexes for efficient queries and pagination.
 func (repo *MongoGitHubSetupRepository) EnsureIndexes(ctx context.Context) error {
 	indexModels := []mongo.IndexModel{
-		{
-			Keys:    bson.D{{Key: "_id", Value: 1}},
-			Options: options.Index().SetUnique(true),
-		},
 		{
 			Keys: bson.D{
 				{Key: "listingID", Value: 1},

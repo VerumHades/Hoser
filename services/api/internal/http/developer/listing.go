@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type listingService interface {
+type APIDeveloperListingService interface {
 	CreateListing(ctx context.Context, l *listing.Listing) error
 	UpdateListing(
 		ctx context.Context,
@@ -29,20 +29,20 @@ type listingService interface {
 	GetOwnedListing(ctx context.Context, listingID shared.ListingID, userID shared.UserID) (*listing.Listing, error)
 }
 
-type userService interface {
+type APIDeveloperUserService interface {
 	IsUserDeveloper(ctx context.Context, userID shared.UserID) (bool, error)
 }
 
 // DeveloperListingAPI is the API layer for developer-specific listing endpoints
 type DeveloperListingAPI struct {
-	listingService listingService
-	userService    userService
+	listingService APIDeveloperListingService
+	userService    APIDeveloperUserService
 }
 
 // NewDeveloperListingAPI constructs a DeveloperListingAPI with required dependencies.
 func NewDeveloperListingAPI(
-	listingService listingService,
-	userService userService,
+	listingService APIDeveloperListingService,
+	userService APIDeveloperUserService,
 ) *DeveloperListingAPI {
 	return &DeveloperListingAPI{
 		listingService: listingService,
@@ -161,9 +161,12 @@ func (api *DeveloperListingAPI) AddListingHandler(userID shared.UserID, c echo.C
 	}
 
 	newListing, err := listing.NewListing(userID, req.Title, req.Description, listing.Private, &shared.HardwareSpecification{}, 0)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create listing: "+err.Error())
+	}
 
 	if err = api.listingService.CreateListing(ctx, newListing); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create listing")
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create listing: "+err.Error())
 	}
 
 	return c.JSON(http.StatusOK, MakeApiDeveloperListing(newListing))
@@ -196,7 +199,7 @@ func (api *DeveloperListingAPI) UpdateListingHandler(userID shared.UserID, c ech
 		return nil
 	})
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update listing")
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to update listing: "+err.Error())
 	}
 
 	return c.JSON(http.StatusOK, MakeApiDeveloperListing(updated))
