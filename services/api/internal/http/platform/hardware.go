@@ -17,7 +17,7 @@ import (
 // Repository interface
 // --------------------
 
-type hardwareCostQueryRepository interface {
+type APIHardwareCostQueryRepository interface {
 	GetActiveRate(
 		ctx context.Context,
 		resourceType rates.HardwareResourceType,
@@ -35,11 +35,11 @@ type hardwareCostQueryRepository interface {
 // --------------------
 
 type HardwareCostRatesAPI struct {
-	queryRepository hardwareCostQueryRepository
+	queryRepository APIHardwareCostQueryRepository
 }
 
 func NewHardwareCostRatesAPI(
-	queryRepository hardwareCostQueryRepository,
+	queryRepository APIHardwareCostQueryRepository,
 ) *HardwareCostRatesAPI {
 	return &HardwareCostRatesAPI{
 		queryRepository: queryRepository,

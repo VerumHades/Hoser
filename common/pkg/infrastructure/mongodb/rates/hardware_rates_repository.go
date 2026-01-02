@@ -6,42 +6,66 @@ import (
 	"time"
 
 	"common/pkg/domain/rates"
+	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
+	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MongoHardwareCostRateRepository implements command and query repositories for hardware cost rates.
 type MongoHardwareCostRateRepository struct {
 	collection *mongo.Collection
 }
 
-// NewMongoHardwareCostRateRepository constructs a repository backed by a Mongo collection.
-func NewMongoHardwareCostRateRepository(collection *mongo.Collection) *MongoHardwareCostRateRepository {
-	if collection == nil {
-		panic("mongo collection must not be nil")
+func NewMongoHardwareCostRateRepository(databaseRegistry *mongodbregistry.DatabaseRegistry) *MongoHardwareCostRateRepository {
+	if databaseRegistry.HardwareRates == nil {
+		panic("hardware rates collection must not be nil")
 	}
-	return &MongoHardwareCostRateRepository{collection: collection}
+	return &MongoHardwareCostRateRepository{collection: databaseRegistry.HardwareRates}
 }
 
-// EnsureIndexes creates required indexes for hardware cost rates.
 func (repo *MongoHardwareCostRateRepository) EnsureIndexes(ctx context.Context) error {
 	indexModels := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "_id", Value: 1}},
-			Options: options.Index().SetUnique(true),
-		},
-		{
 			Keys: bson.D{
 				{Key: "resource", Value: 1},
-				{Key: "validFrom", Value: 1},
+				{Key: "valid_from", Value: 1},
 			},
 		},
 	}
+
 	_, err := repo.collection.Indexes().CreateMany(ctx, indexModels)
 	return err
+}
+
+type hardwareCostRateDocument struct {
+	ID          shared.HardwareCostRateID  `bson:"_id"`
+	Resource    rates.HardwareResourceType `bson:"resource"`
+	ValidFrom   int64                      `bson:"valid_from"`
+	CostInCents int64                      `bson:"cost_in_cents"`
+	CreatedAt   int64                      `bson:"created_at"`
+}
+
+func mapEntityToDocument(entity *rates.HardwareCostRate) *hardwareCostRateDocument {
+	return &hardwareCostRateDocument{
+		ID:          entity.ID(),
+		Resource:    entity.Resource(),
+		ValidFrom:   entity.ValidFrom().UnixNano(),
+		CostInCents: entity.CostInCents(),
+		CreatedAt:   entity.CreatedAt().UnixNano(),
+	}
+}
+
+func mapDocumentToEntity(doc *hardwareCostRateDocument) (*rates.HardwareCostRate, error) {
+	return rates.NewHardwareCostRateWithID(
+		doc.ID,
+		doc.Resource,
+		doc.CostInCents,
+		time.Unix(0, doc.ValidFrom),
+		time.Unix(0, doc.CreatedAt),
+	)
 }
 
 // -------------------- Command Repository --------------------
@@ -54,11 +78,15 @@ func (repo *MongoHardwareCostRateRepository) Create(
 	if rate == nil {
 		return nil, errors.New("hardware cost rate cannot be nil")
 	}
-	sessionCtx := transaction.SessionContext(ctx)
-	_, err := repo.collection.InsertOne(sessionCtx, rate)
+
+	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
+	document := mapEntityToDocument(rate)
+
+	_, err := repo.collection.InsertOne(operationCtx, document)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
+
 	return rate, err
 }
 
@@ -70,14 +98,22 @@ func (repo *MongoHardwareCostRateRepository) Update(
 	if rate == nil {
 		return nil, errors.New("hardware cost rate cannot be nil")
 	}
-	sessionCtx := transaction.SessionContext(ctx)
-	result, err := repo.collection.ReplaceOne(sessionCtx, bson.M{"_id": rate.ID()}, rate)
+
+	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
+	document := mapEntityToDocument(rate)
+
+	result, err := repo.collection.ReplaceOne(
+		operationCtx,
+		bson.M{"_id": rate.ID()},
+		document,
+	)
 	if err != nil {
 		return nil, err
 	}
 	if result.MatchedCount == 0 {
 		return nil, shared.ErrNotFound
 	}
+
 	return rate, nil
 }
 
@@ -89,16 +125,21 @@ func (repo *MongoHardwareCostRateRepository) GetActiveRate(
 	at time.Time,
 ) (*rates.HardwareCostRate, error) {
 	filter := bson.M{
-		"resource":  resourceType,
-		"validFrom": bson.M{"$lte": at},
+		"resource":   resourceType,
+		"valid_from": bson.M{"$lte": at.UnixNano()},
 	}
-	opts := options.FindOne().SetSort(bson.D{{Key: "validFrom", Value: -1}})
-	var rate rates.HardwareCostRate
-	err := repo.collection.FindOne(ctx, filter, opts).Decode(&rate)
+	findOptions := options.FindOne().SetSort(bson.D{{Key: "valid_from", Value: -1}})
+
+	var doc hardwareCostRateDocument
+	err := repo.collection.FindOne(ctx, filter, findOptions).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
 	}
-	return &rate, err
+	if err != nil {
+		return nil, err
+	}
+
+	return mapDocumentToEntity(&doc)
 }
 
 func (repo *MongoHardwareCostRateRepository) FetchNextBatchOrderedByEffectiveDate(
@@ -106,10 +147,13 @@ func (repo *MongoHardwareCostRateRepository) FetchNextBatchOrderedByEffectiveDat
 	request shared.BatchRequest[rates.HardwareCostRateCursor],
 ) ([]*rates.HardwareCostRate, rates.HardwareCostRateCursor, error) {
 	filter := bson.M{}
-	filter["validFrom"] = bson.M{"$gt": request.Cursor.LastEffectiveDate}
+
+	filter["valid_from"] = bson.M{
+		"$gt": request.Cursor.LastEffectiveDate.UnixNano(),
+	}
 
 	findOptions := options.Find().
-		SetSort(bson.D{{Key: "validFrom", Value: 1}}).
+		SetSort(bson.D{{Key: "valid_from", Value: 1}}).
 		SetLimit(int64(request.MaxBatchSize))
 
 	cursor, err := repo.collection.Find(ctx, filter, findOptions)
@@ -118,21 +162,28 @@ func (repo *MongoHardwareCostRateRepository) FetchNextBatchOrderedByEffectiveDat
 	}
 	defer cursor.Close(ctx)
 
-	var ratesList []*rates.HardwareCostRate
+	var items []*rates.HardwareCostRate
 	for cursor.Next(ctx) {
-		var r rates.HardwareCostRate
-		if err := cursor.Decode(&r); err != nil {
+		var doc hardwareCostRateDocument
+		if err := cursor.Decode(&doc); err != nil {
 			return nil, rates.HardwareCostRateCursor{}, err
 		}
-		ratesList = append(ratesList, &r)
+
+		entity, err := mapDocumentToEntity(&doc)
+		if err != nil {
+			return nil, rates.HardwareCostRateCursor{}, err
+		}
+
+		items = append(items, entity)
 	}
 
-	if len(ratesList) == 0 {
-		return ratesList, rates.HardwareCostRateCursor{}, nil
+	if len(items) == 0 {
+		return items, rates.HardwareCostRateCursor{}, nil
 	}
 
-	last := ratesList[len(ratesList)-1]
-	return ratesList, rates.HardwareCostRateCursor{
+	last := items[len(items)-1]
+
+	return items, rates.HardwareCostRateCursor{
 		LastEffectiveDate: last.ValidFrom(),
 	}, nil
 }

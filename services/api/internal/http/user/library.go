@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type userLibraryQueryService interface {
+type APIUserLibraryQueryService interface {
 	ExistsByUserAndListing(
 		ctx context.Context,
 		userID shared.UserID,
@@ -26,7 +26,7 @@ type userLibraryQueryService interface {
 	) (items []*user.UserSavedListingView, nextCursor user.UserSavedListingViewCursor, err error)
 }
 
-type userLibraryCommandService interface {
+type APIUserLibraryCommandService interface {
 	SaveListingToLibrary(
 		ctx context.Context,
 		userID shared.UserID,
@@ -41,14 +41,14 @@ type userLibraryCommandService interface {
 }
 
 type UserLibraryAPI struct {
-	userLibraryQueryService   userLibraryQueryService
-	userLibraryCommandService userLibraryCommandService
+	userLibraryQueryService   APIUserLibraryQueryService
+	userLibraryCommandService APIUserLibraryCommandService
 }
 
 // NewUserLibraryAPI constructs a UserLibraryAPI.
 func NewUserLibraryAPI(
-	userLibraryQueryService userLibraryQueryService,
-	userLibraryCommandService userLibraryCommandService,
+	userLibraryQueryService APIUserLibraryQueryService,
+	userLibraryCommandService APIUserLibraryCommandService,
 ) *UserLibraryAPI {
 	return &UserLibraryAPI{
 		userLibraryQueryService:   userLibraryQueryService,

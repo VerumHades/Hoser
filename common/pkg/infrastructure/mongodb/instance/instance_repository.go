@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"common/pkg/domain/instance"
+	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,20 +20,16 @@ type MongoInstanceRentalContractRepository struct {
 }
 
 // NewMongoInstanceRentalContractRepository constructs the repository.
-func NewMongoInstanceRentalContractRepository(collection *mongo.Collection) *MongoInstanceRentalContractRepository {
-	if collection == nil {
-		panic("mongo collection must not be nil")
+func NewMongoInstanceRentalContractRepository(databaseRegistry *mongodbregistry.DatabaseRegistry) *MongoInstanceRentalContractRepository {
+	if databaseRegistry.InstanceContracts == nil {
+		panic("instance contracts collection must not be nil")
 	}
-	return &MongoInstanceRentalContractRepository{collection: collection}
+	return &MongoInstanceRentalContractRepository{collection: databaseRegistry.InstanceContracts}
 }
 
 // EnsureIndexes creates the required MongoDB indexes.
 func (repo *MongoInstanceRentalContractRepository) EnsureIndexes(ctx context.Context) error {
 	indexModels := []mongo.IndexModel{
-		{
-			Keys:    bson.D{{Key: "_id", Value: 1}},
-			Options: options.Index().SetUnique(true),
-		},
 		{
 			Keys: bson.D{
 				{Key: "listingID", Value: 1},

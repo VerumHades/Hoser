@@ -61,6 +61,29 @@ func NewSettlement(
 	}, nil
 }
 
+// NewSettlementWithID creates a fully hydrated Settlement instance with all fields initialized.
+func NewSettlementWithID(
+	id shared.SettlementID,
+	ledgerTransactionID shared.LedgerTransactionID,
+	accountID shared.AccountID,
+	amountInMinorUnits int64,
+	status SettlementStatus,
+	referenceID string,
+	createdAt time.Time,
+	updatedAt time.Time,
+) *Settlement {
+	return &Settlement{
+		id:                  id,
+		ledgerTransactionID: ledgerTransactionID,
+		accountID:           accountID,
+		amountInMinorUnits:  amountInMinorUnits,
+		status:              status,
+		referenceID:         referenceID,
+		createdAt:           createdAt,
+		updatedAt:           updatedAt,
+	}
+}
+
 // MarkCompleted sets the settlement status to completed.
 func (s *Settlement) MarkCompleted() {
 	s.status = SettlementStatusCompleted

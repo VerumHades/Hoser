@@ -1,10 +1,7 @@
 import { useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
-import backend_constants from "../../backend_constants"
-
 import Query from "../../components/querying/Query"
 import type { Listing } from "../../backend"
-
 import { CollectionViewContainer } from "../../components/view/CollectionViewContainer"
 import { UserLibraryRow } from "./List/UserLibraryRow"
 import { UserLibraryCard } from "./List/UserLibraryCard"
@@ -22,7 +19,7 @@ export default function UserLibrary() {
     }, [navigate])
 
     const renderLibrary = useCallback(
-        (entries: Listing[] | undefined) => (
+        (entries: Listing[], loadMore?: () => void, hasMore?: boolean) => (
             <CollectionViewContainer
                 items={entries}
                 viewMode={viewMode}
@@ -46,6 +43,8 @@ export default function UserLibrary() {
                         Your library is empty
                     </p>
                 }
+                loadMore={loadMore}
+                hasMore={hasMore}
             />
         ),
         [viewMode, handleCreateInstance]
@@ -53,9 +52,9 @@ export default function UserLibrary() {
 
     return (
         <div className="flex flex-1 flex-col p-6 gap-4 h-full">
-            <Query<Listing[]>
+            <Query<Listing>
                 className="flex-1 min-h-0"
-                endpoint={`${backend_constants.address}/user/library`}
+                endpoint="/user/library"
                 queryBuilder={queryBuilder}
                 render={renderLibrary}
             />

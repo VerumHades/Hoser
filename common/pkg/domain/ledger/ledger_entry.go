@@ -58,6 +58,10 @@ func ReverseLedgerEntries(entries []*LedgerEntry) ([]*LedgerEntry, error) {
 
 // NewLedgerEntry constructs a new ledger entry while enforcing invariants.
 func NewLedgerEntry(accountID shared.AccountID, amountInMinorUnits int64) (*LedgerEntry, error) {
+	return NewLedgerEntryWithTime(accountID, amountInMinorUnits, time.Now())
+}
+
+func NewLedgerEntryWithTime(accountID shared.AccountID, amountInMinorUnits int64, createdAt time.Time) (*LedgerEntry, error) {
 	if accountID == "" {
 		return nil, fmt.Errorf("account ID cannot be empty")
 	}
@@ -68,7 +72,7 @@ func NewLedgerEntry(accountID shared.AccountID, amountInMinorUnits int64) (*Ledg
 	return &LedgerEntry{
 		accountID:          accountID,
 		amountInMinorUnits: amountInMinorUnits,
-		createdAt:          time.Now(),
+		createdAt:          createdAt,
 	}, nil
 }
 

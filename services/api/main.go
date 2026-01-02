@@ -1,12 +1,30 @@
 package main
 
 import (
+	"api/internal/adapters"
+	"api/internal/http"
+	"api/internal/http/authentification"
+	developerapi "api/internal/http/developer"
+	platformapi "api/internal/http/platform"
+	userapi "api/internal/http/user"
+	"api/internal/infrastructure"
+	"common/pkg/domain/listing"
+	"common/pkg/domain/user"
+	listingmem "common/pkg/infrastructure/inmem/listing"
 	mongodbinstance "common/pkg/infrastructure/mongodb/instance"
 	mongodbledger "common/pkg/infrastructure/mongodb/ledger"
 	mongodblisting "common/pkg/infrastructure/mongodb/listing"
 	mongodbrates "common/pkg/infrastructure/mongodb/rates"
+	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	mongodbuser "common/pkg/infrastructure/mongodb/user"
+	"common/pkg/infrastructure/plugs"
 	"common/pkg/services/auth"
+	"common/pkg/services/billing"
+	"common/pkg/services/developer"
+	"common/pkg/services/instanceservice"
+	userservices "common/pkg/services/user"
+	"common/pkg/shared"
+	"common/pkg/util"
 	"context"
 	"time"
 
@@ -20,25 +38,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type Configuration struct {
-	Port              string   `env:"PORT" default:"8080"`
-	Address           string   `env:"ADDRESS" default:"localhost"`
-	AllowedOrigins    []string `env:"ALLOWED_ORIGINS" separator:","`
-	JWTSecret         string   `env:"JWT_SECRET" default:"SECRET"`
-	InterserverSecret string   `env:"INTERSERVER_SECRET" default:"SECRET"`
-
-	MongoDatabaseName     string `env:"MONGO_DATABASE" default:"apiDatabase"`
-	MongoDatabaseUserName string `env:"MONGO_USER" default:"apiUser"`
-	MongoDatabasePassword string `env:"MONGO_PASSWORD" default:"apiUserPassword"`
-	MongoDatabaseHost     string `env:"MONGO_HOST" default:"localhost"`
-	MongoDatabasePort     string `env:"MONGO_PORT" default:"27017"`
-}
-
 func main() {
 	// ---------------------------
 	// Load configuration
 	// ---------------------------
-	runningConfiguration, err := configuration.Load[Configuration]()
+	runningConfiguration, err := configuration.Load[infrastructure.Configuration]()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,18 +73,23 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//transactionProvider := mongotransaction.NewMongoTransactionProvider(client)
+	transactionProvider := plugs.NewFakeTransactionProvider()
 	// Choose a database
 	db := client.Database(runningConfiguration.MongoDatabaseName)
 
-	userRepo := mongodbuser.NewMongoUserRepository(db.Collection("users"))
-	listingRepo := mongodblisting.NewMongoListingRepository(db.Collection("listings"))
-	libraryRepo := mongodbuser.NewMongoSavedListingRepository(db.Collection("libraries"))
-	accountRepo := mongodbledger.NewMongoAccountRepository(db.Collection("billing_accounts"))
-	ledgerTransactionRepo := mongodbledger.NewMongoLedgerTransactionRepository(db.Collection("ledger_transaction"))
-	settlementRepo := mongodbledger.NewMongoSettlementRepository(db.Collection("settlement"))
-	instanceRepo := mongodbinstance.NewMongoInstanceRentalContractRepository(db.Collection("instances"))
-	hardwareRateRepo := mongodbrates.NewMongoHardwareCostRateRepository(db.Collection("hardware_costs"))
-	githubSetupRepo := mongodblisting.NewMongoGitHubSetupRepository(db.Collection("github_setups"))
+	databaseRegistry := mongodbregistry.NewDatabaseRegistry(db)
+
+	userRepo := mongodbuser.NewMongoUserRepository(databaseRegistry)
+	listingRepo := mongodblisting.NewMongoListingRepository(databaseRegistry)
+	libraryRepo := mongodbuser.NewMongoSavedListingRepository(databaseRegistry)
+	accountRepo := mongodbledger.NewMongoAccountRepository(databaseRegistry)
+	ledgerTransactionRepo := mongodbledger.NewMongoLedgerTransactionRepository(databaseRegistry)
+	settlementRepo := mongodbledger.NewMongoSettlementRepository(databaseRegistry)
+	instanceRepo := mongodbinstance.NewMongoInstanceRentalContractRepository(databaseRegistry)
+	hardwareRateRepo := mongodbrates.NewMongoHardwareCostRateRepository(databaseRegistry)
+	githubSetupRepo := mongodblisting.NewMongoGitHubSetupRepository(databaseRegistry)
+	savedListingViewRepo := mongodbuser.NewMongoUserSavedListingViewRepository(databaseRegistry)
 
 	repositories := []interface {
 		EnsureIndexes(ctx context.Context) error
@@ -101,165 +110,127 @@ func main() {
 		}
 	}
 
-	userService := user.NewUserService(userRepo)
-	userAuthentificationService := auth.NewAuthenticationService(userService)
+	/*for i := 0; i < 100000; i++ {
+		accessMode := listing.Public
+		if i%2 == 0 {
+			accessMode = listing.Private
+		}
+		listing, _ := listing.NewListing(
+			"30225718-7120-4353-999b-55a1ec8fcd4c",
+			"Test Listing",
+			"Test Description", accessMode, &shared.HardwareSpecification{}, int64(i))
 
-	_, err = userService.CreateUser("alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
+		listingRepo.Create(ctx, nil, listing)
+	}*/
+
+	cuser, err := user.NewUser("alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
+	_, err = userRepo.Create(ctx, nil, cuser)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	listingService := listing.NewListingService(listingRepo)
-	libraryService := library.NewLibraryService(libraryRepo)
-	githubSetupService := githubsetups.NewGitHubSetupService(githubSetupRepo)
+	userAuthService := auth.NewAuthenticationService(userRepo)
 
-	billingAccountService := account.NewBillingAccountService(accountRepo)
-	paymentService := payment.NewPaymentService(paymentRepo)
-	instanceService := instance.NewInstanceService(instanceRepo)
-	//currencyService := currency.NewCurrencyService(currencyRepo)
-	hardwareCostService := rates.NewHardwareCostService(hardwareRateRepo)
+	listingIndexer := listingmem.NewInMemoryListingSearchIndex()
 
-	// Add a first rate
-	// CPU cost per core-hour
-	cpuRate := money.Money{Amount: 0.03, CurrencyCode: "USD"}
-
-	// RAM cost per byte-hour (8 GiB ≈ $0.005/GiB-hour)
-	ramRate := money.Money{Amount: 0.005 / (1024 * 1024 * 1024), CurrencyCode: "USD"}
-
-	// Disk cost per byte-hour (100 GiB ≈ $0.0002/GiB-hour)
-	diskRate := money.Money{Amount: 0.0002 / (1024 * 1024 * 1024), CurrencyCode: "USD"}
-
-	hardwareCostService.AddRate(
-		cpuRate,
-		ramRate,
-		diskRate,
-		time.Now().Add(-24*time.Hour), // valid from yesterday
-		nil,                           // no end date
-	)
-
-	listingSearchService := listingmem.NewInMemoryListingSearchService()
-
-	listings, err := listingRepo.ListAll()
-	if err == nil {
-		for _, listing := range listings {
-			listingSearchService.IndexListing(listing)
-		}
+	for listing := range util.GenerateInBatches(
+		ctx,
+		50,
+		func(ctx context.Context, request shared.BatchRequest[listing.ListingCursor]) ([]*listing.Listing, listing.ListingCursor, error) {
+			return listingRepo.FetchNextBatchAll(ctx, request)
+		}) {
+		listingIndexer.Index(ctx, listing)
 	}
 
-	listingFacadeService := app.NewListingFacadeService(listingService, listingSearchService)
-	publicListingService := app.NewPublicListingService(listingFacadeService, githubSetupService)
-
-	userAppService := app.NewUserAppService(
-		userService,
-		publicListingService, // could wrap listingService + search
-		libraryService,
+	developerListingService := developer.NewDeveloperListingService(
+		transactionProvider,
+		listingRepo,
+		listingRepo,
+		listingIndexer,
+		githubSetupRepo,
 	)
 
-	paymentGatewayResolver := inmempayments.NewInMemoryPaymentGatewayResolver()
-
-	conversionService := inmemconversion.NewDummyCurrencyConversionService()
-
-	hardwareCostCalculationService := app.NewHardwareCostCalculationService(
-		hardwareCostService,
-		conversionService,
+	userListingService := userservices.NewUserListingService(
+		listingRepo,
+		listingRepo,
+		libraryRepo,
+		libraryRepo,
+		listingIndexer,
 	)
 
-	toplevelPaymentService := app.NewPaymentService(
-		paymentService,
-		billingAccountService,
-		paymentGatewayResolver,
+	accountAdapterConfig := adapters.PlatformAccountsConfig{}
+
+	userAccountService := userservices.NewUserAccountService(accountRepo, accountRepo)
+
+	accountAdapter := adapters.NewAccountServiceAdapter(accountAdapterConfig, listingRepo, userAccountService)
+
+	hardwareCostCalculationService := billing.NewHardwareCostCalculationService(hardwareRateRepo)
+
+	contractPaymentBuilder := instanceservice.NewContractPaymentBuilder(accountAdapter, hardwareCostCalculationService, ledgerTransactionRepo, ledgerTransactionRepo)
+	contractService := instanceservice.NewInstanceContractService(
+		contractPaymentBuilder,
+		transactionProvider,
+		listingRepo,
+		instanceRepo,
+		instanceRepo,
+		userRepo,
 	)
 
-	instanceSubscriptionService := *app.NewInstanceSubscriptionService(
-		instanceService,
-		billingAccountService,
-		toplevelPaymentService,
-		publicListingService,
-		hardwareCostCalculationService,
+	//githubSetupService := listing.NewDeveloperGitHubSetupService(githubSetupRepo, githubSetupRepo)
+
+	userPublicAPI := userapi.NewPublicUserAPI(userListingService)
+	userProfileAPI := userapi.NewUserProfileAPI(userRepo)
+	userLibraryAPI := userapi.NewUserLibraryAPI(
+		adapters.NewUserSavedListingViewAdapter(
+			savedListingViewRepo,
+			libraryRepo,
+		),
+		userListingService,
+	)
+	userInstanceContractAPI := userapi.NewInstanceContractAPI(contractService)
+
+	authAPI := authentification.NewUserAuthentificationAPI(
+		authentification.UserAuthentificationAPIConfiguration{
+			JWTSecret: runningConfiguration.JWTSecret,
+		},
+		userAuthService,
 	)
 
-	deployer := localdockerdeployer.NewPublicGitHubDockerDeployer(publicListingService, instanceService)
+	developerAPI := developerapi.NewDeveloperListingAPI(
+		developerListingService,
+		adapters.NewDeveloperCheckAdapter(userRepo),
+	)
 
-	reconciler := app.NewInstanceSubscriptionReconciler(&instanceSubscriptionService, instanceService, deployer, time.Second)
-	reconciler.Start()
+	hardwareCostRatesAPI := platformapi.NewHardwareCostRatesAPI(hardwareRateRepo)
 
-	app := &handlers.App{
-		RunningConfiguration:           &runningConfiguration,
-		UserAppService:                 userAppService,
-		UserAuth:                       userAuthentificationService,
-		ListingService:                 publicListingService,
-		BillingAccountService:          billingAccountService,
-		PaymentService:                 paymentService,
-		InstanceEngineService:          &instanceSubscriptionService,
-		HardwareCostCalculationService: hardwareCostCalculationService,
-		InstanceDeployer:               deployer,
-	}
+	//developerapi.NewDeveloperListingSetupAPI(githubSetupService)
 
 	e := echo.New()
 
 	// ---------------------------
 	// Middleware
 	// ---------------------------
-	e.Use(app.CORSMiddleware())
+	e.Use(http.CORSMiddleware(runningConfiguration.AllowedOrigins))
 	// e.Use(middleware.Logger())
 	// e.Use(middleware.Recover())
+	hardwareCostRatesAPI.RegisterRoutes(e.Group(""))
 
-	// ---------------------------
-	// Public routes
-	// ---------------------------
-	public := e.Group("")
-	public.GET("/listings", app.PublicListingsHandler)
-	public.GET("/listing/:id", app.PublicListingHandler)
-	public.POST("/login", app.LoginHandler)
-	public.POST("/logout", app.LogoutHandler)
-	public.GET("/hardware/rates", app.HardwareRatesHandler)
+	authAPI.RegisterRoutes(e.Group(""))
 
-	// ---------------------------
-	// Authenticated user routes
-	// ---------------------------
-	auth := e.Group("/user")
+	userPublicAPI.RegisterRoutes(e.Group(""))
 
-	auth.GET("/data", app.UserDataHandler)
-	auth.GET("/library/:listingId/exists", app.HasListingInLibraryHandler)
-	auth.GET("/library", app.UserLibraryHandler)
-	auth.POST("/library", app.UserAddListingToLibraryHandler)
-	auth.DELETE("/library", app.UserRemoveListingFromLibraryHandler)
+	user := e.Group("/user")
+	user.Use(authAPI.AuthenticationMiddleware)
 
-	// ================= Billing account endpoints =================
-	auth.GET("/billing", app.UserBillingAccountsHandler)                    // list all accounts
-	auth.POST("/billing", app.UserCreateBillingAccountHandler)              // create a new account
-	auth.GET("/billing/:id", app.UserGetBillingAccountHandler)              // get single account
-	auth.POST("/billing/:id/suspend", app.UserSuspendBillingAccountHandler) // suspend account
-	auth.POST("/billing/:id/close", app.UserCloseBillingAccountHandler)     // close account
+	userProfileAPI.RegisterRoutes(user)
+	userLibraryAPI.RegisterRoutes(user)
+	userInstanceContractAPI.RegisterRoutes(user)
 
-	auth.GET("/billing/:billingAccountId/payments", app.UserListPaymentsHandler)
-	auth.GET("/billing/:billingAccountId/payment/:paymentId", app.UserGetPaymentHandler)
-	auth.GET("/billing/:billingAccountId/payment/:paymentId/metadata", app.UserGetPaymentMetadataHandler)
+	developer := e.Group("/developer")
+	developer.Use(authAPI.AuthenticationMiddleware)
+	developer.Use(developerAPI.DeveloperCheckMiddleware)
+	developerAPI.RegisterRoutes(developer)
 
-	// ================= Instance endpoints =================
-	auth.POST("/instances", app.UserLaunchInstanceHandler)                           // Launch a new instance
-	auth.PATCH("/instances/:id/hardware", app.UserUpdateHardwareHandler)             // Update hardware spec
-	auth.GET("/instances/:id", app.UserGetInstanceHandler)                           // Get single instance
-	auth.GET("/billing/:billingId/instances", app.UserListInstancesByBillingHandler) // List instances by billing account
-	auth.GET("/instances", app.UserListInstancesByOwnerHandler)                      // List all instances for the authenticated user
-	auth.GET("/instances/:id/state", app.UserGetInstanceStateHandler)                // Get deployment state for an instance
-
-	// ---------------------------
-	// Developer-only routes
-	// ---------------------------
-	e.GET("/developer/listings", app.DeveloperListingsHandler)
-	dev := e.Group("/developer/listing")
-
-	dev.GET("/:listingId/setup", app.DeveloperGetSetupHandler)             // Get GitHub setup for a listing
-	dev.POST("/:listingId/setup", app.DeveloperAttachOrUpdateSetupHandler) // Attach or update GitHub setup
-	dev.DELETE("/:listingId/setup", app.DeveloperRemoveSetupHandler)       // Remove GitHub setup
-
-	dev.GET("/:id", app.DeveloperGetListingHandler)
-	dev.Use(app.DeveloperOnlyMiddleware)
-
-	dev.POST("", app.DeveloperAddListingHandler)
-	dev.PUT("", app.DeveloperUpdateListingHandler)
-	dev.DELETE("", app.DeveloperDeleteListingHandler)
 	// ---------------------------
 	// Start server
 	// ---------------------------

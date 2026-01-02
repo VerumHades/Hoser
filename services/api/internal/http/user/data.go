@@ -10,17 +10,17 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type userQueryService interface {
+type APIUserDataQueryService interface {
 	GetByID(context context.Context, userID shared.UserID) (*user.User, error)
 }
 
 type UserProfileAPI struct {
-	userQueryService userQueryService
+	userQueryService APIUserDataQueryService
 }
 
 // NewUserProfileAPI constructs a UserProfileAPI.
 func NewUserProfileAPI(
-	userQueryService userQueryService,
+	userQueryService APIUserDataQueryService,
 ) *UserProfileAPI {
 	return &UserProfileAPI{
 		userQueryService: userQueryService,

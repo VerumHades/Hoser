@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react"
-import backend_constants from "../../backend_constants"
 import { API, type DeveloperListing } from "../../backend"
-import Query from "../../components/querying/Query"
 import { CollectionViewContainer } from "../../components/view/CollectionViewContainer"
 import { DeveloperListingRow } from "./List/DeveloperListingRow"
 import { DeveloperListingCard } from "./List/DeveloperListingCard"
 import { FlowSwitch } from "../../components/navigation/Flow"
+import Query from "../../components/querying/Query"
+import backend_constants from "../../backend_constants"
 
 type ListingViewMode = "cards" | "table"
 
@@ -17,8 +17,10 @@ export default function DeveloperListingsCollection({ onSelect }: DeveloperListi
     const [viewMode, setViewMode] = useState<ListingViewMode>("cards")
     const [creating, setCreating] = useState(false)
 
+    const queryBuilder = useCallback((queryText: string) => ({ q: queryText }), [])
+
     const renderListing = useCallback(
-        (listings: DeveloperListing[] | undefined) => (
+        (listings: DeveloperListing[], loadMore?: () => void, hasMore?: boolean) => (
             <CollectionViewContainer
                 items={listings}
                 viewMode={viewMode}
@@ -38,31 +40,34 @@ export default function DeveloperListingsCollection({ onSelect }: DeveloperListi
                     />
                 )}
                 emptyState={<p className="text-sm text-slate-500">No listings found</p>}
+                loadMore={loadMore}
+                hasMore={hasMore}
             />
         ),
         [viewMode, onSelect]
     )
 
-    const queryBuilder = useCallback((queryText: string) => ({ q: queryText }), [])
-
     const createListing = async () => {
         setCreating(true)
-        const response = await API.developer.listing.create()
-        if (response.ok) {
-            onSelect(response.json)
+        try {
+            const response = await API.developer.listing.create("New Listing", "My New Description")
+            if (response.ok) {
+                onSelect(response.json)
+            }
+        } finally {
+            setCreating(false)
         }
-        setCreating(false)
     }
 
     return (
         <div className="flex flex-1 flex-col h-full min-h-0 p-6">
             <div className="flex items-center justify-between mb-4">
-                <FlowSwitch direction="next" onClick={createListing}>
-                    New Listing
+                <FlowSwitch direction="next" onClick={createListing} disabled={creating}>
+                    {creating ? "Creating..." : "New Listing"}
                 </FlowSwitch>
             </div>
 
-            <Query<DeveloperListing[]>
+            <Query<DeveloperListing>
                 endpoint={`${backend_constants.address}/developer/listings`}
                 queryBuilder={queryBuilder}
                 className="flex-1 min-h-0 overflow-hidden"

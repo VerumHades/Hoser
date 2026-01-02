@@ -3,8 +3,10 @@ package mongodbledger
 import (
 	"context"
 	"errors"
+	"time"
 
 	"common/pkg/domain/ledger"
+	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,41 +14,71 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MongoSettlementRepository implements SettlementCommandRepository and SettlementQueryRepository
 type MongoSettlementRepository struct {
 	collection *mongo.Collection
 }
 
-// NewMongoSettlementRepository constructs a repository backed by a Mongo collection
-func NewMongoSettlementRepository(collection *mongo.Collection) *MongoSettlementRepository {
-	if collection == nil {
-		panic("mongo collection must not be nil")
+func NewMongoSettlementRepository(reg *mongodbregistry.DatabaseRegistry) *MongoSettlementRepository {
+	if reg.Settlements == nil {
+		panic("settlements collection must not be nil")
 	}
-	return &MongoSettlementRepository{collection: collection}
+	return &MongoSettlementRepository{collection: reg.Settlements}
 }
 
-// EnsureSettlementIndexes creates indexes for efficient queries
+// EnsureIndexes creates MongoDB indexes for settlements
 func (repo *MongoSettlementRepository) EnsureIndexes(ctx context.Context) error {
 	indexModels := []mongo.IndexModel{
 		{
-			Keys:    bson.D{{Key: "_id", Value: 1}},
-			Options: options.Index().SetUnique(true),
+			Keys: bson.D{{Key: "ledger_transaction_id", Value: 1}},
 		},
 		{
 			Keys: bson.D{
-				{Key: "ledgerTransactionID", Value: 1},
-			},
-		},
-		{
-			Keys: bson.D{
-				{Key: "ledgerTransactionID", Value: 1},
-				{Key: "createdAt", Value: -1},
+				{Key: "ledger_transaction_id", Value: 1},
+				{Key: "created_at", Value: -1},
 			},
 		},
 	}
-
 	_, err := repo.collection.Indexes().CreateMany(ctx, indexModels)
 	return err
+}
+
+// -------------------- Document Mapping --------------------
+
+type settlementDocument struct {
+	ID                  shared.SettlementID        `bson:"_id"`
+	LedgerTransactionID shared.LedgerTransactionID `bson:"ledger_transaction_id"`
+	AccountID           shared.AccountID           `bson:"account_id"`
+	AmountInMinorUnits  int64                      `bson:"amount_in_minor_units"`
+	Status              ledger.SettlementStatus    `bson:"status"`
+	ReferenceID         string                     `bson:"reference_id"`
+	CreatedAt           int64                      `bson:"created_at"` // nanoseconds
+	UpdatedAt           int64                      `bson:"updated_at"` // nanoseconds
+}
+
+func settlementMapEntityToDocument(entity *ledger.Settlement) *settlementDocument {
+	return &settlementDocument{
+		ID:                  entity.ID(),
+		LedgerTransactionID: entity.LedgerTransactionID(),
+		AccountID:           entity.AccountID(),
+		AmountInMinorUnits:  entity.Amount(),
+		Status:              entity.Status(),
+		ReferenceID:         entity.ReferenceID(),
+		CreatedAt:           entity.CreatedAt().UnixNano(),
+		UpdatedAt:           entity.UpdatedAt().UnixNano(),
+	}
+}
+
+func settlementMapDocumentToEntity(doc *settlementDocument) *ledger.Settlement {
+	return ledger.NewSettlementWithID(
+		doc.ID,
+		doc.LedgerTransactionID,
+		doc.AccountID,
+		doc.AmountInMinorUnits,
+		doc.Status,
+		doc.ReferenceID,
+		time.Unix(0, doc.CreatedAt),
+		time.Unix(0, doc.UpdatedAt),
+	)
 }
 
 // -------------------- Command Repository --------------------
@@ -61,8 +93,9 @@ func (repo *MongoSettlementRepository) Create(
 	}
 
 	sessionCtx := transaction.SessionContext(ctx)
+	doc := settlementMapEntityToDocument(settlement)
 
-	_, err := repo.collection.InsertOne(sessionCtx, settlement)
+	_, err := repo.collection.InsertOne(sessionCtx, doc)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
@@ -80,20 +113,19 @@ func (repo *MongoSettlementRepository) Update(
 	}
 
 	sessionCtx := transaction.SessionContext(ctx)
+	doc := settlementMapEntityToDocument(settlement)
 
 	result, err := repo.collection.ReplaceOne(
 		sessionCtx,
 		bson.M{"_id": settlement.ID()},
-		settlement,
+		doc,
 	)
 	if err != nil {
 		return nil, err
 	}
-
 	if result.MatchedCount == 0 {
 		return nil, shared.ErrNotFound
 	}
-
 	return settlement, nil
 }
 
@@ -108,11 +140,9 @@ func (repo *MongoSettlementRepository) Delete(
 	if err != nil {
 		return err
 	}
-
 	if result.DeletedCount == 0 {
 		return shared.ErrNotFound
 	}
-
 	return nil
 }
 
@@ -122,20 +152,22 @@ func (repo *MongoSettlementRepository) GetByID(
 	ctx context.Context,
 	settlementID shared.SettlementID,
 ) (*ledger.Settlement, error) {
-	var settlement ledger.Settlement
-	err := repo.collection.FindOne(ctx, bson.M{"_id": settlementID}).Decode(&settlement)
+	var doc settlementDocument
+	err := repo.collection.FindOne(ctx, bson.M{"_id": settlementID}).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
 	}
-
-	return &settlement, err
+	if err != nil {
+		return nil, err
+	}
+	return settlementMapDocumentToEntity(&doc), nil
 }
 
 func (repo *MongoSettlementRepository) GetByLedgerTransactionID(
 	ctx context.Context,
 	ledgerTransactionID shared.LedgerTransactionID,
 ) ([]*ledger.Settlement, error) {
-	filter := bson.M{"ledgerTransactionID": ledgerTransactionID}
+	filter := bson.M{"ledger_transaction_id": ledgerTransactionID}
 
 	cursor, err := repo.collection.Find(ctx, filter)
 	if err != nil {
@@ -145,11 +177,11 @@ func (repo *MongoSettlementRepository) GetByLedgerTransactionID(
 
 	var settlements []*ledger.Settlement
 	for cursor.Next(ctx) {
-		var s ledger.Settlement
-		if err := cursor.Decode(&s); err != nil {
+		var doc settlementDocument
+		if err := cursor.Decode(&doc); err != nil {
 			return nil, err
 		}
-		settlements = append(settlements, &s)
+		settlements = append(settlements, settlementMapDocumentToEntity(&doc))
 	}
 
 	return settlements, nil
@@ -159,15 +191,17 @@ func (repo *MongoSettlementRepository) GetLastByLedgerTransactionID(
 	ctx context.Context,
 	ledgerTransactionID shared.LedgerTransactionID,
 ) (*ledger.Settlement, error) {
-	filter := bson.M{"ledgerTransactionID": ledgerTransactionID}
+	filter := bson.M{"ledger_transaction_id": ledgerTransactionID}
+	opts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: -1}})
 
-	opts := options.FindOne().SetSort(bson.D{{Key: "createdAt", Value: -1}})
-
-	var settlement ledger.Settlement
-	err := repo.collection.FindOne(ctx, filter, opts).Decode(&settlement)
+	var doc settlementDocument
+	err := repo.collection.FindOne(ctx, filter, opts).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
 
-	return &settlement, err
+	return settlementMapDocumentToEntity(&doc), nil
 }

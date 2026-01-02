@@ -16,7 +16,7 @@ import (
 // Service interface
 // --------------------
 
-type instanceContractService interface {
+type APIUserInstanceContractService interface {
 	RentInstanceOfListing(
 		ctx context.Context,
 		userID shared.UserID,
@@ -47,11 +47,11 @@ type instanceContractService interface {
 // --------------------
 
 type InstanceContractAPI struct {
-	contractService instanceContractService
+	contractService APIUserInstanceContractService
 }
 
 func NewInstanceContractAPI(
-	contractService instanceContractService,
+	contractService APIUserInstanceContractService,
 ) *InstanceContractAPI {
 	return &InstanceContractAPI{
 		contractService: contractService,

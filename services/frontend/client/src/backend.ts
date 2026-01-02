@@ -1,83 +1,51 @@
 import backend_constants from "./backend_constants";
 
-async function backend_request<T>(endpoint: string, type: string, body?: unknown): Promise<APIResult<T>> {
-    const request_body: RequestInit = {
-        method: type,
-        headers: {
-            "Content-Type": "application/json",
-        },
-        credentials: "include"
-    }
-    if (body)
-        request_body.body = JSON.stringify(body);
+async function backend_request<T>(endpoint: string, method: string, body?: unknown): Promise<APIResult<T>> {
+    const requestInit: RequestInit = {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+    };
 
+    if (body) requestInit.body = JSON.stringify(body);
 
     try {
-        const response = await fetch(`${backend_constants.address}${endpoint}`, request_body);
-        
-        let json = undefined
+        const response = await fetch(`${backend_constants.address}${endpoint}`, requestInit);
+        let json: T | undefined;
         try {
             json = await response.json();
-        }
-        catch(err2){
+        } catch {}
 
-        }
-
-        return {
-            response,
-            ok: response.ok,
-            json
-        }
-    }
-    catch (err) {
+        return { response, ok: response.ok, json };
+    } catch (err) {
         throw err;
-        //console.error(err)
     }
 }
 
-
+// =================== ENUMS & TYPES ===================
 export const ListingAccessModes = {
-    0: { label: 'Private', description: "Private, only available to you." },
-    1: { label: 'Public', description: "Available to everyone." },
-}
-
-export const BillingFrequency = {
-  OneTime: 0,
-  Monthly: 1,
-  Yearly: 2,
+    Private: 0,
+    Public: 1,
 } as const;
 
-export const BillingFrequencyName: Record<BillingFrequency, string> = {
-  0: "OneTime",
-  1: "Monthly",
-  2: "Yearly",
-};
-
-export type BillingFrequency =
-  (typeof BillingFrequency)[keyof typeof BillingFrequency];
+export type ListingAccessMode = (typeof ListingAccessModes)[keyof typeof ListingAccessModes];
 
 export interface Money {
-    amount: number;      // corresponds to Go Value
-    code: string;      // corresponds to Go Short
-}
-
-export interface PricingEntry {
-    id: string;          // "0", "1", etc
-    type: 0 | 1;         // 0 = OneTime, 1 = Monthly
-    currency: Money;
+    amount: number;
+    code: string;
 }
 
 export interface HardwareSpecification {
-    cpu?: number;   // corresponds to Go CPU
-    ramBytes?: number;   // corresponds to Go RAM (ramBytes)
-    diskBytes?: number;  // corresponds to Go Disk (diskBytes)
+    cpu?: number;
+    ramBytes?: number;
+    diskBytes?: number;
 }
 
 export interface ListingRequest {
     id: string;
     title?: string;
     description?: string;
-    accessMode?: number;
+    accessMode?: ListingAccessMode;
     hardware?: HardwareSpecification;
 }
 
@@ -91,236 +59,135 @@ export interface Listing {
 }
 
 export interface DeveloperListing extends Listing {
-    accessMode?: number;
+    accessMode?: ListingAccessMode;
 }
-
 
 export type User = {
-    username: string
-    isDeveloper: boolean
-}
+    username: string;
+    isDeveloper: boolean;
+};
 
 interface APIResult<T> {
-    ok: boolean,
-    response: Response,
-    json: T
+    ok: boolean;
+    response: Response;
+    json?: T;
 }
 
-export interface ApiBillingAccount {
+// =================== NEW HARDWARE RATE TYPES ===================
+export interface ApiHardwareRate {
     id: string;
-    status: "active" | "suspended" | "closed";
-    paymentProvider: string;
-    providerAccountId: string;
-    createdAt: number; // Unix timestamp
+    resourceType: "CPU" | "RAM" | "DISK";
+    costInCents: number;
+    validFromTime: string;
 }
 
+export interface ApiHardwareRatesResponse {
+    rates: ApiHardwareRate[];
+}
 
-export type ApiPaymentKind = "one_time" | "subscription" | "unknown";
-export type ApiPaymentStatus = "pending" | "paid" | "failed" | "refunded";
-
-export interface ApiPayment {
+// =================== LISTING TYPES ===================
+export interface ApiListingBase {
     id: string;
-    billingAccountId: string;
-    amount: number;
-    currency: string;
-    status: ApiPaymentStatus;
-    kind: ApiPaymentKind;
-    createdAt: number; // unix timestamp
-    paidAt?: number;
+    title?: string;
+    description?: string;
+    price: number;
+    hardware?: HardwareSpecification;
 }
 
-// =================== TYPES ===================
-export interface ApiInstance {
+export interface ApiDeveloperListing extends ApiListingBase {
+    accessMode?: ListingAccessMode;
+}
+
+export interface AddListingRequest {
+    title: string;
+    description: string;
+}
+
+export interface UpdateListingRequest {
     id: string;
-    listingId: string;
-    billingId: string;
-    state: ApiInstanceState;
-    contractState: ApiContractState;
-    hardwareSpecification: HardwareSpecification;
-    expiry: string;
+    title?: string;
+    description?: string;
+    hardware?: HardwareSpecification;
+    price?: number;
+    accessMode?: ListingAccessMode;
 }
 
-export type ApiInstanceState =
-    | "BUILDING"
-    | "RUNNING"
-    | "STOPPED"
-    | "UPDATING_HARDWARE"
-    | "ERROR"
-    | "UNKNOWN";
-
-export type ApiContractState =
-    | "INACTIVE"
-    | "ACTIVE"
-    | "UNKNOWN";
-export interface LaunchInstanceRequest {
-    listingId: string;
-    billingAccountId: string;
-    hardwareSpecification: HardwareSpecification;
+// =================== GITHUB SETUP ===================
+export interface ListingGithubSetup {
+    repositoryURL: string;
 }
 
-export interface UpdateHardwareRequest {
-    hardwareSpecification: HardwareSpecification;
+export interface AttachOrUpdateGithubSetupRequest {
+    repositoryURL: string;
+    accessToken: string;
 }
 
-export type HasInLibraryResponse = {
-    hasListing: boolean;
-};
-export type ApiHardwareRate = {
-    amount: number;
-    currencyCode: string;
-    unit: string;
-};
-
-export type ApiHardwareRatesResponse = {
-    cpuCost: ApiHardwareRate;
-    ramCost: ApiHardwareRate;
-    diskCost: ApiHardwareRate;
-    effectiveAt: number;
-};
-
-interface GithubSetupResponse {
-    id: string;
-    repoUrl: string;
-    createdAt: number;
-}
-
-export type DeployedInstanceStateEnum = "Running" | "Building" | "Stopped" | "ErrorState";
-
-export interface DeployedInstanceState {
-    state: DeployedInstanceStateEnum;
-    stateMessage: string;
-    error?: string; // optional
-}
-
-
-// =================== EXTENDED API ===================
+// =================== API CLIENT ===================
 export const API = {
     hardware: {
-        async getRates(
-            currencyCode?: string,
-            atUnixTimestamp?: number
-        ): Promise<APIResult<ApiHardwareRatesResponse>> {
-            const queryParameters = new URLSearchParams();
-
-            if (currencyCode) {
-                queryParameters.set("currency", currencyCode);
-            }
-
-            if (atUnixTimestamp) {
-                queryParameters.set("at", String(atUnixTimestamp));
-            }
-
-            const queryString = queryParameters.toString();
-            const path = queryString
-                ? `/hardware/rates?${queryString}`
-                : `/hardware/rates`;
-
-            return await backend_request(path, "GET");
+        async getRates(): Promise<APIResult<ApiHardwareRatesResponse>> {
+            return backend_request("/hardware/rates", "GET");
         },
     },
 
     user: {
         async getData(): Promise<User | undefined> {
-            const response = await backend_request("/user/data", "GET");
-            return response.ok ? (response.json as User) : undefined
+            const response = await backend_request<User>("/user/data", "GET");
+            return response.ok ? response.json : undefined;
         },
-        library:{
+        library: {
             async add(id: string) {
-                return await backend_request("/user/library", "POST", { id });
+                return backend_request("/user/library", "POST", { id });
             },
             async delete(id: string) {
-                return await backend_request("/user/library", "DELETE", { id });
+                return backend_request("/user/library", "DELETE", { id });
             },
-            async check(listingId: string): Promise<APIResult<HasInLibraryResponse>> {
-                return await backend_request(`/user/library/${listingId}/exists`, "GET");
-            }
+            async check(listingId: string): Promise<APIResult<{ hasListing: boolean }>> {
+                return backend_request(`/user/library/${listingId}/exists`, "GET");
+            },
+            async listBatch(cursor?: string) {
+                const params = cursor ? `?cursor=${cursor}` : "";
+                return backend_request<{ items: DeveloperListing[]; nextCursor?: string }>(`/user/library${params}`, "GET");
+            },
         },
-        billing: {
-            async list(): Promise<APIResult<ApiBillingAccount[]>> {
-                return await backend_request("/user/billing", "GET");
-            },
-            async create(paymentProvider: string, providerAccountID: string): Promise<APIResult<ApiBillingAccount>> {
-                const data = { paymentProvider, providerAccountID };
-                return await backend_request("/user/billing", "POST", data);
-            },
-            async get(id: string): Promise<APIResult<ApiBillingAccount>> {
-                return await backend_request(`/user/billing/${id}`, "GET");
-            },
-            async suspend(id: string): Promise<APIResult<ApiBillingAccount>> {
-                return await backend_request(`/user/billing/${id}/suspend`, "POST");
-            },
-            async close(id: string): Promise<APIResult<ApiBillingAccount>> {
-                return await backend_request(`/user/billing/${id}/close`, "POST");
-            },
-            payments: {
-                async list(billingAccountId: string): Promise<APIResult<ApiPayment[]>> {
-                    return await backend_request(`/user/billing/${billingAccountId}/payments`, "GET");
-                },
-                async get(billingAccountId: string, paymentId: string): Promise<APIResult<ApiPayment>> {
-                    return await backend_request(`/user/billing/${billingAccountId}/payment/${paymentId}`, "GET");
-                },
-                async getMetadata(billingAccountId: string, paymentId: string): Promise<APIResult<any>> {
-                    return await backend_request(`/user/billing/${billingAccountId}/payment/${paymentId}/metadata`, "GET");
-                }
-            }
-        },
-        instances: {
-            async launch(listingId: string, billingAccountId: string, hardwareSpecification: HardwareSpecification): Promise<APIResult<ApiInstance>> {
-                const data: LaunchInstanceRequest = { listingId, billingAccountId, hardwareSpecification };
-                return await backend_request(`/user/instances`, "POST", data);
-            },
-            async updateHardware(instanceId: string, hardwareSpecification: HardwareSpecification): Promise<APIResult<ApiInstance>> {
-                const data: UpdateHardwareRequest = { hardwareSpecification };
-                return await backend_request(`/user/instances/${instanceId}/hardware`, "PATCH", data);
-            },
-            async get(instanceId: string): Promise<APIResult<ApiInstance>> {
-                return await backend_request(`/user/instances/${instanceId}`, "GET");
-            },
-            async listByBilling(billingId: string): Promise<APIResult<ApiInstance[]>> {
-                return await backend_request(`/user/billing/${billingId}/instances`, "GET");
-            },
-            async list(): Promise<APIResult<ApiInstance[]>> {
-                return await backend_request(`/user/instances`, "GET");
-            },
-            state: {
-                async get(instanceId: string): Promise<APIResult<DeployedInstanceState>> {
-                    return await backend_request(`/user/instances/${instanceId}/state`, "GET");
-                }
-            }
-        }
     },
+
     listing: {
         async get(id: string): Promise<APIResult<Listing>> {
-            return await backend_request(`/listing/${id}`, "GET");
+            return backend_request(`/listings/${id}`, "GET");
         },
-        
+        async listBatch(cursor?: string) {
+            const params = cursor ? `?cursor=${cursor}` : "";
+            return backend_request<{ items: Listing[]; nextCursor?: string }>(`/listing${params}`, "GET");
+        },
     },
+
     developer: {
         listing: {
             async get(id: string): Promise<APIResult<DeveloperListing>> {
-                return await backend_request("/developer/listing/" + id, "GET");
+                return backend_request(`/developer/listings/${id}`, "GET");
             },
-            async delete(id: string): Promise<APIResult<unknown>> {
-                return await backend_request("/developer/listing", "DELETE", {id});
+            async create(title: string, description: string) {
+                return backend_request<DeveloperListing>("/developer/listings", "POST", { title, description });
             },
-            async update(data: ListingRequest) {
-                return await backend_request("/developer/listing", "PUT", data)
+            async update(data: UpdateListingRequest) {
+                return backend_request("/developer/listings", "PUT", data);
             },
-            async create(title: string = "My New Listing", description: string = "This is a description of my listing.") {
-                const data = { title, description };
-                return await backend_request<DeveloperListing>(`/developer/listing`, "POST", data)
+            async delete(id: string) {
+                return backend_request("/developer/listings", "DELETE", { id });
             },
             setup: {
-                async get(listingId: string): Promise<APIResult<GithubSetupResponse>> {
-                    return await backend_request(`/developer/listing/${listingId}/setup`, "GET");
+                async get(listingId: string): Promise<APIResult<ListingGithubSetup>> {
+                    return backend_request(`/developer/listings/${listingId}/setup/github`, "GET");
                 },
-                async attachOrUpdate(listingId: string, repoUrl: string, accessToken: string): Promise<APIResult<GithubSetupResponse>> {
-                    return await backend_request(`/developer/listing/${listingId}/setup`, "POST", { repoUrl, accessToken });
+                async attachOrUpdate(listingId: string, repositoryURL: string, accessToken: string) {
+                    const payload: AttachOrUpdateGithubSetupRequest = { repositoryURL, accessToken };
+                    return backend_request(`/developer/listings/${listingId}/setup/github`, "POST", payload);
                 },
-                async remove(listingId: string): Promise<APIResult<unknown>> {
-                    return await backend_request(`/developer/listing/${listingId}/setup`, "DELETE");
-                }
-            }
-        }
-    }
+                async remove(listingId: string) {
+                    return backend_request(`/developer/listings/${listingId}/setup/github`, "DELETE");
+                },
+            },
+        },
+    },
 };
