@@ -76,7 +76,7 @@ func mapSavedListingDocumentToEntity(document *savedListingDocument) (*user.Save
 
 func (repo *MongoSavedListingRepository) Create(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	item *user.SavedListing,
 ) (*user.SavedListing, error) {
 	if item == nil {
@@ -96,7 +96,7 @@ func (repo *MongoSavedListingRepository) Create(
 
 func (repo *MongoSavedListingRepository) Delete(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	itemID shared.SavedListingID,
 ) error {
 	operationContext := util.ResolveTransactionalContext(ctx, transaction)

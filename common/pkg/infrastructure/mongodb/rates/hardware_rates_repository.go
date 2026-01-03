@@ -72,7 +72,7 @@ func mapDocumentToEntity(doc *hardwareCostRateDocument) (*rates.HardwareCostRate
 
 func (repo *MongoHardwareCostRateRepository) Create(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	rate *rates.HardwareCostRate,
 ) (*rates.HardwareCostRate, error) {
 	if rate == nil {
@@ -92,7 +92,7 @@ func (repo *MongoHardwareCostRateRepository) Create(
 
 func (repo *MongoHardwareCostRateRepository) Update(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	rate *rates.HardwareCostRate,
 ) (*rates.HardwareCostRate, error) {
 	if rate == nil {

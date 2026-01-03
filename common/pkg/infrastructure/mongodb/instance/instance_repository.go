@@ -65,7 +65,6 @@ func (repo *MongoInstanceRentalContractRepository) EnsureIndexes(ctx context.Con
 
 func (repo *MongoInstanceRentalContractRepository) Create(
 	ctx context.Context,
-	transaction shared.Transaction,
 	contract *instance.InstanceRentalContract,
 ) error {
 	if contract == nil {
@@ -82,7 +81,6 @@ func (repo *MongoInstanceRentalContractRepository) Create(
 
 func (repo *MongoInstanceRentalContractRepository) Update(
 	ctx context.Context,
-	transaction shared.Transaction,
 	contract *instance.InstanceRentalContract,
 ) error {
 	if contract == nil {
@@ -102,7 +100,7 @@ func (repo *MongoInstanceRentalContractRepository) Update(
 
 func (repo *MongoInstanceRentalContractRepository) Delete(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	contractID shared.InstanceRentalContractID,
 ) error {
 	sessionCtx := transaction.SessionContext(ctx)

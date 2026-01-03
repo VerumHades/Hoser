@@ -66,7 +66,7 @@ func mapDocumentToEntity(document *userDocument) (*user.User, error) {
 
 func (repo *MongoUserRepository) Create(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	userEntity *user.User,
 ) (*user.User, error) {
 	if userEntity == nil {
@@ -86,7 +86,7 @@ func (repo *MongoUserRepository) Create(
 
 func (repo *MongoUserRepository) Update(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	userEntity *user.User,
 ) (*user.User, error) {
 	if userEntity == nil {
@@ -113,7 +113,7 @@ func (repo *MongoUserRepository) Update(
 
 func (repo *MongoUserRepository) Delete(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	userID shared.UserID,
 ) error {
 	operationContext := util.ResolveTransactionalContext(ctx, transaction)

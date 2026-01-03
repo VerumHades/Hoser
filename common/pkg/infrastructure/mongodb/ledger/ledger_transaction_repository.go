@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"common/pkg/domain/ledger"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 	"common/pkg/util"
@@ -57,13 +56,13 @@ type ledgerEntryDocument struct {
 
 type ledgerTransactionDocument struct {
 	ID            shared.LedgerTransactionID `bson:"_id"`
-	ReferenceType ledger.ReferenceType       `bson:"reference_type"`
+	ReferenceType accounting.ReferenceType   `bson:"reference_type"`
 	ReferenceID   string                     `bson:"reference_id"`
 	CreatedAt     int64                      `bson:"created_at"` // nanoseconds
 	Entries       []ledgerEntryDocument      `bson:"entries"`
 }
 
-func ledgerMapEntityToDocument(entity *ledger.LedgerTransaction) *ledgerTransactionDocument {
+func ledgerMapEntityToDocument(entity *accounting.LedgerTransaction) *ledgerTransactionDocument {
 	entries := make([]ledgerEntryDocument, len(entity.Entries()))
 	for i, e := range entity.Entries() {
 		entries[i] = ledgerEntryDocument{
@@ -82,10 +81,10 @@ func ledgerMapEntityToDocument(entity *ledger.LedgerTransaction) *ledgerTransact
 	}
 }
 
-func ledgerMapDocumentToEntity(doc *ledgerTransactionDocument) (*ledger.LedgerTransaction, error) {
-	entries := make([]*ledger.LedgerEntry, len(doc.Entries))
+func ledgerMapDocumentToEntity(doc *ledgerTransactionDocument) (*accounting.LedgerTransaction, error) {
+	entries := make([]*accounting.LedgerEntry, len(doc.Entries))
 	for i, e := range doc.Entries {
-		entry, err := ledger.NewLedgerEntryWithTime(
+		entry, err := accounting.NewLedgerEntryWithTime(
 			e.AccountID,
 			e.AmountInMinorUnits,
 			time.Unix(0, e.CreatedAt),
@@ -96,7 +95,7 @@ func ledgerMapDocumentToEntity(doc *ledgerTransactionDocument) (*ledger.LedgerTr
 		entries[i] = entry
 	}
 
-	return ledger.NewLedgerTransactionWithID(
+	return accounting.NewLedgerTransactionWithID(
 		doc.ID,
 		doc.ReferenceType,
 		doc.ReferenceID,
@@ -109,8 +108,8 @@ func ledgerMapDocumentToEntity(doc *ledgerTransactionDocument) (*ledger.LedgerTr
 
 func (repo *MongoLedgerTransactionRepository) Create(
 	ctx context.Context,
-	transaction shared.Transaction,
-	ledgerTransaction *ledger.LedgerTransaction,
+
+	ledgerTransaction *accounting.LedgerTransaction,
 ) error {
 	if ledgerTransaction == nil {
 		return errors.New("ledger transaction cannot be nil")
@@ -128,8 +127,8 @@ func (repo *MongoLedgerTransactionRepository) Create(
 
 func (repo *MongoLedgerTransactionRepository) Update(
 	ctx context.Context,
-	transaction shared.Transaction,
-	ledgerTransaction *ledger.LedgerTransaction,
+
+	ledgerTransaction *accounting.LedgerTransaction,
 ) error {
 	if ledgerTransaction == nil {
 		return errors.New("ledger transaction cannot be nil")
@@ -154,7 +153,7 @@ func (repo *MongoLedgerTransactionRepository) Update(
 
 func (repo *MongoLedgerTransactionRepository) Delete(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	ledgerTransactionID shared.LedgerTransactionID,
 ) error {
 	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
@@ -173,7 +172,7 @@ func (repo *MongoLedgerTransactionRepository) Delete(
 func (repo *MongoLedgerTransactionRepository) GetByID(
 	ctx context.Context,
 	ledgerTransactionID shared.LedgerTransactionID,
-) (*ledger.LedgerTransaction, error) {
+) (*accounting.LedgerTransaction, error) {
 	var doc ledgerTransactionDocument
 	err := repo.collection.FindOne(ctx, bson.M{"_id": ledgerTransactionID}).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -187,9 +186,9 @@ func (repo *MongoLedgerTransactionRepository) GetByID(
 
 func (repo *MongoLedgerTransactionRepository) GetByReference(
 	ctx context.Context,
-	referenceType ledger.ReferenceType,
+	referenceType accounting.ReferenceType,
 	referenceID string,
-) ([]*ledger.LedgerTransaction, error) {
+) ([]*accounting.LedgerTransaction, error) {
 	filter := bson.M{
 		"reference_type": referenceType,
 		"reference_id":   referenceID,
@@ -201,7 +200,7 @@ func (repo *MongoLedgerTransactionRepository) GetByReference(
 	}
 	defer cursor.Close(ctx)
 
-	var transactions []*ledger.LedgerTransaction
+	var transactions []*accounting.LedgerTransaction
 	for cursor.Next(ctx) {
 		var doc ledgerTransactionDocument
 		if err := cursor.Decode(&doc); err != nil {
@@ -221,7 +220,7 @@ func (repo *MongoLedgerTransactionRepository) GetLatestByReferenceAndAccount(
 	ctx context.Context,
 	accountID shared.AccountID,
 	referenceID string,
-) (*ledger.LedgerTransaction, error) {
+) (*accounting.LedgerTransaction, error) {
 	filter := bson.M{
 		"reference_id":       referenceID,
 		"entries.account_id": accountID,
