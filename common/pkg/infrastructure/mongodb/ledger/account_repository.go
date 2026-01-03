@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"common/pkg/domain/ledger"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 	"common/pkg/util"
@@ -47,14 +46,14 @@ func (repo *MongoAccountRepository) EnsureIndexes(ctx context.Context) error {
 // -------------------- Document Mapping --------------------
 
 type accountDocument struct {
-	ID          shared.AccountID        `bson:"_id"`
-	AccountType ledger.AccountType      `bson:"account_type"`
-	OwnerType   ledger.AccountOwnerType `bson:"owner_type"`
-	OwnerID     string                  `bson:"owner_id"`
-	CreatedAt   int64                   `bson:"created_at"` // nanoseconds
+	ID          shared.AccountID            `bson:"_id"`
+	AccountType accounting.AccountType      `bson:"account_type"`
+	OwnerType   accounting.AccountOwnerType `bson:"owner_type"`
+	OwnerID     string                      `bson:"owner_id"`
+	CreatedAt   int64                       `bson:"created_at"` // nanoseconds
 }
 
-func mapEntityToDocument(entity *ledger.Account) *accountDocument {
+func mapEntityToDocument(entity *accounting.Account) *accountDocument {
 	return &accountDocument{
 		ID:          entity.ID(),
 		AccountType: entity.Type(),
@@ -64,8 +63,8 @@ func mapEntityToDocument(entity *ledger.Account) *accountDocument {
 	}
 }
 
-func mapDocumentToEntity(doc *accountDocument) (*ledger.Account, error) {
-	return ledger.NewAccountWithID(
+func mapDocumentToEntity(doc *accountDocument) (*accounting.Account, error) {
+	return accounting.NewAccountWithID(
 		doc.ID,
 		doc.AccountType,
 		doc.OwnerType,
@@ -78,9 +77,9 @@ func mapDocumentToEntity(doc *accountDocument) (*ledger.Account, error) {
 
 func (repo *MongoAccountRepository) Create(
 	ctx context.Context,
-	transaction shared.Transaction,
-	accountEntity *ledger.Account,
-) (*ledger.Account, error) {
+
+	accountEntity *accounting.Account,
+) (*accounting.Account, error) {
 	if accountEntity == nil {
 		return nil, errors.New("account cannot be nil")
 	}
@@ -97,9 +96,9 @@ func (repo *MongoAccountRepository) Create(
 
 func (repo *MongoAccountRepository) Update(
 	ctx context.Context,
-	transaction shared.Transaction,
-	accountEntity *ledger.Account,
-) (*ledger.Account, error) {
+
+	accountEntity *accounting.Account,
+) (*accounting.Account, error) {
 	if accountEntity == nil {
 		return nil, errors.New("account cannot be nil")
 	}
@@ -123,7 +122,7 @@ func (repo *MongoAccountRepository) Update(
 
 func (repo *MongoAccountRepository) Delete(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	accountID shared.AccountID,
 ) error {
 	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
@@ -142,7 +141,7 @@ func (repo *MongoAccountRepository) Delete(
 func (repo *MongoAccountRepository) GetByID(
 	ctx context.Context,
 	accountID shared.AccountID,
-) (*ledger.Account, error) {
+) (*accounting.Account, error) {
 	var doc accountDocument
 	err := repo.collection.FindOne(ctx, bson.M{"_id": accountID}).Decode(&doc)
 	if errors.Is(err, mongo.ErrNoDocuments) {
@@ -156,9 +155,9 @@ func (repo *MongoAccountRepository) GetByID(
 
 func (repo *MongoAccountRepository) GetByOwner(
 	ctx context.Context,
-	ownerType ledger.AccountOwnerType,
+	ownerType accounting.AccountOwnerType,
 	ownerID string,
-) ([]*ledger.Account, error) {
+) ([]*accounting.Account, error) {
 	filter := bson.M{"owner_type": ownerType, "owner_id": ownerID}
 	cursor, err := repo.collection.Find(ctx, filter)
 	if err != nil {
@@ -166,7 +165,7 @@ func (repo *MongoAccountRepository) GetByOwner(
 	}
 	defer cursor.Close(ctx)
 
-	var accounts []*ledger.Account
+	var accounts []*accounting.Account
 	for cursor.Next(ctx) {
 		var doc accountDocument
 		if err := cursor.Decode(&doc); err != nil {
@@ -184,9 +183,9 @@ func (repo *MongoAccountRepository) GetByOwner(
 
 func (repo *MongoAccountRepository) GetFirstByOwner(
 	ctx context.Context,
-	ownerType ledger.AccountOwnerType,
+	ownerType accounting.AccountOwnerType,
 	ownerID string,
-) (*ledger.Account, error) {
+) (*accounting.Account, error) {
 	filter := bson.M{"owner_type": ownerType, "owner_id": ownerID}
 	var doc accountDocument
 	err := repo.collection.FindOne(ctx, filter).Decode(&doc)
@@ -201,8 +200,8 @@ func (repo *MongoAccountRepository) GetFirstByOwner(
 
 func (repo *MongoAccountRepository) GetByType(
 	ctx context.Context,
-	accountType ledger.AccountType,
-) ([]*ledger.Account, error) {
+	accountType accounting.AccountType,
+) ([]*accounting.Account, error) {
 	filter := bson.M{"account_type": accountType}
 	cursor, err := repo.collection.Find(ctx, filter)
 	if err != nil {
@@ -210,7 +209,7 @@ func (repo *MongoAccountRepository) GetByType(
 	}
 	defer cursor.Close(ctx)
 
-	var accounts []*ledger.Account
+	var accounts []*accounting.Account
 	for cursor.Next(ctx) {
 		var doc accountDocument
 		if err := cursor.Decode(&doc); err != nil {

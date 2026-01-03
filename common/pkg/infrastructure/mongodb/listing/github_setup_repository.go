@@ -45,7 +45,7 @@ func (repo *MongoGitHubSetupRepository) EnsureIndexes(ctx context.Context) error
 
 func (repo *MongoGitHubSetupRepository) Create(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	setup *listing.GitHubSetupDefinition,
 ) (*listing.GitHubSetupDefinition, error) {
 	if setup == nil {
@@ -62,7 +62,7 @@ func (repo *MongoGitHubSetupRepository) Create(
 
 func (repo *MongoGitHubSetupRepository) Update(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	setup *listing.GitHubSetupDefinition,
 ) (*listing.GitHubSetupDefinition, error) {
 	if setup == nil {
@@ -86,7 +86,7 @@ func (repo *MongoGitHubSetupRepository) Update(
 
 func (repo *MongoGitHubSetupRepository) DeleteByID(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	setupID shared.SetupID,
 ) error {
 	sessionCtx := transaction.SessionContext(ctx)
@@ -102,7 +102,7 @@ func (repo *MongoGitHubSetupRepository) DeleteByID(
 
 func (repo *MongoGitHubSetupRepository) DeleteByListingID(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	listingID shared.ListingID,
 ) error {
 	sessionCtx := transaction.SessionContext(ctx)

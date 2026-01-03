@@ -88,7 +88,7 @@ func mapDocumentToEntity(doc *listingDocument) (*listing.Listing, error) {
 
 func (repo *MongoListingRepository) Create(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	listingEntity *listing.Listing,
 ) error {
 	if listingEntity == nil {
@@ -107,7 +107,7 @@ func (repo *MongoListingRepository) Create(
 
 func (repo *MongoListingRepository) Update(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	listingEntity *listing.Listing,
 ) error {
 	if listingEntity == nil {
@@ -133,7 +133,7 @@ func (repo *MongoListingRepository) Update(
 
 func (repo *MongoListingRepository) Delete(
 	ctx context.Context,
-	transaction shared.Transaction,
+
 	listingID shared.ListingID,
 ) error {
 	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
