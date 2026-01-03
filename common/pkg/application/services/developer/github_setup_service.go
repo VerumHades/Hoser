@@ -1,7 +1,8 @@
 package developer
 
 import (
-	"common/pkg/domain/listing"
+	"common/pkg/domain/entities/githubsetups"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"common/pkg/util"
 	"context"
@@ -9,14 +10,14 @@ import (
 
 // DeveloperGitHubSetupService manages GitHub setups as full CRUD entities.
 type DeveloperGitHubSetupService struct {
-	commandRepository listing.GitHubSetupCommandRepository
-	queryRepository   listing.GitHubSetupQueryRepository
+	commandRepository repositories.GitHubSetupCommandRepository
+	queryRepository   repositories.GitHubSetupQueryRepository
 }
 
 // NewDeveloperGitHubSetupService constructs the service.
 func NewDeveloperGitHubSetupService(
-	commandRepository listing.GitHubSetupCommandRepository,
-	queryRepository listing.GitHubSetupQueryRepository,
+	commandRepository repositories.GitHubSetupCommandRepository,
+	queryRepository repositories.GitHubSetupQueryRepository,
 ) *DeveloperGitHubSetupService {
 	return &DeveloperGitHubSetupService{
 		commandRepository: commandRepository,
@@ -24,40 +25,40 @@ func NewDeveloperGitHubSetupService(
 	}
 }
 
-// CreateSetup creates a new GitHub setup for a listing.
+// CreateSetup creates a new GitHub setup for a githubsetups.
 func (s *DeveloperGitHubSetupService) CreateSetup(
 	ctx context.Context,
 	listingID shared.ListingID,
 	repoURL string,
 	accessToken string,
-) (*listing.GitHubSetupDefinition, error) {
-	setup, err := listing.NewGitHubSetup(listingID, repoURL, accessToken)
+) (*githubsetups.GitHubSetupDefinition, error) {
+	setup, err := githubsetups.NewGitHubSetup(listingID, repoURL, accessToken)
 	if err != nil {
 		return nil, err
 	}
-	return s.commandRepository.Create(ctx, nil, setup)
+	return s.commandRepository.Create(ctx, setup)
 }
 
 // UpdateSetup updates an existing GitHub setup by ID.
 func (s *DeveloperGitHubSetupService) UpdateSetup(
 	ctx context.Context,
-	setupID shared.SetupID,
+	setupID shared.GithubSetupID,
 	repoURL string,
 	accessToken string,
-) (*listing.GitHubSetupDefinition, error) {
+) (*githubsetups.GitHubSetupDefinition, error) {
 	existing, err := s.queryRepository.GetByID(ctx, setupID)
 	if err != nil {
 		return nil, err
 	}
 	existing.UpdateRepo(repoURL, accessToken)
-	return s.commandRepository.Update(ctx, nil, existing)
+	return s.commandRepository.Update(ctx, existing)
 }
 
 // GetSetupByID retrieves a GitHub setup by ID.
 func (s *DeveloperGitHubSetupService) GetSetupByID(
 	ctx context.Context,
-	setupID shared.SetupID,
-) (*listing.GitHubSetupDefinition, error) {
+	setupID shared.GithubSetupID,
+) (*githubsetups.GitHubSetupDefinition, error) {
 	return s.queryRepository.GetByID(ctx, setupID)
 }
 
@@ -65,17 +66,17 @@ func (s *DeveloperGitHubSetupService) GetSetupByID(
 func (s *DeveloperGitHubSetupService) ListSetupsByListing(
 	ctx context.Context,
 	listingID shared.ListingID,
-	batchRequest shared.BatchRequest[listing.GitHubSetupCursor],
-) ([]*listing.GitHubSetupDefinition, listing.GitHubSetupCursor, error) {
+	batchRequest shared.BatchRequest[repositories.GitHubSetupCursor],
+) ([]*githubsetups.GitHubSetupDefinition, repositories.GitHubSetupCursor, error) {
 	return s.queryRepository.FetchNextBatchByListing(ctx, listingID, batchRequest)
 }
 
 // DeleteSetupByID removes a GitHub setup by ID.
 func (s *DeveloperGitHubSetupService) DeleteSetupByID(
 	ctx context.Context,
-	setupID shared.SetupID,
+	setupID shared.GithubSetupID,
 ) error {
-	return s.commandRepository.DeleteByID(ctx, nil, setupID)
+	return s.commandRepository.DeleteByID(ctx, setupID)
 }
 
 func (s *DeveloperGitHubSetupService) DeleteSetupsByListing(
@@ -84,13 +85,13 @@ func (s *DeveloperGitHubSetupService) DeleteSetupsByListing(
 ) error {
 	fetchNextBatch := func(
 		ctx context.Context,
-		request shared.BatchRequest[listing.GitHubSetupCursor],
-	) (items []*listing.GitHubSetupDefinition, nextCursor listing.GitHubSetupCursor, err error) {
+		request shared.BatchRequest[repositories.GitHubSetupCursor],
+	) (items []*githubsetups.GitHubSetupDefinition, nextCursor repositories.GitHubSetupCursor, err error) {
 		return s.queryRepository.FetchNextBatchByListing(ctx, listingID, request)
 	}
 
 	for setup := range util.GenerateInBatches(ctx, 100, fetchNextBatch) {
-		if err := s.commandRepository.DeleteByID(ctx, nil, setup.ID()); err != nil {
+		if err := s.commandRepository.DeleteByID(ctx, setup.ID()); err != nil {
 			return err
 		}
 	}

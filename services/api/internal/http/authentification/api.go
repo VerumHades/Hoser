@@ -1,7 +1,7 @@
 package authentification
 
 import (
-	"common/pkg/domain/user"
+	"common/pkg/domain/entities/user"
 	"context"
 	"net/http"
 	"time"

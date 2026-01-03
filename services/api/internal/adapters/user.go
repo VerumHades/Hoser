@@ -1,18 +1,18 @@
 package adapters
 
 import (
-	"common/pkg/domain/user"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"context"
 )
 
 // developerCheckAdapter adapts a UserQueryRepository to the userService interface.
 type DeveloperCheckAdapter struct {
-	userRepository user.UserQueryRepository
+	userRepository repositories.UserQueryRepository
 }
 
 // NewDeveloperCheckAdapter constructs a new adapter.
-func NewDeveloperCheckAdapter(repo user.UserQueryRepository) *DeveloperCheckAdapter {
+func NewDeveloperCheckAdapter(repo repositories.UserQueryRepository) *DeveloperCheckAdapter {
 	return &DeveloperCheckAdapter{
 		userRepository: repo,
 	}

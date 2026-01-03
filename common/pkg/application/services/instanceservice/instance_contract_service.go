@@ -1,9 +1,9 @@
 package instanceservice
 
 import (
-	"common/pkg/domain/instance"
-	"common/pkg/domain/listing"
-	"common/pkg/domain/user"
+	"common/pkg/application/unitofwork"
+	"common/pkg/domain/entities/contract"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"common/pkg/util"
 	"context"
@@ -12,27 +12,27 @@ import (
 )
 
 type ContractPaymentService interface {
-	CreateContractPaymentLedgerTransaction(ctx context.Context, context *instance.InstanceRentalContract, transaction shared.Transaction) error
-	CreateContractRefundLedgerTransaction(ctx context.Context, context *instance.InstanceRentalContract, transaction shared.Transaction) error
+	CreateContractPaymentLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) error
+	CreateContractRefundLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) error
 }
 
 type InstanceContractService struct {
 	paymentService      ContractPaymentService
-	transactionProvider shared.TransactionProvider
+	transactionProvider unitofwork.TransactionProvider
 
-	listingQueryRepository    listing.ListingQueryRepository
-	contractQueryRepository   instance.InstanceRentalContractQueryRepository
-	contractCommandRepository instance.InstanceRentalContractCommandRepository
-	userQueryRepository       user.UserQueryRepository
+	listingQueryRepository    repositories.ListingQueryRepository
+	contractQueryRepository   repositories.InstanceRentalContractQueryRepository
+	contractCommandRepository repositories.InstanceRentalContractCommandRepository
+	userQueryRepository       repositories.UserQueryRepository
 }
 
 func NewInstanceContractService(
 	paymentService ContractPaymentService,
-	transactionProvider shared.TransactionProvider,
-	listingQueryRepository listing.ListingQueryRepository,
-	contractQueryRepository instance.InstanceRentalContractQueryRepository,
-	contractCommandRepository instance.InstanceRentalContractCommandRepository,
-	userQueryRepository user.UserQueryRepository,
+	transactionProvider unitofwork.TransactionProvider,
+	listingQueryRepository repositories.ListingQueryRepository,
+	contractQueryRepository repositories.InstanceRentalContractQueryRepository,
+	contractCommandRepository repositories.InstanceRentalContractCommandRepository,
+	userQueryRepository repositories.UserQueryRepository,
 ) *InstanceContractService {
 	return &InstanceContractService{
 		paymentService:            paymentService,
@@ -47,7 +47,7 @@ func NewInstanceContractService(
 func (service *InstanceContractService) withContract(
 	ctx context.Context,
 	contractID shared.InstanceRentalContractID,
-	processFunction func(ctx context.Context, contract *instance.InstanceRentalContract) error,
+	processFunction func(ctx context.Context, contract *contract.InstanceRentalContract) error,
 ) error {
 	contract, err := service.contractQueryRepository.GetByID(ctx, contractID)
 	if err != nil {
@@ -65,7 +65,7 @@ func (service *InstanceContractService) RentInstanceOfListing(
 	ctx context.Context,
 	userID shared.UserID,
 	listingID shared.ListingID,
-	contract *instance.InstanceRentalContract,
+	contract *contract.InstanceRentalContract,
 ) error {
 	if err := util.EnsureEntityExists(ctx, userID, fmt.Errorf("user %s does not exist", userID), service.userQueryRepository); err != nil {
 		return err
@@ -75,17 +75,17 @@ func (service *InstanceContractService) RentInstanceOfListing(
 		return err
 	}
 
-	return service.paymentService.CreateContractPaymentLedgerTransaction(ctx, contract, nil)
+	return service.paymentService.CreateContractPaymentLedgerTransaction(ctx, contract)
 }
 
 func (service *InstanceContractService) applyToContract(
 	ctx context.Context,
 	contractID shared.InstanceRentalContractID,
-	updater func(contract *instance.InstanceRentalContract),
+	updater func(contract *contract.InstanceRentalContract),
 ) error {
-	return service.withContract(ctx, contractID, func(ctx context.Context, contract *instance.InstanceRentalContract) error {
+	return service.withContract(ctx, contractID, func(ctx context.Context, contract *contract.InstanceRentalContract) error {
 		updater(contract)
-		return service.contractCommandRepository.Update(ctx, nil, contract)
+		return service.contractCommandRepository.Update(ctx, contract)
 	})
 }
 
@@ -94,7 +94,7 @@ func (service *InstanceContractService) EnableContractRenewal(
 	contractID shared.InstanceRentalContractID,
 	renewDuration time.Duration,
 ) error {
-	return service.applyToContract(ctx, contractID, func(contract *instance.InstanceRentalContract) {
+	return service.applyToContract(ctx, contractID, func(contract *contract.InstanceRentalContract) {
 		contract.EnableRenewal(renewDuration)
 	})
 }
@@ -103,7 +103,7 @@ func (service *InstanceContractService) DisableContractRenewal(
 	ctx context.Context,
 	contractID shared.InstanceRentalContractID,
 ) error {
-	return service.applyToContract(ctx, contractID, func(contract *instance.InstanceRentalContract) {
+	return service.applyToContract(ctx, contractID, func(contract *contract.InstanceRentalContract) {
 		contract.DisableRenewal()
 	})
 }
@@ -113,9 +113,9 @@ func (service *InstanceContractService) ChangeContractHardwareSpecification(
 	contractID shared.InstanceRentalContractID,
 	hardwareSpecification *shared.HardwareSpecification,
 ) error {
-	return service.withContract(ctx, contractID, func(ctx context.Context, contract *instance.InstanceRentalContract) error {
-		return shared.WithTransaction(ctx, service.transactionProvider, func(ctx context.Context, transaction shared.Transaction) error {
-			if err := service.paymentService.CreateContractRefundLedgerTransaction(ctx, contract, transaction); err != nil {
+	return service.withContract(ctx, contractID, func(ctx context.Context, contract *contract.InstanceRentalContract) error {
+		return unitofwork.WithTransaction(ctx, service.transactionProvider, func(txContext context.Context) error {
+			if err := service.paymentService.CreateContractRefundLedgerTransaction(txContext, contract); err != nil {
 				return err
 			}
 
@@ -124,11 +124,11 @@ func (service *InstanceContractService) ChangeContractHardwareSpecification(
 				return err
 			}
 
-			if err := service.contractCommandRepository.Create(ctx, transaction, newContract); err != nil {
+			if err := service.contractCommandRepository.Create(txContext, newContract); err != nil {
 				return err
 			}
 
-			return service.paymentService.CreateContractPaymentLedgerTransaction(ctx, newContract, nil)
+			return service.paymentService.CreateContractPaymentLedgerTransaction(txContext, newContract)
 		})
 	})
 }

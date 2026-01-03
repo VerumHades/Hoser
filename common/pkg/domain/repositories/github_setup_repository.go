@@ -24,7 +24,7 @@ type GitHubSetupCommandRepository interface {
 	// DeleteByID removes a GitHub setup by its ID within a transaction.
 	DeleteByID(
 		ctx context.Context,
-		setupID shared.SetupID,
+		setupID shared.GithubSetupID,
 	) error
 
 	// DeleteByListingID removes all GitHub setups for a listing within a transaction.
@@ -44,7 +44,7 @@ type GitHubSetupCursor struct {
 type GitHubSetupQueryRepository interface {
 	GetByID(
 		ctx context.Context,
-		setupID shared.SetupID,
+		setupID shared.GithubSetupID,
 	) (*githubsetups.GitHubSetupDefinition, error)
 
 	FetchNextBatchByListing(

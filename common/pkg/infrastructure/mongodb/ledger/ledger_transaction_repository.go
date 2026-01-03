@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"common/pkg/domain/entities/accounting"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
-	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -115,10 +115,9 @@ func (repo *MongoLedgerTransactionRepository) Create(
 		return errors.New("ledger transaction cannot be nil")
 	}
 
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
 	doc := ledgerMapEntityToDocument(ledgerTransaction)
 
-	_, err := repo.collection.InsertOne(operationCtx, doc)
+	_, err := repo.collection.InsertOne(ctx, doc)
 	if mongo.IsDuplicateKeyError(err) {
 		return shared.ErrAlreadyExists
 	}
@@ -134,11 +133,10 @@ func (repo *MongoLedgerTransactionRepository) Update(
 		return errors.New("ledger transaction cannot be nil")
 	}
 
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
 	doc := ledgerMapEntityToDocument(ledgerTransaction)
 
 	result, err := repo.collection.ReplaceOne(
-		operationCtx,
+		ctx,
 		bson.M{"_id": ledgerTransaction.ID()},
 		doc,
 	)
@@ -156,8 +154,7 @@ func (repo *MongoLedgerTransactionRepository) Delete(
 
 	ledgerTransactionID shared.LedgerTransactionID,
 ) error {
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
-	result, err := repo.collection.DeleteOne(operationCtx, bson.M{"_id": ledgerTransactionID})
+	result, err := repo.collection.DeleteOne(ctx, bson.M{"_id": ledgerTransactionID})
 	if err != nil {
 		return err
 	}

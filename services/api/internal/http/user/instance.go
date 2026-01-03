@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"common/pkg/domain/instance"
+	"common/pkg/domain/entities/contract"
 	"common/pkg/shared"
 
 	"github.com/labstack/echo/v4"
@@ -21,7 +21,7 @@ type APIUserInstanceContractService interface {
 		ctx context.Context,
 		userID shared.UserID,
 		listingID shared.ListingID,
-		contract *instance.InstanceRentalContract,
+		contract *contract.InstanceRentalContract,
 	) error
 
 	EnableContractRenewal(
@@ -125,7 +125,7 @@ func (api *InstanceContractAPI) CreateContractHandler(
 	periodStart := time.Now().UTC()
 	periodEnd := periodStart.Add(request.Duration)
 
-	contract, err := instance.NewInstanceRentalContract(
+	contract, err := contract.NewInstanceRentalContract(
 		request.ListingID,
 		userID,
 		request.HardwareSpecification,

@@ -1,14 +1,13 @@
 package inmemlisting
 
 import (
+	"common/pkg/domain/entities/listing"
+	"common/pkg/shared"
 	"context"
 	"errors"
 	"sort"
 	"strings"
 	"sync"
-
-	"common/pkg/domain/listing"
-	"common/pkg/shared"
 )
 
 // InMemoryListingSearchIndex is an in-memory implementation of listing.ListingSearchIndex.

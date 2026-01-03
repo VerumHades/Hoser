@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"common/pkg/domain/listing"
+	"common/pkg/domain/entities/listing"
+	"common/pkg/domain/repositories"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
-	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -72,7 +72,7 @@ func mapEntityToDocument(entity *listing.Listing) *listingDocument {
 }
 
 func mapDocumentToEntity(doc *listingDocument) (*listing.Listing, error) {
-	return listing.NewListingWithID(
+	listing, _, err := listing.NewListingWithID(
 		doc.ID,
 		doc.AuthorID,
 		doc.Title,
@@ -82,6 +82,7 @@ func mapDocumentToEntity(doc *listingDocument) (*listing.Listing, error) {
 		doc.PriceInMinorUnits,
 		time.Unix(0, doc.CreatedAt),
 	)
+	return listing, err
 }
 
 // -------------------- Command Repository --------------------
@@ -95,10 +96,9 @@ func (repo *MongoListingRepository) Create(
 		return errors.New("listing cannot be nil")
 	}
 
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
 	document := mapEntityToDocument(listingEntity)
 
-	_, err := repo.collection.InsertOne(operationCtx, document)
+	_, err := repo.collection.InsertOne(ctx, document)
 	if mongo.IsDuplicateKeyError(err) {
 		return shared.ErrAlreadyExists
 	}
@@ -114,11 +114,10 @@ func (repo *MongoListingRepository) Update(
 		return errors.New("listing cannot be nil")
 	}
 
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
 	document := mapEntityToDocument(listingEntity)
 
 	result, err := repo.collection.ReplaceOne(
-		operationCtx,
+		ctx,
 		bson.M{"_id": listingEntity.ID()},
 		document,
 	)
@@ -136,8 +135,7 @@ func (repo *MongoListingRepository) Delete(
 
 	listingID shared.ListingID,
 ) error {
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
-	result, err := repo.collection.DeleteOne(operationCtx, bson.M{"_id": listingID})
+	result, err := repo.collection.DeleteOne(ctx, bson.M{"_id": listingID})
 	if err != nil {
 		return err
 	}
@@ -192,16 +190,16 @@ func (repo *MongoListingRepository) Exists(
 func (repo *MongoListingRepository) FetchNextBatchByAuthor(
 	ctx context.Context,
 	authorID shared.UserID,
-	request shared.BatchRequest[listing.ListingCursor],
-) ([]*listing.Listing, listing.ListingCursor, error) {
+	request shared.BatchRequest[repositories.ListingCursor],
+) ([]*listing.Listing, repositories.ListingCursor, error) {
 	filter := bson.M{"author_id": authorID}
 	return repo.fetchBatch(ctx, filter, request)
 }
 
 func (repo *MongoListingRepository) FetchNextBatchAll(
 	ctx context.Context,
-	request shared.BatchRequest[listing.ListingCursor],
-) ([]*listing.Listing, listing.ListingCursor, error) {
+	request shared.BatchRequest[repositories.ListingCursor],
+) ([]*listing.Listing, repositories.ListingCursor, error) {
 	filter := bson.M{}
 	return repo.fetchBatch(ctx, filter, request)
 }
@@ -211,8 +209,8 @@ func (repo *MongoListingRepository) FetchNextBatchAll(
 func (repo *MongoListingRepository) fetchBatch(
 	ctx context.Context,
 	filter bson.M,
-	request shared.BatchRequest[listing.ListingCursor],
-) ([]*listing.Listing, listing.ListingCursor, error) {
+	request shared.BatchRequest[repositories.ListingCursor],
+) ([]*listing.Listing, repositories.ListingCursor, error) {
 	filter["created_at"] = bson.M{"$gt": request.Cursor.LastCreatedAt.UnixNano()}
 
 	findOptions := options.Find().
@@ -221,7 +219,7 @@ func (repo *MongoListingRepository) fetchBatch(
 
 	cursor, err := repo.collection.Find(ctx, filter, findOptions)
 	if err != nil {
-		return nil, listing.ListingCursor{}, err
+		return nil, repositories.ListingCursor{}, err
 	}
 	defer cursor.Close(ctx)
 
@@ -229,21 +227,21 @@ func (repo *MongoListingRepository) fetchBatch(
 	for cursor.Next(ctx) {
 		var doc listingDocument
 		if err := cursor.Decode(&doc); err != nil {
-			return nil, listing.ListingCursor{}, err
+			return nil, repositories.ListingCursor{}, err
 		}
 		entity, err := mapDocumentToEntity(&doc)
 		if err != nil {
-			return nil, listing.ListingCursor{}, err
+			return nil, repositories.ListingCursor{}, err
 		}
 		listings = append(listings, entity)
 	}
 
 	if len(listings) == 0 {
-		return listings, listing.ListingCursor{}, nil
+		return listings, repositories.ListingCursor{}, nil
 	}
 
 	last := listings[len(listings)-1]
-	return listings, listing.ListingCursor{
+	return listings, repositories.ListingCursor{
 		LastCreatedAt: last.CreatedAt(),
 	}, nil
 }

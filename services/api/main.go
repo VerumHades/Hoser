@@ -8,21 +8,25 @@ import (
 	platformapi "api/internal/http/platform"
 	userapi "api/internal/http/user"
 	"api/internal/infrastructure"
-	"common/pkg/domain/listing"
-	"common/pkg/domain/user"
+	"common/pkg/application/outbox"
+	"common/pkg/application/services/auth"
+	"common/pkg/application/services/billing"
+	"common/pkg/application/services/developer"
+	"common/pkg/application/services/instanceservice"
+	userservices "common/pkg/application/services/user"
+	"common/pkg/application/unitofwork"
+	"common/pkg/domain/entities/listing"
+	"common/pkg/domain/entities/user"
+	"common/pkg/domain/repositories"
 	listingmem "common/pkg/infrastructure/inmem/listing"
 	mongodbinstance "common/pkg/infrastructure/mongodb/instance"
 	mongodbledger "common/pkg/infrastructure/mongodb/ledger"
 	mongodblisting "common/pkg/infrastructure/mongodb/listing"
+	mongodboutbox "common/pkg/infrastructure/mongodb/outbox"
 	mongodbrates "common/pkg/infrastructure/mongodb/rates"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	mongodbuser "common/pkg/infrastructure/mongodb/user"
 	"common/pkg/infrastructure/plugs"
-	"common/pkg/services/auth"
-	"common/pkg/services/billing"
-	"common/pkg/services/developer"
-	"common/pkg/services/instanceservice"
-	userservices "common/pkg/services/user"
 	"common/pkg/shared"
 	"common/pkg/util"
 	"context"
@@ -90,8 +94,9 @@ func main() {
 	hardwareRateRepo := mongodbrates.NewMongoHardwareCostRateRepository(databaseRegistry)
 	githubSetupRepo := mongodblisting.NewMongoGitHubSetupRepository(databaseRegistry)
 	savedListingViewRepo := mongodbuser.NewMongoUserSavedListingViewRepository(databaseRegistry)
+	outboxRepo := mongodboutbox.NewMongoOutboxRepository(databaseRegistry)
 
-	repositories := []interface {
+	repos := []interface {
 		EnsureIndexes(ctx context.Context) error
 	}{
 		userRepo,
@@ -104,7 +109,7 @@ func main() {
 		hardwareRateRepo,
 		githubSetupRepo,
 	}
-	for _, repo := range repositories {
+	for _, repo := range repos {
 		if err = repo.EnsureIndexes(ctx); err != nil {
 			fmt.Println(err)
 		}
@@ -124,7 +129,7 @@ func main() {
 	}*/
 
 	cuser, err := user.NewUser("alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
-	_, err = userRepo.Create(ctx, nil, cuser)
+	_, err = userRepo.Create(ctx, cuser)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -136,17 +141,23 @@ func main() {
 	for listing := range util.GenerateInBatches(
 		ctx,
 		50,
-		func(ctx context.Context, request shared.BatchRequest[listing.ListingCursor]) ([]*listing.Listing, listing.ListingCursor, error) {
+		func(ctx context.Context, request shared.BatchRequest[repositories.ListingCursor]) ([]*listing.Listing, repositories.ListingCursor, error) {
 			return listingRepo.FetchNextBatchAll(ctx, request)
 		}) {
 		listingIndexer.Index(ctx, listing)
 	}
 
-	developerListingService := developer.NewDeveloperListingService(
+	eventPublisher := outbox.NewOutboxEventPublisher(outboxRepo)
+
+	transactionalEventPublisher := unitofwork.NewTransactionalEventPublisher(
 		transactionProvider,
+		eventPublisher,
+	)
+
+	developerListingService := developer.NewDeveloperListingService(
+		*transactionalEventPublisher,
 		listingRepo,
 		listingRepo,
-		listingIndexer,
 		githubSetupRepo,
 	)
 

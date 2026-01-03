@@ -8,21 +8,21 @@ type UserInstanceRowProps = {
 }
 
 export function UserInstanceRow({ instance }: UserInstanceRowProps) {
-    const hardwareSpecification = instance.hardwareSpecification
+    const hardwareSpecification = contract.hardwareSpecification
 
     return (
         <tr className="hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer">
             <td className="px-4 py-2 font-mono text-sm text-slate-700 dark:text-slate-300">
-                {instance.id}
+                {contract.id}
             </td>
 
             <td className="px-4 py-2 font-medium text-slate-900 dark:text-slate-100">
-                {instance.listingId}
+                {contract.listingId}
             </td>
 
             <td className="px-4 py-2 space-x-2">
-                <StatusBadge state={instance.state} />
-                <ContractBadge contractState={instance.contractState} />
+                <StatusBadge state={contract.state} />
+                <ContractBadge contractState={contract.contractState} />
             </td>
 
             <td className="px-4 py-2 text-sm text-slate-700 dark:text-slate-300 space-x-2">
@@ -32,7 +32,7 @@ export function UserInstanceRow({ instance }: UserInstanceRowProps) {
             </td>
 
             <td className="px-4 py-2 font-mono text-sm text-slate-700 dark:text-slate-300">
-                {instance.billingId}
+                {contract.billingId}
             </td>
         </tr>
     )

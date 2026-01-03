@@ -35,7 +35,7 @@ export default function UserInstances() {
                     <UserInstanceRow instance={instance}></UserInstanceRow>
                 )}
                 renderCard={(instance) => (
-                    <UserInstanceCard key={instance.id} instance={instance} />
+                    <UserInstanceCard key={contract.id} instance={instance} />
                 )}
                 emptyState={<p className="text-sm text-slate-500">No instances found.</p>}
             />

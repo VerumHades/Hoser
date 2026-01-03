@@ -40,8 +40,8 @@ function StateBanner({ label, state }: { label: string; state: string }) {
 }
 
 export function UserInstanceCard({ instance }: UserInstanceCardProps) {
-    const hardwareSpecification = instance.hardwareSpecification
-    const desiredHardwareSpecification = instance.desiredHardwareSpecification
+    const hardwareSpecification = contract.hardwareSpecification
+    const desiredHardwareSpecification = contract.desiredHardwareSpecification
     const hasHardwareDrift =
         desiredHardwareSpecification !== undefined &&
         JSON.stringify(desiredHardwareSpecification) !== JSON.stringify(hardwareSpecification)
@@ -55,7 +55,7 @@ export function UserInstanceCard({ instance }: UserInstanceCardProps) {
         async function fetchState() {
             try {
                 setLoadingState(true)
-                const response = await API.user.instances.state.get(instance.id)
+                const response = await API.user.instances.state.get(contract.id)
                 if (isMounted) setDeploymentState(response.json)
             } catch (err) {
                 console.error("Failed to fetch deployment state:", err)
@@ -70,7 +70,7 @@ export function UserInstanceCard({ instance }: UserInstanceCardProps) {
             isMounted = false
             clearInterval(interval)
         }
-    }, [instance.id])
+    }, [contract.id])
 
     return (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm hover:shadow-lg transition flex flex-col gap-4">
@@ -78,8 +78,8 @@ export function UserInstanceCard({ instance }: UserInstanceCardProps) {
             {/* Header: Status and Contract */}
             <div className="flex flex-col sm:flex-row justify-between gap-2">
                 <div className="flex gap-2">
-                    <StateBanner label="Instance" state={instance.state} />
-                    <StateBanner label="Contract" state={instance.contractState} />
+                    <StateBanner label="Instance" state={contract.state} />
+                    <StateBanner label="Contract" state={contract.contractState} />
                 </div>
                 {hasHardwareDrift && (
                     <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-300 text-center">
@@ -115,7 +115,7 @@ export function UserInstanceCard({ instance }: UserInstanceCardProps) {
             {/* Billing info */}
             <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span>Billing Account</span>
-                <span className="font-mono">{instance.billingId}</span>
+                <span className="font-mono">{contract.billingId}</span>
             </div>
         </div>
     )

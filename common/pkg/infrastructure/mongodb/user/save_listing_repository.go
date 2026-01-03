@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"common/pkg/domain/user"
+	"common/pkg/domain/entities/user"
+	"common/pkg/domain/repositories"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
-	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -83,10 +83,9 @@ func (repo *MongoSavedListingRepository) Create(
 		return nil, errors.New("saved listing cannot be nil")
 	}
 
-	operationContext := util.ResolveTransactionalContext(ctx, transaction)
 	document := mapSavedListingEntityToDocument(item)
 
-	_, err := repo.collection.InsertOne(operationContext, document)
+	_, err := repo.collection.InsertOne(ctx, document)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
@@ -99,10 +98,8 @@ func (repo *MongoSavedListingRepository) Delete(
 
 	itemID shared.SavedListingID,
 ) error {
-	operationContext := util.ResolveTransactionalContext(ctx, transaction)
-
 	result, err := repo.collection.DeleteOne(
-		operationContext,
+		ctx,
 		bson.M{"_id": itemID},
 	)
 	if err != nil {
@@ -181,8 +178,8 @@ func (repo *MongoSavedListingRepository) ExistsByUserAndListing(
 func (repo *MongoSavedListingRepository) FetchNextBatchByUser(
 	ctx context.Context,
 	userID shared.UserID,
-	request shared.BatchRequest[user.SavedListingCursor],
-) ([]*user.SavedListing, user.SavedListingCursor, error) {
+	request shared.BatchRequest[repositories.SavedListingCursor],
+) ([]*user.SavedListing, repositories.SavedListingCursor, error) {
 	filter := bson.M{
 		"user_id": userID,
 	}
@@ -197,7 +194,7 @@ func (repo *MongoSavedListingRepository) FetchNextBatchByUser(
 
 	cursor, err := repo.collection.Find(ctx, filter, findOptions)
 	if err != nil {
-		return nil, user.SavedListingCursor{}, err
+		return nil, repositories.SavedListingCursor{}, err
 	}
 	defer cursor.Close(ctx)
 
@@ -205,24 +202,24 @@ func (repo *MongoSavedListingRepository) FetchNextBatchByUser(
 	for cursor.Next(ctx) {
 		var document savedListingDocument
 		if err := cursor.Decode(&document); err != nil {
-			return nil, user.SavedListingCursor{}, err
+			return nil, repositories.SavedListingCursor{}, err
 		}
 
 		entity, err := mapSavedListingDocumentToEntity(&document)
 		if err != nil {
-			return nil, user.SavedListingCursor{}, err
+			return nil, repositories.SavedListingCursor{}, err
 		}
 
 		items = append(items, entity)
 	}
 
 	if len(items) == 0 {
-		return items, user.SavedListingCursor{}, nil
+		return items, repositories.SavedListingCursor{}, nil
 	}
 
 	last := items[len(items)-1]
 
-	return items, user.SavedListingCursor{
+	return items, repositories.SavedListingCursor{
 		LastCreatedAt: last.CreatedAt(),
 	}, nil
 }

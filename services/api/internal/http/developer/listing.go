@@ -3,7 +3,9 @@ package developerapi
 import (
 	"api/internal/http/authentification"
 	"api/pkg/util"
-	"common/pkg/domain/listing"
+	"common/pkg/application/services/developer"
+	"common/pkg/domain/entities/listing"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"context"
 	"net/http"
@@ -12,19 +14,15 @@ import (
 )
 
 type APIDeveloperListingService interface {
-	CreateListing(ctx context.Context, l *listing.Listing) error
-	UpdateListing(
-		ctx context.Context,
-		listingID shared.ListingID,
-		updateFunc func(l *listing.Listing) error,
-	) (l *listing.Listing, err error)
+	CreateListing(ctx context.Context, request developer.CreateListingRequest) (l *listing.Listing, err error)
+	UpdateListing(ctx context.Context, listingID shared.ListingID, updateFunction developer.ListingMutationFunction) (l *listing.Listing, err error)
 	DeleteListing(ctx context.Context, listingID shared.ListingID) error
 
 	FetchNextBatchByAuthor(
 		ctx context.Context,
 		authorID shared.UserID,
-		request shared.BatchRequest[listing.ListingCursor],
-	) (listings []*listing.Listing, nextCursor listing.ListingCursor, err error)
+		request shared.BatchRequest[repositories.ListingCursor],
+	) (listings []*listing.Listing, nextCursor repositories.ListingCursor, err error)
 
 	GetOwnedListing(ctx context.Context, listingID shared.ListingID, userID shared.UserID) (*listing.Listing, error)
 }
@@ -128,8 +126,8 @@ func (api *DeveloperListingAPI) ListListingsHandler(userID shared.UserID, c echo
 		c,
 		func(
 			ctx context.Context,
-			request shared.BatchRequest[listing.ListingCursor],
-		) (items []*listing.Listing, nextCursor listing.ListingCursor, err error) {
+			request shared.BatchRequest[repositories.ListingCursor],
+		) (items []*listing.Listing, nextCursor repositories.ListingCursor, err error) {
 			return api.listingService.FetchNextBatchByAuthor(ctx, userID, request)
 		},
 		func(elements []*listing.Listing) (views []ApiDeveloperListing) {
@@ -160,12 +158,15 @@ func (api *DeveloperListingAPI) AddListingHandler(userID shared.UserID, c echo.C
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	newListing, err := listing.NewListing(userID, req.Title, req.Description, listing.Private, &shared.HardwareSpecification{}, 0)
+	newListing, err := api.listingService.CreateListing(ctx, developer.CreateListingRequest{
+		AuthorID:          userID,
+		Title:             req.Title,
+		Description:       req.Description,
+		AccessMode:        listing.Private,
+		Hardware:          &shared.HardwareSpecification{},
+		PriceInMinorUnits: 0,
+	})
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create listing: "+err.Error())
-	}
-
-	if err = api.listingService.CreateListing(ctx, newListing); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create listing: "+err.Error())
 	}
 
@@ -179,21 +180,21 @@ func (api *DeveloperListingAPI) UpdateListingHandler(userID shared.UserID, c ech
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid JSON")
 	}
 
-	updated, err := api.listingService.UpdateListing(ctx, req.ID, func(l *listing.Listing) error {
+	updated, err := api.listingService.UpdateListing(ctx, req.ID, func(ctx context.Context, mutator *listing.ListingMutationBuilder) error {
 		if req.Title != nil {
-			l.SetTitle(*req.Title)
+			mutator = mutator.SetTitle(*req.Title)
 		}
 		if req.Description != nil {
-			l.SetDescription(*req.Description)
+			mutator = mutator.SetDescription(*req.Description)
 		}
 		if req.Hardware != nil {
-			l.SetHardware(req.Hardware)
+			mutator = mutator.SetHardware(req.Hardware)
 		}
 		if req.Price != nil {
-			l.SetPriceInMinorUnits(*req.Price)
+			mutator = mutator.SetPriceInMinorUnits(*req.Price)
 		}
 		if req.AccessMode != nil {
-			l.SetAccessMode(*req.AccessMode)
+			mutator = mutator.SetAccessMode(*req.AccessMode)
 		}
 
 		return nil

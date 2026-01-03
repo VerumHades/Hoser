@@ -14,19 +14,24 @@ type OutboxCommandRepository interface {
 	Create(
 		ctx context.Context,
 		event *OutboxEvent,
-	) (*OutboxEvent, error)
+	) error
 
-	// MarkDispatched marks an outbox event as dispatched within a transaction.
-	MarkDispatched(
+	// BulkCreate persists multiple outbox events in a single transaction.
+	BulkCreate(
 		ctx context.Context,
-		eventID uuid.UUID,
-		dispatchedAt time.Time,
+		events []*OutboxEvent,
 	) error
 
 	// Delete removes an outbox event by its ID within a transaction.
 	Delete(
 		ctx context.Context,
 		eventID uuid.UUID,
+	) error
+
+	// Delete removes an outbox event by its ID within a transaction.
+	DeleteOlderThan(
+		ctx context.Context,
+		time time.Time,
 	) error
 }
 
@@ -36,7 +41,7 @@ for iterating over pending events.
 */
 type OutboxEventCursor struct {
 	LastOccurredAt time.Time
-	LastID         uuid.UUID
+	LastID         shared.OutboxEventID
 }
 
 // OutboxQueryRepository defines read-only operations for OutboxEvent.
@@ -50,8 +55,9 @@ type OutboxQueryRepository interface {
 	// FetchNextPendingBatch retrieves a batch of undispatched events after a given cursor.
 	//
 	// The cursor should represent the last processed event (by timestamp + ID for stability).
-	FetchNextPendingBatch(
+	FetchNextBatchAfter(
 		ctx context.Context,
+		time time.Time,
 		request shared.BatchRequest[OutboxEventCursor],
 	) (events []*OutboxEvent, nextCursor OutboxEventCursor, err error)
 

@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"common/pkg/domain/rates"
+	"common/pkg/domain/entities/rates"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 
 	"github.com/labstack/echo/v4"
@@ -26,8 +27,8 @@ type APIHardwareCostQueryRepository interface {
 
 	FetchNextBatchOrderedByEffectiveDate(
 		ctx context.Context,
-		request shared.BatchRequest[rates.HardwareCostRateCursor],
-	) (rates []*rates.HardwareCostRate, nextCursor rates.HardwareCostRateCursor, err error)
+		request shared.BatchRequest[repositories.HardwareCostRateCursor],
+	) (rates []*rates.HardwareCostRate, nextCursor repositories.HardwareCostRateCursor, err error)
 }
 
 // --------------------
@@ -128,8 +129,8 @@ func (api *HardwareCostRatesAPI) ListRatesHandler(
 		c,
 		func(
 			ctx context.Context,
-			request shared.BatchRequest[rates.HardwareCostRateCursor],
-		) (rates []*rates.HardwareCostRate, nextCursor rates.HardwareCostRateCursor, err error) {
+			request shared.BatchRequest[repositories.HardwareCostRateCursor],
+		) (rates []*rates.HardwareCostRate, nextCursor repositories.HardwareCostRateCursor, err error) {
 			return api.queryRepository.FetchNextBatchOrderedByEffectiveDate(ctx, request)
 		},
 		func(elements []*rates.HardwareCostRate) []HardwareCostRateResponse {

@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"common/pkg/domain/listing"
+	"common/pkg/domain/entities/githubsetups"
+	"common/pkg/domain/repositories"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 
@@ -46,14 +47,13 @@ func (repo *MongoGitHubSetupRepository) EnsureIndexes(ctx context.Context) error
 func (repo *MongoGitHubSetupRepository) Create(
 	ctx context.Context,
 
-	setup *listing.GitHubSetupDefinition,
-) (*listing.GitHubSetupDefinition, error) {
+	setup *githubsetups.GitHubSetupDefinition,
+) (*githubsetups.GitHubSetupDefinition, error) {
 	if setup == nil {
 		return nil, errors.New("setup cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
-	_, err := repo.collection.InsertOne(sessionCtx, setup)
+	_, err := repo.collection.InsertOne(ctx, setup)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
@@ -63,15 +63,14 @@ func (repo *MongoGitHubSetupRepository) Create(
 func (repo *MongoGitHubSetupRepository) Update(
 	ctx context.Context,
 
-	setup *listing.GitHubSetupDefinition,
-) (*listing.GitHubSetupDefinition, error) {
+	setup *githubsetups.GitHubSetupDefinition,
+) (*githubsetups.GitHubSetupDefinition, error) {
 	if setup == nil {
 		return nil, errors.New("setup cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
 	result, err := repo.collection.ReplaceOne(
-		sessionCtx,
+		ctx,
 		bson.M{"_id": setup.ID()},
 		setup,
 	)
@@ -87,10 +86,9 @@ func (repo *MongoGitHubSetupRepository) Update(
 func (repo *MongoGitHubSetupRepository) DeleteByID(
 	ctx context.Context,
 
-	setupID shared.SetupID,
+	setupID shared.GithubSetupID,
 ) error {
-	sessionCtx := transaction.SessionContext(ctx)
-	result, err := repo.collection.DeleteOne(sessionCtx, bson.M{"_id": setupID})
+	result, err := repo.collection.DeleteOne(ctx, bson.M{"_id": setupID})
 	if err != nil {
 		return err
 	}
@@ -105,8 +103,7 @@ func (repo *MongoGitHubSetupRepository) DeleteByListingID(
 
 	listingID shared.ListingID,
 ) error {
-	sessionCtx := transaction.SessionContext(ctx)
-	_, err := repo.collection.DeleteMany(sessionCtx, bson.M{"listingID": listingID})
+	_, err := repo.collection.DeleteMany(ctx, bson.M{"listingID": listingID})
 	return err
 }
 
@@ -114,9 +111,9 @@ func (repo *MongoGitHubSetupRepository) DeleteByListingID(
 
 func (repo *MongoGitHubSetupRepository) GetByID(
 	ctx context.Context,
-	setupID shared.SetupID,
-) (*listing.GitHubSetupDefinition, error) {
-	var setup listing.GitHubSetupDefinition
+	setupID shared.GithubSetupID,
+) (*githubsetups.GitHubSetupDefinition, error) {
+	var setup githubsetups.GitHubSetupDefinition
 	err := repo.collection.FindOne(ctx, bson.M{"_id": setupID}).Decode(&setup)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
@@ -127,8 +124,8 @@ func (repo *MongoGitHubSetupRepository) GetByID(
 func (repo *MongoGitHubSetupRepository) FetchNextBatchByListing(
 	ctx context.Context,
 	listingID shared.ListingID,
-	request shared.BatchRequest[listing.GitHubSetupCursor],
-) ([]*listing.GitHubSetupDefinition, listing.GitHubSetupCursor, error) {
+	request shared.BatchRequest[repositories.GitHubSetupCursor],
+) ([]*githubsetups.GitHubSetupDefinition, repositories.GitHubSetupCursor, error) {
 	filter := bson.M{"listingID": listingID}
 	filter["createdAt"] = bson.M{"$gt": request.Cursor.LastCreatedAt}
 
@@ -140,25 +137,25 @@ func (repo *MongoGitHubSetupRepository) FetchNextBatchByListing(
 
 	cursor, err := repo.collection.Find(ctx, filter, findOptions)
 	if err != nil {
-		return nil, listing.GitHubSetupCursor{}, err
+		return nil, repositories.GitHubSetupCursor{}, err
 	}
 	defer cursor.Close(ctx)
 
-	var setups []*listing.GitHubSetupDefinition
+	var setups []*githubsetups.GitHubSetupDefinition
 	for cursor.Next(ctx) {
-		var s listing.GitHubSetupDefinition
+		var s githubsetups.GitHubSetupDefinition
 		if err := cursor.Decode(&s); err != nil {
-			return nil, listing.GitHubSetupCursor{}, err
+			return nil, repositories.GitHubSetupCursor{}, err
 		}
 		setups = append(setups, &s)
 	}
 
 	if len(setups) == 0 {
-		return setups, listing.GitHubSetupCursor{}, nil
+		return setups, repositories.GitHubSetupCursor{}, nil
 	}
 
 	lastSetup := setups[len(setups)-1]
-	return setups, listing.GitHubSetupCursor{
+	return setups, repositories.GitHubSetupCursor{
 		LastCreatedAt: lastSetup.CreatedAt(),
 	}, nil
 }

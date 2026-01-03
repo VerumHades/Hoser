@@ -12,6 +12,7 @@ type DatabaseRegistry struct {
 	InstanceContracts  *mongo.Collection
 	HardwareRates      *mongo.Collection
 	GithubSetups       *mongo.Collection
+	Outbox             *mongo.Collection
 }
 
 // NewDatabaseRegistry initializes all collections in one place
@@ -26,5 +27,6 @@ func NewDatabaseRegistry(db *mongo.Database) *DatabaseRegistry {
 		InstanceContracts:  db.Collection("instances"),
 		HardwareRates:      db.Collection("hardware_costs"),
 		GithubSetups:       db.Collection("github_setups"),
+		Outbox:             db.Collection("outbox"),
 	}
 }

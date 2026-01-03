@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"common/pkg/domain/listing"
+	"common/pkg/domain/entities/accounting"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 )
 
@@ -20,11 +21,11 @@ type AccountQueryService interface {
 type UserPurchaseService struct {
 	accountQueryService AccountQueryService
 
-	listingRepository listing.ListingQueryRepository
+	listingRepository repositories.ListingQueryRepository
 
-	transactionRepository      accounting.LedgerTransactionCommandRepository
-	transactionQueryRepository accounting.LedgerTransactionQueryRepository
-	settlementQueryRepository  accounting.SettlementQueryRepository
+	transactionRepository      repositories.LedgerTransactionCommandRepository
+	transactionQueryRepository repositories.LedgerTransactionQueryRepository
+	settlementQueryRepository  repositories.SettlementQueryRepository
 }
 
 func (s *UserPurchaseService) GetLastestUserListingTransaction(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (*accounting.LedgerTransaction, error) {
@@ -117,7 +118,7 @@ func (s *UserPurchaseService) PurchaseListing(
 	if err != nil {
 		return err
 	}
-	err = s.transactionRepository.Create(ctx, nil, transaction)
+	err = s.transactionRepository.Create(ctx, transaction)
 	if err != nil {
 		return err
 	}
