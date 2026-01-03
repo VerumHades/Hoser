@@ -2,7 +2,8 @@ package userapi
 
 import (
 	"api/pkg/util"
-	"common/pkg/domain/listing"
+	"common/pkg/domain/entities/listing"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"context"
 	"net/http"
@@ -20,8 +21,8 @@ type APIPublicUserListingQueryService interface {
 	FetchNextListingsByAuthor(
 		ctx context.Context,
 		authorID shared.UserID,
-		request shared.BatchRequest[listing.ListingCursor],
-	) ([]*listing.Listing, listing.ListingCursor, error)
+		request shared.BatchRequest[repositories.ListingCursor],
+	) ([]*listing.Listing, repositories.ListingCursor, error)
 
 	SearchNextListingsBatch(
 		ctx context.Context,
@@ -105,7 +106,7 @@ func (api *PublicUserAPI) ListAuthorListingsHandler(c echo.Context) error {
 
 	return util.HandleBatchRequest(
 		c,
-		func(ctx context.Context, request shared.BatchRequest[listing.ListingCursor]) ([]*listing.Listing, listing.ListingCursor, error) {
+		func(ctx context.Context, request shared.BatchRequest[repositories.ListingCursor]) ([]*listing.Listing, repositories.ListingCursor, error) {
 			return api.publicUserListingQueryService.FetchNextListingsByAuthor(ctx, shared.UserID(authorID), request)
 		},
 		func(elements []*listing.Listing) (views []ApiListing) {

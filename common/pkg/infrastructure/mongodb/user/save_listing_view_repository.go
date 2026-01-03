@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"common/pkg/domain/user"
+	"common/pkg/domain/entities/user"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 

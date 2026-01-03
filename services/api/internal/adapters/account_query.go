@@ -1,8 +1,9 @@
 package adapters
 
 import (
-	"common/pkg/domain/listing"
-	userservices "common/pkg/services/user"
+	userservices "common/pkg/application/services/user"
+	"common/pkg/domain/repositories"
+
 	"common/pkg/shared"
 	"context"
 )
@@ -18,14 +19,14 @@ type PlatformAccountsConfig struct {
 // AccountServiceAdapter implements both AccountQueryService and accountQueryService.
 type AccountServiceAdapter struct {
 	config             PlatformAccountsConfig
-	listingRepository  listing.ListingQueryRepository
+	listingRepository  repositories.ListingQueryRepository
 	userAccountService *userservices.UserAccountService // handles user ledger accounts
 }
 
 // NewAccountServiceAdapter constructs the adapter.
 func NewAccountServiceAdapter(
 	config PlatformAccountsConfig,
-	listingRepository listing.ListingQueryRepository,
+	listingRepository repositories.ListingQueryRepository,
 	userAccountSvc *userservices.UserAccountService,
 ) *AccountServiceAdapter {
 	return &AccountServiceAdapter{

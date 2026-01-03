@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"common/pkg/domain/user"
+	"common/pkg/domain/entities/user"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
-	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -73,10 +72,9 @@ func (repo *MongoUserRepository) Create(
 		return nil, errors.New("user cannot be nil")
 	}
 
-	operationContext := util.ResolveTransactionalContext(ctx, transaction)
 	document := mapEntityToDocument(userEntity)
 
-	_, err := repo.collection.InsertOne(operationContext, document)
+	_, err := repo.collection.InsertOne(ctx, document)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
@@ -93,11 +91,10 @@ func (repo *MongoUserRepository) Update(
 		return nil, errors.New("user cannot be nil")
 	}
 
-	operationContext := util.ResolveTransactionalContext(ctx, transaction)
 	document := mapEntityToDocument(userEntity)
 
 	result, err := repo.collection.ReplaceOne(
-		operationContext,
+		ctx,
 		bson.M{"_id": userEntity.ID()},
 		document,
 	)
@@ -116,10 +113,9 @@ func (repo *MongoUserRepository) Delete(
 
 	userID shared.UserID,
 ) error {
-	operationContext := util.ResolveTransactionalContext(ctx, transaction)
 
 	result, err := repo.collection.DeleteOne(
-		operationContext,
+		ctx,
 		bson.M{"_id": userID},
 	)
 	if err != nil {

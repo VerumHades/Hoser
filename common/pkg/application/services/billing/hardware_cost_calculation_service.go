@@ -4,18 +4,19 @@ import (
 	"context"
 	"time"
 
-	"common/pkg/domain/rates"
+	"common/pkg/domain/entities/rates"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 )
 
 // HardwareCostCalculationService calculates hardware costs over time using rates from a repository.
 type HardwareCostCalculationService struct {
-	rateRepository rates.HardwareCostQueryRepository
+	rateRepository repositories.HardwareCostQueryRepository
 }
 
 // NewHardwareCostCalculationService creates a new calculation service.
 func NewHardwareCostCalculationService(
-	rateRepository rates.HardwareCostQueryRepository,
+	rateRepository repositories.HardwareCostQueryRepository,
 ) *HardwareCostCalculationService {
 	return &HardwareCostCalculationService{
 		rateRepository: rateRepository,

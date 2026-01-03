@@ -1,7 +1,10 @@
 package developer
 
 import (
-	"common/pkg/domain/listing"
+	"common/pkg/application/unitofwork"
+	"common/pkg/domain/entities/events"
+	"common/pkg/domain/entities/listing"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"common/pkg/util"
 	"context"
@@ -9,64 +12,80 @@ import (
 
 // DeveloperListingService exposes operations for managing listings and GitHub setups.
 type DeveloperListingService struct {
-	transactionProvider shared.TransactionProvider
+	transactionalEventPublisher unitofwork.TransactionalEventPublisher
 
-	listingRepository      listing.ListingCommandRepository
-	listingQueryRepository listing.ListingQueryRepository
-	searchIndex            listing.ListingSearchIndex
-	githubSetupRepository  listing.GitHubSetupCommandRepository
+	listingRepository      repositories.ListingCommandRepository
+	listingQueryRepository repositories.ListingQueryRepository
+	githubSetupRepository  repositories.GitHubSetupCommandRepository
 }
 
 // NewDeveloperListingService constructs a new DeveloperListingService.
 func NewDeveloperListingService(
-	transactionProvider shared.TransactionProvider,
-	listingRepository listing.ListingCommandRepository,
-	listingQueryRepository listing.ListingQueryRepository,
-	searchService listing.ListingSearchIndex,
-	githubSetupRepository listing.GitHubSetupCommandRepository,
+	transactionalEventPublisher unitofwork.TransactionalEventPublisher,
+	listingRepository repositories.ListingCommandRepository,
+	listingQueryRepository repositories.ListingQueryRepository,
+	githubSetupRepository repositories.GitHubSetupCommandRepository,
 ) *DeveloperListingService {
 	return &DeveloperListingService{
-		transactionProvider:    transactionProvider,
-		listingRepository:      listingRepository,
-		listingQueryRepository: listingQueryRepository,
-		searchIndex:            searchService,
-		githubSetupRepository:  githubSetupRepository,
+		transactionalEventPublisher: transactionalEventPublisher,
+		listingRepository:           listingRepository,
+		listingQueryRepository:      listingQueryRepository,
+		githubSetupRepository:       githubSetupRepository,
 	}
 }
 
-// CreateListing creates a listing, persists it, and indexes it.
-func (s *DeveloperListingService) CreateListing(ctx context.Context, listing *listing.Listing) error {
-	err := s.listingRepository.Create(ctx, nil, listing)
-	if err != nil {
-		return err
-	}
-	if err := s.searchIndex.Index(ctx, listing); err != nil {
-		return err
-	}
-	return nil
+type CreateListingRequest struct {
+	AuthorID          shared.UserID
+	Title             string
+	Description       string
+	AccessMode        listing.ListingAccessMode
+	Hardware          *shared.HardwareSpecification
+	PriceInMinorUnits int64
 }
+
+func (s *DeveloperListingService) CreateListing(ctx context.Context, req CreateListingRequest) (l *listing.Listing, err error) {
+	listing, event, err := listing.NewListing(req.AuthorID, req.Title, req.Description, req.AccessMode, req.Hardware, req.PriceInMinorUnits)
+
+	return listing, s.transactionalEventPublisher.PublishWithTransaction(ctx, func(txCtx context.Context) ([]events.DomainEvent, error) {
+
+		if err != nil {
+			return nil, err
+		}
+		if err := s.listingRepository.Create(txCtx, listing); err != nil {
+			return nil, err
+		}
+		return []events.DomainEvent{event}, nil // or listing.Mutate().Apply() depending on your domain design
+	})
+}
+
+type ListingMutationFunction func(ctx context.Context, mutator *listing.ListingMutationBuilder) error
 
 // UpdateListing updates a listing and reindexes it.
-func (s *DeveloperListingService) UpdateListing(ctx context.Context, listingID shared.ListingID, updateFunction func(listing *listing.Listing) error) (*listing.Listing, error) {
+func (s *DeveloperListingService) UpdateListing(ctx context.Context, listingID shared.ListingID, updateFunction ListingMutationFunction) (*listing.Listing, error) {
 	existingListing, err := util.GetExistingEntity(ctx, listingID, s.listingQueryRepository)
 	if err != nil {
 		return nil, err
 	}
 
-	err = shared.WithTransaction(ctx, s.transactionProvider, func(ctx context.Context, transaction shared.Transaction) error {
-		if err := updateFunction(existingListing); err != nil {
-			return err
+	err = s.transactionalEventPublisher.PublishWithTransaction(ctx, func(txContext context.Context) ([]events.DomainEvent, error) {
+		mutator := existingListing.Mutate()
+		err := updateFunction(txContext, mutator)
+
+		if err != nil {
+			return nil, err
 		}
 
-		if err := s.listingRepository.Update(ctx, transaction, existingListing); err != nil {
-			return err
+		event, err := mutator.Apply()
+
+		if err != nil {
+			return nil, err
 		}
 
-		if err := s.searchIndex.Index(ctx, existingListing); err != nil {
-			return err
+		if err := s.listingRepository.Update(txContext, existingListing); err != nil {
+			return nil, err
 		}
 
-		return nil
+		return []events.DomainEvent{event}, nil
 	})
 
 	if err != nil {
@@ -78,11 +97,15 @@ func (s *DeveloperListingService) UpdateListing(ctx context.Context, listingID s
 
 // DeleteListing removes a listing and deletes it from the search index.
 func (s *DeveloperListingService) DeleteListing(ctx context.Context, listingID shared.ListingID) error {
-	err := s.listingRepository.Delete(ctx, nil, listingID)
-	if err != nil {
-		return err
-	}
-	return s.searchIndex.Remove(ctx, listingID)
+	return s.transactionalEventPublisher.PublishWithTransaction(ctx, func(txCtx context.Context) ([]events.DomainEvent, error) {
+		err := s.listingRepository.Delete(txCtx, listingID)
+
+		if err != nil {
+			return nil, err
+		}
+		event := events.NewDomainEventEnvelope(listing.ListingDeleteEvent{ID: listingID})
+		return []events.DomainEvent{event}, nil // or listing.Mutate().Apply() depending on your domain design
+	})
 }
 
 func (s *DeveloperListingService) GetOwnedListing(ctx context.Context, listingID shared.ListingID, userID shared.UserID) (*listing.Listing, error) {
@@ -92,7 +115,7 @@ func (s *DeveloperListingService) GetOwnedListing(ctx context.Context, listingID
 func (s *DeveloperListingService) FetchNextBatchByAuthor(
 	ctx context.Context,
 	authorID shared.UserID,
-	request shared.BatchRequest[listing.ListingCursor],
-) (listings []*listing.Listing, nextCursor listing.ListingCursor, err error) {
+	request shared.BatchRequest[repositories.ListingCursor],
+) (listings []*listing.Listing, nextCursor repositories.ListingCursor, err error) {
 	return s.listingQueryRepository.FetchNextBatchByAuthor(ctx, authorID, request)
 }

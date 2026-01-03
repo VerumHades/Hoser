@@ -3,7 +3,7 @@ package userapi
 import (
 	"api/internal/http/authentification"
 	"api/pkg/util"
-	"common/pkg/domain/user"
+	"common/pkg/domain/entities/user"
 	"common/pkg/shared"
 	"context"
 	"net/http"

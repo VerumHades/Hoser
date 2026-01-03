@@ -1,9 +1,9 @@
 package repositories
 
 import (
+	"common/pkg/domain/entities/user"
 	"common/pkg/shared"
 	"context"
-	"os/user"
 )
 
 // UserCommandRepository defines write operations for users.

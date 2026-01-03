@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"common/pkg/domain/rates"
+	"common/pkg/domain/entities/rates"
+	"common/pkg/domain/repositories"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
-	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -79,10 +79,9 @@ func (repo *MongoHardwareCostRateRepository) Create(
 		return nil, errors.New("hardware cost rate cannot be nil")
 	}
 
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
 	document := mapEntityToDocument(rate)
 
-	_, err := repo.collection.InsertOne(operationCtx, document)
+	_, err := repo.collection.InsertOne(ctx, document)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
@@ -99,11 +98,10 @@ func (repo *MongoHardwareCostRateRepository) Update(
 		return nil, errors.New("hardware cost rate cannot be nil")
 	}
 
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
 	document := mapEntityToDocument(rate)
 
 	result, err := repo.collection.ReplaceOne(
-		operationCtx,
+		ctx,
 		bson.M{"_id": rate.ID()},
 		document,
 	)
@@ -144,8 +142,8 @@ func (repo *MongoHardwareCostRateRepository) GetActiveRate(
 
 func (repo *MongoHardwareCostRateRepository) FetchNextBatchOrderedByEffectiveDate(
 	ctx context.Context,
-	request shared.BatchRequest[rates.HardwareCostRateCursor],
-) ([]*rates.HardwareCostRate, rates.HardwareCostRateCursor, error) {
+	request shared.BatchRequest[repositories.HardwareCostRateCursor],
+) ([]*rates.HardwareCostRate, repositories.HardwareCostRateCursor, error) {
 	filter := bson.M{}
 
 	filter["valid_from"] = bson.M{
@@ -158,7 +156,7 @@ func (repo *MongoHardwareCostRateRepository) FetchNextBatchOrderedByEffectiveDat
 
 	cursor, err := repo.collection.Find(ctx, filter, findOptions)
 	if err != nil {
-		return nil, rates.HardwareCostRateCursor{}, err
+		return nil, repositories.HardwareCostRateCursor{}, err
 	}
 	defer cursor.Close(ctx)
 
@@ -166,24 +164,24 @@ func (repo *MongoHardwareCostRateRepository) FetchNextBatchOrderedByEffectiveDat
 	for cursor.Next(ctx) {
 		var doc hardwareCostRateDocument
 		if err := cursor.Decode(&doc); err != nil {
-			return nil, rates.HardwareCostRateCursor{}, err
+			return nil, repositories.HardwareCostRateCursor{}, err
 		}
 
 		entity, err := mapDocumentToEntity(&doc)
 		if err != nil {
-			return nil, rates.HardwareCostRateCursor{}, err
+			return nil, repositories.HardwareCostRateCursor{}, err
 		}
 
 		items = append(items, entity)
 	}
 
 	if len(items) == 0 {
-		return items, rates.HardwareCostRateCursor{}, nil
+		return items, repositories.HardwareCostRateCursor{}, nil
 	}
 
 	last := items[len(items)-1]
 
-	return items, rates.HardwareCostRateCursor{
+	return items, repositories.HardwareCostRateCursor{
 		LastEffectiveDate: last.ValidFrom(),
 	}, nil
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"common/pkg/domain/entities/accounting"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 
@@ -91,10 +92,9 @@ func (repo *MongoSettlementRepository) Create(
 		return nil, errors.New("settlement cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
 	doc := settlementMapEntityToDocument(settlement)
 
-	_, err := repo.collection.InsertOne(sessionCtx, doc)
+	_, err := repo.collection.InsertOne(ctx, doc)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
@@ -111,11 +111,10 @@ func (repo *MongoSettlementRepository) Update(
 		return nil, errors.New("settlement cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
 	doc := settlementMapEntityToDocument(settlement)
 
 	result, err := repo.collection.ReplaceOne(
-		sessionCtx,
+		ctx,
 		bson.M{"_id": settlement.ID()},
 		doc,
 	)
@@ -133,9 +132,8 @@ func (repo *MongoSettlementRepository) Delete(
 
 	settlementID shared.SettlementID,
 ) error {
-	sessionCtx := transaction.SessionContext(ctx)
 
-	result, err := repo.collection.DeleteOne(sessionCtx, bson.M{"_id": settlementID})
+	result, err := repo.collection.DeleteOne(ctx, bson.M{"_id": settlementID})
 	if err != nil {
 		return err
 	}

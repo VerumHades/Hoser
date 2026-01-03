@@ -1,7 +1,9 @@
 package instanceservice
 
 import (
-	"common/pkg/domain/instance"
+	"common/pkg/application/unitofwork"
+	"common/pkg/domain/entities/contract"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"common/pkg/util"
 	"context"
@@ -10,21 +12,21 @@ import (
 )
 
 type ContractPaymentCreationService interface {
-	CreateContractPaymentLedgerTransaction(ctx context.Context, context *instance.InstanceRentalContract, transaction shared.Transaction) error
+	CreateContractPaymentLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) error
 }
 
 type InstanceContractRenewer struct {
-	transactionProvider            shared.TransactionProvider
+	transactionProvider            unitofwork.TransactionProvider
 	contractPaymentCreationService ContractPaymentCreationService
 
-	contractQueryRepository   instance.InstanceRentalContractQueryRepository
-	contractCommandRepository instance.InstanceRentalContractCommandRepository
+	contractQueryRepository   repositories.InstanceRentalContractQueryRepository
+	contractCommandRepository repositories.InstanceRentalContractCommandRepository
 
 	tickerWorker *util.TickerWorker
 }
 
 func NewInstanceSubscriptionRenewalReconciler(
-	instanceRepository instance.InstanceRentalContractQueryRepository,
+	instanceRepository repositories.InstanceRentalContractQueryRepository,
 	interval time.Duration,
 ) *InstanceContractRenewer {
 	reconciler := &InstanceContractRenewer{
@@ -45,16 +47,16 @@ func NewInstanceSubscriptionRenewalReconciler(
 func (r *InstanceContractRenewer) tick(ctx context.Context) error {
 	fetchNextBatch := func(
 		ctx context.Context,
-		request shared.BatchRequest[instance.InstanceRentalContractCursor],
-	) ([]*instance.InstanceRentalContract, instance.InstanceRentalContractCursor, error) {
+		request shared.BatchRequest[repositories.InstanceRentalContractCursor],
+	) ([]*contract.InstanceRentalContract, repositories.InstanceRentalContractCursor, error) {
 		return r.contractQueryRepository.FetchNextBatchPendingRenewal(ctx, time.Now(), request)
 	}
 
 	for contract := range util.GenerateInBatches(ctx, 100, fetchNextBatch) {
-		if err := shared.WithTransaction(ctx, r.transactionProvider, func(ctx context.Context, transaction shared.Transaction) error {
+		if err := unitofwork.WithTransaction(ctx, r.transactionProvider, func(txContext context.Context) error {
 			contract.Cancel(time.Now())
 
-			if err := r.contractCommandRepository.Update(ctx, transaction, contract); err != nil {
+			if err := r.contractCommandRepository.Update(txContext, contract); err != nil {
 				return err
 			}
 
@@ -63,11 +65,11 @@ func (r *InstanceContractRenewer) tick(ctx context.Context) error {
 				return err
 			}
 
-			if err := r.contractCommandRepository.Create(ctx, transaction, newContract); err != nil {
+			if err := r.contractCommandRepository.Create(txContext, newContract); err != nil {
 				return err
 			}
 
-			return r.contractPaymentCreationService.CreateContractPaymentLedgerTransaction(ctx, newContract, transaction)
+			return r.contractPaymentCreationService.CreateContractPaymentLedgerTransaction(txContext, newContract)
 		}); err != nil {
 			return err
 		}

@@ -3,7 +3,8 @@ package adapters
 import (
 	"context"
 
-	"common/pkg/domain/user"
+	"common/pkg/domain/entities/user"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 )
 
@@ -11,13 +12,13 @@ import (
 // batch fetching of joined saved listings and existence checks.
 type UserSavedListingViewAdapter struct {
 	viewRepo  user.UserSavedListingViewRepository
-	savedRepo user.SavedListingQueryRepository
+	savedRepo repositories.SavedListingQueryRepository
 }
 
 // NewUserSavedListingViewAdapter constructs the adapter.
 func NewUserSavedListingViewAdapter(
 	viewRepo user.UserSavedListingViewRepository,
-	savedRepo user.SavedListingQueryRepository,
+	savedRepo repositories.SavedListingQueryRepository,
 ) *UserSavedListingViewAdapter {
 	return &UserSavedListingViewAdapter{
 		viewRepo:  viewRepo,

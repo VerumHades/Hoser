@@ -4,19 +4,21 @@ import (
 	"context"
 	"errors"
 
+	"common/pkg/domain/entities/accounting"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 )
 
 // UserAccountService provides simple operations for user ledger accounts.
 type UserAccountService struct {
-	accountQueryRepo   accounting.AccountQueryRepository
-	accountCommandRepo accounting.AccountCommandRepository
+	accountQueryRepo   repositories.AccountQueryRepository
+	accountCommandRepo repositories.AccountCommandRepository
 }
 
 // NewUserAccountService constructs the service.
 func NewUserAccountService(
-	accountQueryRepo accounting.AccountQueryRepository,
-	accountCommandRepo accounting.AccountCommandRepository,
+	accountQueryRepo repositories.AccountQueryRepository,
+	accountCommandRepo repositories.AccountCommandRepository,
 ) *UserAccountService {
 	return &UserAccountService{
 		accountQueryRepo:   accountQueryRepo,

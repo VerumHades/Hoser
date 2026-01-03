@@ -1,7 +1,9 @@
 package instanceservice
 
 import (
-	"common/pkg/domain/instance"
+	"common/pkg/domain/entities/accounting"
+	"common/pkg/domain/entities/contract"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"context"
 	"time"
@@ -25,15 +27,15 @@ type ContractPaymentBuilder struct {
 	accountQueryService            accountQueryService
 	hardwareCostCalculationService hardwareCostCalculationService
 
-	transactionCommandRepository accounting.LedgerTransactionCommandRepository
-	transactionQueryRepository   accounting.LedgerTransactionQueryRepository
+	transactionCommandRepository repositories.LedgerTransactionCommandRepository
+	transactionQueryRepository   repositories.LedgerTransactionQueryRepository
 }
 
 func NewContractPaymentBuilder(
 	accountQueryService accountQueryService,
 	hardwareCostCalculationService hardwareCostCalculationService,
-	transactionCommandRepository accounting.LedgerTransactionCommandRepository,
-	transactionQueryRepository accounting.LedgerTransactionQueryRepository,
+	transactionCommandRepository repositories.LedgerTransactionCommandRepository,
+	transactionQueryRepository repositories.LedgerTransactionQueryRepository,
 ) *ContractPaymentBuilder {
 	return &ContractPaymentBuilder{
 		accountQueryService:            accountQueryService,
@@ -43,7 +45,7 @@ func NewContractPaymentBuilder(
 	}
 }
 
-func (builder *ContractPaymentBuilder) calculateContractHardwareCost(ctx context.Context, contract *instance.InstanceRentalContract) (int64, error) {
+func (builder *ContractPaymentBuilder) calculateContractHardwareCost(ctx context.Context, contract *contract.InstanceRentalContract) (int64, error) {
 	return builder.hardwareCostCalculationService.CalculateCost(
 		ctx,
 		contract.HardwareSpecification(),
@@ -54,8 +56,7 @@ func (builder *ContractPaymentBuilder) calculateContractHardwareCost(ctx context
 
 func (builder *ContractPaymentBuilder) CreateContractPaymentLedgerTransaction(
 	ctx context.Context,
-	contract *instance.InstanceRentalContract,
-
+	contract *contract.InstanceRentalContract,
 ) error {
 	if !contract.IsActiveAt(time.Now()) {
 		return nil
@@ -84,13 +85,12 @@ func (builder *ContractPaymentBuilder) CreateContractPaymentLedgerTransaction(
 	if err != nil {
 		return err
 	}
-	return builder.transactionCommandRepository.Create(ctx, transaction, purchaseTransaction)
+	return builder.transactionCommandRepository.Create(ctx, purchaseTransaction)
 }
 
 func (builder *ContractPaymentBuilder) CreateContractRefundLedgerTransaction(
 	ctx context.Context,
-	contract *instance.InstanceRentalContract,
-
+	contract *contract.InstanceRentalContract,
 ) error {
 	if !contract.IsActiveAt(time.Now()) {
 		return nil
@@ -119,5 +119,5 @@ func (builder *ContractPaymentBuilder) CreateContractRefundLedgerTransaction(
 	if err != nil {
 		return err
 	}
-	return builder.transactionCommandRepository.Create(ctx, transaction, purchaseTransaction)
+	return builder.transactionCommandRepository.Create(ctx, purchaseTransaction)
 }

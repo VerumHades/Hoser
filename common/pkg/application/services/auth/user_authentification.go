@@ -1,7 +1,8 @@
 package auth
 
 import (
-	"common/pkg/domain/user"
+	"common/pkg/domain/entities/user"
+	"common/pkg/domain/repositories"
 	"context"
 	"errors"
 
@@ -10,11 +11,11 @@ import (
 
 // AuthenticationService handles user authentication workflows.
 type AuthenticationService struct {
-	userQueryRepository user.UserQueryRepository
+	userQueryRepository repositories.UserQueryRepository
 }
 
 // NewAuthenticationService creates a new AuthenticationService.
-func NewAuthenticationService(userRepository user.UserQueryRepository) *AuthenticationService {
+func NewAuthenticationService(userRepository repositories.UserQueryRepository) *AuthenticationService {
 	return &AuthenticationService{
 		userQueryRepository: userRepository,
 	}

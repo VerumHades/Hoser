@@ -5,7 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"common/pkg/domain/instance"
+	"common/pkg/domain/entities/contract"
+	"common/pkg/domain/repositories"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
 
@@ -65,14 +66,13 @@ func (repo *MongoInstanceRentalContractRepository) EnsureIndexes(ctx context.Con
 
 func (repo *MongoInstanceRentalContractRepository) Create(
 	ctx context.Context,
-	contract *instance.InstanceRentalContract,
+	contract *contract.InstanceRentalContract,
 ) error {
 	if contract == nil {
 		return errors.New("contract cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
-	_, err := repo.collection.InsertOne(sessionCtx, contract)
+	_, err := repo.collection.InsertOne(ctx, contract)
 	if mongo.IsDuplicateKeyError(err) {
 		return shared.ErrAlreadyExists
 	}
@@ -81,14 +81,13 @@ func (repo *MongoInstanceRentalContractRepository) Create(
 
 func (repo *MongoInstanceRentalContractRepository) Update(
 	ctx context.Context,
-	contract *instance.InstanceRentalContract,
+	contract *contract.InstanceRentalContract,
 ) error {
 	if contract == nil {
 		return errors.New("contract cannot be nil")
 	}
 
-	sessionCtx := transaction.SessionContext(ctx)
-	result, err := repo.collection.ReplaceOne(sessionCtx, bson.M{"_id": contract.ID()}, contract)
+	result, err := repo.collection.ReplaceOne(ctx, bson.M{"_id": contract.ID()}, contract)
 	if err != nil {
 		return err
 	}
@@ -103,8 +102,7 @@ func (repo *MongoInstanceRentalContractRepository) Delete(
 
 	contractID shared.InstanceRentalContractID,
 ) error {
-	sessionCtx := transaction.SessionContext(ctx)
-	result, err := repo.collection.DeleteOne(sessionCtx, bson.M{"_id": contractID})
+	result, err := repo.collection.DeleteOne(ctx, bson.M{"_id": contractID})
 	if err != nil {
 		return err
 	}
@@ -119,8 +117,8 @@ func (repo *MongoInstanceRentalContractRepository) Delete(
 func (repo *MongoInstanceRentalContractRepository) GetByID(
 	ctx context.Context,
 	contractID shared.InstanceRentalContractID,
-) (*instance.InstanceRentalContract, error) {
-	var contract instance.InstanceRentalContract
+) (*contract.InstanceRentalContract, error) {
+	var contract contract.InstanceRentalContract
 	err := repo.collection.FindOne(ctx, bson.M{"_id": contractID}).Decode(&contract)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, shared.ErrNotFound
@@ -139,8 +137,8 @@ func (repo *MongoInstanceRentalContractRepository) Exists(
 func (repo *MongoInstanceRentalContractRepository) FetchNextBatchByListing(
 	ctx context.Context,
 	listingID shared.ListingID,
-	request shared.BatchRequest[instance.InstanceRentalContractCursor],
-) ([]*instance.InstanceRentalContract, instance.InstanceRentalContractCursor, error) {
+	request shared.BatchRequest[repositories.InstanceRentalContractCursor],
+) ([]*contract.InstanceRentalContract, repositories.InstanceRentalContractCursor, error) {
 	filter := bson.M{"listingID": listingID}
 	return repo.fetchBatch(ctx, filter, request)
 }
@@ -148,8 +146,8 @@ func (repo *MongoInstanceRentalContractRepository) FetchNextBatchByListing(
 func (repo *MongoInstanceRentalContractRepository) FetchNextBatchByOwner(
 	ctx context.Context,
 	ownerID shared.UserID,
-	request shared.BatchRequest[instance.InstanceRentalContractCursor],
-) ([]*instance.InstanceRentalContract, instance.InstanceRentalContractCursor, error) {
+	request shared.BatchRequest[repositories.InstanceRentalContractCursor],
+) ([]*contract.InstanceRentalContract, repositories.InstanceRentalContractCursor, error) {
 	filter := bson.M{"ownerID": ownerID}
 	return repo.fetchBatch(ctx, filter, request)
 }
@@ -157,8 +155,8 @@ func (repo *MongoInstanceRentalContractRepository) FetchNextBatchByOwner(
 func (repo *MongoInstanceRentalContractRepository) FetchNextBatchActiveAt(
 	ctx context.Context,
 	at time.Time,
-	request shared.BatchRequest[instance.InstanceRentalContractCursor],
-) ([]*instance.InstanceRentalContract, instance.InstanceRentalContractCursor, error) {
+	request shared.BatchRequest[repositories.InstanceRentalContractCursor],
+) ([]*contract.InstanceRentalContract, repositories.InstanceRentalContractCursor, error) {
 	filter := bson.M{
 		"periodStart": bson.M{"$lte": at},
 		"periodEnd":   bson.M{"$gt": at},
@@ -169,8 +167,8 @@ func (repo *MongoInstanceRentalContractRepository) FetchNextBatchActiveAt(
 func (repo *MongoInstanceRentalContractRepository) FetchNextBatchExpiredBefore(
 	ctx context.Context,
 	cutoffTime time.Time,
-	request shared.BatchRequest[instance.InstanceRentalContractCursor],
-) ([]*instance.InstanceRentalContract, instance.InstanceRentalContractCursor, error) {
+	request shared.BatchRequest[repositories.InstanceRentalContractCursor],
+) ([]*contract.InstanceRentalContract, repositories.InstanceRentalContractCursor, error) {
 	filter := bson.M{"periodEnd": bson.M{"$lt": cutoffTime}}
 	return repo.fetchBatch(ctx, filter, request)
 }
@@ -178,8 +176,8 @@ func (repo *MongoInstanceRentalContractRepository) FetchNextBatchExpiredBefore(
 func (repo *MongoInstanceRentalContractRepository) FetchNextBatchPendingRenewal(
 	ctx context.Context,
 	cutoffTime time.Time,
-	request shared.BatchRequest[instance.InstanceRentalContractCursor],
-) ([]*instance.InstanceRentalContract, instance.InstanceRentalContractCursor, error) {
+	request shared.BatchRequest[repositories.InstanceRentalContractCursor],
+) ([]*contract.InstanceRentalContract, repositories.InstanceRentalContractCursor, error) {
 	filter := bson.M{"renewalDueAt": bson.M{"$lte": cutoffTime}}
 	return repo.fetchBatch(ctx, filter, request)
 }
@@ -189,8 +187,8 @@ func (repo *MongoInstanceRentalContractRepository) FetchNextBatchPendingRenewal(
 func (repo *MongoInstanceRentalContractRepository) fetchBatch(
 	ctx context.Context,
 	filter bson.M,
-	request shared.BatchRequest[instance.InstanceRentalContractCursor],
-) ([]*instance.InstanceRentalContract, instance.InstanceRentalContractCursor, error) {
+	request shared.BatchRequest[repositories.InstanceRentalContractCursor],
+) ([]*contract.InstanceRentalContract, repositories.InstanceRentalContractCursor, error) {
 	filter["createdAt"] = bson.M{"$gt": request.Cursor.LastCreatedAt}
 
 	findOptions := options.Find().
@@ -199,25 +197,25 @@ func (repo *MongoInstanceRentalContractRepository) fetchBatch(
 
 	cursor, err := repo.collection.Find(ctx, filter, findOptions)
 	if err != nil {
-		return nil, instance.InstanceRentalContractCursor{}, err
+		return nil, repositories.InstanceRentalContractCursor{}, err
 	}
 	defer cursor.Close(ctx)
 
-	var contracts []*instance.InstanceRentalContract
+	var contracts []*contract.InstanceRentalContract
 	for cursor.Next(ctx) {
-		var c instance.InstanceRentalContract
+		var c contract.InstanceRentalContract
 		if err := cursor.Decode(&c); err != nil {
-			return nil, instance.InstanceRentalContractCursor{}, err
+			return nil, repositories.InstanceRentalContractCursor{}, err
 		}
 		contracts = append(contracts, &c)
 	}
 
 	if len(contracts) == 0 {
-		return contracts, instance.InstanceRentalContractCursor{}, nil
+		return contracts, repositories.InstanceRentalContractCursor{}, nil
 	}
 
 	last := contracts[len(contracts)-1]
-	return contracts, instance.InstanceRentalContractCursor{
+	return contracts, repositories.InstanceRentalContractCursor{
 		LastCreatedAt: last.CreatedAt(),
 	}, nil
 }

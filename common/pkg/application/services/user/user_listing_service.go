@@ -1,8 +1,9 @@
 package userservices
 
 import (
-	"common/pkg/domain/listing"
-	"common/pkg/domain/user"
+	"common/pkg/domain/entities/listing"
+	"common/pkg/domain/entities/user"
+	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"context"
 	"fmt"
@@ -10,19 +11,19 @@ import (
 
 // UserListingService provides operations for user interactions with listings.
 type UserListingService struct {
-	listingCommandRepository listing.ListingCommandRepository
-	listingQueryRepository   listing.ListingQueryRepository
-	savedCommandRepository   user.SavedListingCommandRepository
-	savedQueryRepository     user.SavedListingQueryRepository
+	listingCommandRepository repositories.ListingCommandRepository
+	listingQueryRepository   repositories.ListingQueryRepository
+	savedCommandRepository   repositories.SavedListingCommandRepository
+	savedQueryRepository     repositories.SavedListingQueryRepository
 	listingSearchIndex       listing.ListingSearchIndex
 }
 
-// NewUserListingService constructs a new UserListingService instance.
+// NewUserListingService constructs a new UserListingService contract.
 func NewUserListingService(
-	listingCommandRepository listing.ListingCommandRepository,
-	listingQueryRepository listing.ListingQueryRepository,
-	savedCommandRepository user.SavedListingCommandRepository,
-	savedQueryRepository user.SavedListingQueryRepository,
+	listingCommandRepository repositories.ListingCommandRepository,
+	listingQueryRepository repositories.ListingQueryRepository,
+	savedCommandRepository repositories.SavedListingCommandRepository,
+	savedQueryRepository repositories.SavedListingQueryRepository,
 	listingSearchIndex listing.ListingSearchIndex,
 ) *UserListingService {
 	return &UserListingService{
@@ -63,7 +64,7 @@ func (s *UserListingService) SaveListingToLibrary(
 		return nil, err
 	}
 
-	createdListing, err := s.savedCommandRepository.Create(ctx, nil, savedListing)
+	createdListing, err := s.savedCommandRepository.Create(ctx, savedListing)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save listing to library: %w", err)
 	}
@@ -75,8 +76,8 @@ func (s *UserListingService) SaveListingToLibrary(
 func (s *UserListingService) FetchNextUserLibraryBatch(
 	ctx context.Context,
 	userID shared.UserID,
-	batchRequest shared.BatchRequest[user.SavedListingCursor],
-) ([]*user.SavedListing, user.SavedListingCursor, error) {
+	batchRequest shared.BatchRequest[repositories.SavedListingCursor],
+) ([]*user.SavedListing, repositories.SavedListingCursor, error) {
 	return s.savedQueryRepository.FetchNextBatchByUser(ctx, userID, batchRequest)
 }
 
@@ -91,7 +92,7 @@ func (s *UserListingService) RemoveListingFromLibrary(
 		return fmt.Errorf("failed to fetch library item %s: %w", listingID, err)
 	}
 
-	return s.savedCommandRepository.Delete(ctx, nil, savedListing.ID())
+	return s.savedCommandRepository.Delete(ctx, savedListing.ID())
 }
 
 //////////////////////////////
@@ -110,8 +111,8 @@ func (s *UserListingService) GetListing(
 func (s *UserListingService) FetchNextListingsByAuthor(
 	ctx context.Context,
 	authorID shared.UserID,
-	batchRequest shared.BatchRequest[listing.ListingCursor],
-) ([]*listing.Listing, listing.ListingCursor, error) {
+	batchRequest shared.BatchRequest[repositories.ListingCursor],
+) ([]*listing.Listing, repositories.ListingCursor, error) {
 	return s.listingQueryRepository.FetchNextBatchByAuthor(ctx, authorID, batchRequest)
 }
 

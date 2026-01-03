@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"common/pkg/domain/entities/accounting"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	"common/pkg/shared"
-	"common/pkg/util"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -77,17 +77,15 @@ func mapDocumentToEntity(doc *accountDocument) (*accounting.Account, error) {
 
 func (repo *MongoAccountRepository) Create(
 	ctx context.Context,
-
 	accountEntity *accounting.Account,
 ) (*accounting.Account, error) {
 	if accountEntity == nil {
 		return nil, errors.New("account cannot be nil")
 	}
 
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
 	doc := mapEntityToDocument(accountEntity)
 
-	_, err := repo.collection.InsertOne(operationCtx, doc)
+	_, err := repo.collection.InsertOne(ctx, doc)
 	if mongo.IsDuplicateKeyError(err) {
 		return nil, shared.ErrAlreadyExists
 	}
@@ -103,11 +101,10 @@ func (repo *MongoAccountRepository) Update(
 		return nil, errors.New("account cannot be nil")
 	}
 
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
 	doc := mapEntityToDocument(accountEntity)
 
 	result, err := repo.collection.ReplaceOne(
-		operationCtx,
+		ctx,
 		bson.M{"_id": accountEntity.ID()},
 		doc,
 	)
@@ -125,8 +122,7 @@ func (repo *MongoAccountRepository) Delete(
 
 	accountID shared.AccountID,
 ) error {
-	operationCtx := util.ResolveTransactionalContext(ctx, transaction)
-	result, err := repo.collection.DeleteOne(operationCtx, bson.M{"_id": accountID})
+	result, err := repo.collection.DeleteOne(ctx, bson.M{"_id": accountID})
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ import (
 
 // GitHubSetupDefinition represents a GitHub repository configuration attached to a listing.
 type GitHubSetupDefinition struct {
-	id          shared.SetupID
+	id          shared.GithubSetupID
 	listingID   shared.ListingID
 	repoURL     string
 	accessToken string
@@ -18,13 +18,13 @@ type GitHubSetupDefinition struct {
 
 // NewGitHubSetup creates a new setup with a generated ID and timestamps.
 func NewGitHubSetup(listingID shared.ListingID, repoURL string, accessToken string) (*GitHubSetupDefinition, error) {
-	id := shared.SetupID(shared.GenerateUUID())
+	id := shared.GithubSetupID(shared.GenerateUUID())
 	now := time.Now()
 	return NewGitHubSetupWithID(id, listingID, repoURL, accessToken, now, now)
 }
 
 // NewGitHubSetupWithID creates a setup with an existing ID and timestamps (for repository hydration).
-func NewGitHubSetupWithID(id shared.SetupID, listingID shared.ListingID, repoURL string, accessToken string, createdAt, updatedAt time.Time) (*GitHubSetupDefinition, error) {
+func NewGitHubSetupWithID(id shared.GithubSetupID, listingID shared.ListingID, repoURL string, accessToken string, createdAt, updatedAt time.Time) (*GitHubSetupDefinition, error) {
 	setup := &GitHubSetupDefinition{
 		id:          id,
 		listingID:   listingID,
@@ -40,7 +40,7 @@ func NewGitHubSetupWithID(id shared.SetupID, listingID shared.ListingID, repoURL
 }
 
 // ID returns the setup's unique identifier.
-func (s *GitHubSetupDefinition) ID() shared.SetupID {
+func (s *GitHubSetupDefinition) ID() shared.GithubSetupID {
 	return s.id
 }
 
