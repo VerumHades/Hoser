@@ -2,7 +2,9 @@ package instanceservice
 
 import (
 	"common/pkg/application/unitofwork"
+	"common/pkg/domain/entities/accounting"
 	"common/pkg/domain/entities/contract"
+	"common/pkg/domain/entities/events"
 	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"common/pkg/util"
@@ -12,13 +14,13 @@ import (
 )
 
 type ContractPaymentService interface {
-	CreateContractPaymentLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) error
-	CreateContractRefundLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) error
+	CreateContractPaymentLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) (events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent], error)
+	CreateContractRefundLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) (events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent], error)
 }
 
 type InstanceContractService struct {
-	paymentService      ContractPaymentService
-	transactionProvider unitofwork.TransactionProvider
+	paymentService         ContractPaymentService
+	transactionalPublisher *unitofwork.TransactionalEventPublisher
 
 	listingQueryRepository    repositories.ListingQueryRepository
 	contractQueryRepository   repositories.InstanceRentalContractQueryRepository
@@ -28,7 +30,7 @@ type InstanceContractService struct {
 
 func NewInstanceContractService(
 	paymentService ContractPaymentService,
-	transactionProvider unitofwork.TransactionProvider,
+	transactionalPublisher *unitofwork.TransactionalEventPublisher,
 	listingQueryRepository repositories.ListingQueryRepository,
 	contractQueryRepository repositories.InstanceRentalContractQueryRepository,
 	contractCommandRepository repositories.InstanceRentalContractCommandRepository,
@@ -36,7 +38,7 @@ func NewInstanceContractService(
 ) *InstanceContractService {
 	return &InstanceContractService{
 		paymentService:            paymentService,
-		transactionProvider:       transactionProvider,
+		transactionalPublisher:    transactionalPublisher,
 		listingQueryRepository:    listingQueryRepository,
 		contractQueryRepository:   contractQueryRepository,
 		contractCommandRepository: contractCommandRepository,
@@ -74,8 +76,10 @@ func (service *InstanceContractService) RentInstanceOfListing(
 	if err := util.EnsureEntityExists(ctx, listingID, fmt.Errorf("listing %s does not exist", listingID), service.listingQueryRepository); err != nil {
 		return err
 	}
-
-	return service.paymentService.CreateContractPaymentLedgerTransaction(ctx, contract)
+	return service.transactionalPublisher.PublishWithTransaction(ctx, func(txContext context.Context) ([]events.DomainEvent, error) {
+		event, err := service.paymentService.CreateContractPaymentLedgerTransaction(ctx, contract)
+		return []events.DomainEvent{event}, err
+	})
 }
 
 func (service *InstanceContractService) applyToContract(
@@ -114,21 +118,24 @@ func (service *InstanceContractService) ChangeContractHardwareSpecification(
 	hardwareSpecification *shared.HardwareSpecification,
 ) error {
 	return service.withContract(ctx, contractID, func(ctx context.Context, contract *contract.InstanceRentalContract) error {
-		return unitofwork.WithTransaction(ctx, service.transactionProvider, func(txContext context.Context) error {
-			if err := service.paymentService.CreateContractRefundLedgerTransaction(txContext, contract); err != nil {
-				return err
+		return service.transactionalPublisher.PublishWithTransaction(ctx, func(txContext context.Context) ([]events.DomainEvent, error) {
+			event, err := service.paymentService.CreateContractRefundLedgerTransaction(txContext, contract)
+
+			if err != nil {
+				return []events.DomainEvent{}, err
 			}
 
 			newContract, err := contract.WithNewHardwareSpecification(hardwareSpecification)
 			if err != nil {
-				return err
+				return []events.DomainEvent{}, err
 			}
 
 			if err := service.contractCommandRepository.Create(txContext, newContract); err != nil {
-				return err
+				return []events.DomainEvent{}, err
 			}
 
-			return service.paymentService.CreateContractPaymentLedgerTransaction(txContext, newContract)
+			event2, err := service.paymentService.CreateContractPaymentLedgerTransaction(txContext, newContract)
+			return []events.DomainEvent{event, event2}, err
 		})
 	})
 }

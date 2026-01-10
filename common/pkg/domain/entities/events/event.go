@@ -45,8 +45,5 @@ func EventTypeFromPayload[T any]() string {
 		t = t.Elem()
 	}
 
-	typeName := t.Name()
-	packageName := t.PkgPath()
-
-	return packageName + "." + typeName
+	return t.Name()
 }

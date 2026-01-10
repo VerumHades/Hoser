@@ -15,6 +15,7 @@ import (
 	"common/pkg/application/services/instanceservice"
 	userservices "common/pkg/application/services/user"
 	"common/pkg/application/unitofwork"
+	"common/pkg/domain/entities/accounting"
 	"common/pkg/domain/entities/listing"
 	"common/pkg/domain/entities/user"
 	"common/pkg/domain/repositories"
@@ -30,6 +31,7 @@ import (
 	"common/pkg/shared"
 	"common/pkg/util"
 	"context"
+	"encoding/json"
 	"time"
 
 	"fmt"
@@ -41,6 +43,17 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+func PrettyPrintJSON(
+	value any,
+) (string, error) {
+	bytes, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
+}
 
 func main() {
 	// ---------------------------
@@ -170,23 +183,29 @@ func main() {
 	)
 
 	accountAdapterConfig := adapters.PlatformAccountsConfig{}
-
 	userAccountService := userservices.NewUserAccountService(accountRepo, accountRepo)
-
 	accountAdapter := adapters.NewAccountServiceAdapter(accountAdapterConfig, listingRepo, userAccountService)
-
 	hardwareCostCalculationService := billing.NewHardwareCostCalculationService(hardwareRateRepo)
 
 	contractPaymentBuilder := instanceservice.NewContractPaymentBuilder(accountAdapter, hardwareCostCalculationService, ledgerTransactionRepo, ledgerTransactionRepo)
 	contractService := instanceservice.NewInstanceContractService(
 		contractPaymentBuilder,
-		transactionProvider,
+		transactionalEventPublisher,
 		listingRepo,
 		instanceRepo,
 		instanceRepo,
 		userRepo,
 	)
 
+	userPurchaseService := userservices.NewUserPurchaseService(
+		accountAdapter,
+		transactionalEventPublisher,
+		listingRepo,
+		ledgerTransactionRepo,
+		ledgerTransactionRepo,
+		settlementRepo,
+	)
+	//githubSetupService := developer.NewDeveloperGitHubSetupService(githubSetupRepo, githubSetupRepo)
 	//githubSetupService := listing.NewDeveloperGitHubSetupService(githubSetupRepo, githubSetupRepo)
 
 	userPublicAPI := userapi.NewPublicUserAPI(userListingService)
@@ -212,11 +231,36 @@ func main() {
 		adapters.NewDeveloperCheckAdapter(userRepo),
 	)
 
+	purchaseAPI := userapi.NewUserPurchaseAPI(userPurchaseService)
+	//developerSetupAPI := developerapi.NewDeveloperListingSetupAPI(githubSetupService)
 	hardwareCostRatesAPI := platformapi.NewHardwareCostRatesAPI(hardwareRateRepo)
 
+	{
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		dispatcher := outbox.NewDispatcher(outboxRepo, outboxRepo, outbox.OutboxEventCursor{
+			LastOccurredAt: time.Now(),
+		}, time.Second*5)
+
+		outbox.RegisterTypedListener(
+			dispatcher,
+			func(ctx context.Context, payload accounting.LedgerTransactionCreatedEvent) error {
+				s, _ := PrettyPrintJSON(payload)
+				fmt.Println(s)
+				return nil
+			},
+		)
+		go func() {
+			if err := dispatcher.Run(ctx); err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
 	//developerapi.NewDeveloperListingSetupAPI(githubSetupService)
 
 	e := echo.New()
+	http.SetErrorHandler(e)
 
 	// ---------------------------
 	// Middleware
@@ -227,7 +271,6 @@ func main() {
 	hardwareCostRatesAPI.RegisterRoutes(e.Group(""))
 
 	authAPI.RegisterRoutes(e.Group(""))
-
 	userPublicAPI.RegisterRoutes(e.Group(""))
 
 	user := e.Group("/user")
@@ -236,11 +279,13 @@ func main() {
 	userProfileAPI.RegisterRoutes(user)
 	userLibraryAPI.RegisterRoutes(user)
 	userInstanceContractAPI.RegisterRoutes(user)
+	purchaseAPI.RegisterRoutes(user)
 
 	developer := e.Group("/developer")
 	developer.Use(authAPI.AuthenticationMiddleware)
 	developer.Use(developerAPI.DeveloperCheckMiddleware)
 	developerAPI.RegisterRoutes(developer)
+	//developerSetupAPI.RegisterRoutes(developer)
 
 	// ---------------------------
 	// Start server

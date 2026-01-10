@@ -200,7 +200,7 @@ func (repo *MongoOutboxRepository) FetchNextBatchAfter(
 
 	cursor, err := repo.collection.Find(ctx, filter, findOptions)
 	if err != nil {
-		return nil, outbox.OutboxEventCursor{}, err
+		return nil, outbox.OutboxEventCursor{LastOccurredAt: time.Now()}, err
 	}
 	defer cursor.Close(ctx)
 
@@ -208,17 +208,17 @@ func (repo *MongoOutboxRepository) FetchNextBatchAfter(
 	for cursor.Next(ctx) {
 		var doc outboxEventDocument
 		if err := cursor.Decode(&doc); err != nil {
-			return nil, outbox.OutboxEventCursor{}, err
+			return nil, outbox.OutboxEventCursor{LastOccurredAt: time.Now()}, err
 		}
 		event, err := mapDocumentToEntity(&doc)
 		if err != nil {
-			return nil, outbox.OutboxEventCursor{}, err
+			return nil, outbox.OutboxEventCursor{LastOccurredAt: time.Now()}, err
 		}
 		events = append(events, event)
 	}
 
 	if len(events) == 0 {
-		return events, outbox.OutboxEventCursor{}, nil
+		return events, outbox.OutboxEventCursor{LastOccurredAt: time.Now()}, nil
 	}
 
 	last := events[len(events)-1]

@@ -57,8 +57,12 @@ func (a *AccountServiceAdapter) GetListingOwnerAccountID(ctx context.Context, li
 
 func (a *AccountServiceAdapter) GetUserAccountID(ctx context.Context, userID shared.UserID) (shared.AccountID, error) {
 	account, err := a.userAccountService.GetUserAccount(ctx, userID)
+
 	if err != nil {
-		return "", err
+		account, err = a.userAccountService.CreateUserAccount(ctx, shared.AccountID(shared.GenerateUUID()), userID)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return account.ID(), nil

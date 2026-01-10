@@ -1,13 +1,17 @@
 import React, { useReducer, useState, useCallback, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import EditableText from "../../components/input/EditableText";
 import HardwareSettings from "./hardware/HardwareSettings";
 import VisibilitySettings from "./VisibilitySettings";
 import PriceSettings from "./prices/PriceSettings";
 import DeleteListingPrompt from "./DeleteListingPrompt";
+
 import { DeveloperListingAPI, type DeveloperListing, type ListingGithubSetup } from "../../backend/repositories/developer_listing";
 import type { HardwareSpecification, ListingAccessMode } from "../../backend/types";
 import toast from "react-hot-toast";
+import { Button } from "../../templates/components/Button";
+import Section from "../../templates/components/Section";
+import EditableText from "../../templates/components/EditableText";
+import CustomSelect from "../../templates/components/SelectBox";
 
 interface DeveloperListingDisplayProps {
     listing: DeveloperListing;
@@ -36,16 +40,6 @@ function listingReducer(state: DeveloperListing, action: ListingAction): Develop
     }
 }
 
-const Section = React.memo(function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-    return (
-        <div className="mb-8 border-b border-slate-300 dark:border-slate-700 pb-6">
-            <h2 className="text-lg font-semibold mb-1 text-slate-900 dark:text-slate-100">{title}</h2>
-            {description && <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">{description}</p>}
-            {children}
-        </div>
-    );
-});
-
 export default function DeveloperListingEditor({ listing: sourceListing, onShouldClose }: DeveloperListingDisplayProps) {
     const [backupListing, setBackupListing] = useState<DeveloperListing>(sourceListing);
     const [listing, dispatch] = useReducer(listingReducer, sourceListing);
@@ -60,24 +54,22 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
     const saveChanges = useCallback(async () => {
         try {
             const updated = await DeveloperListingAPI.update(listing);
-
             dispatch({ type: "reset", backup: updated });
             setBackupListing(updated);
             setHasUnsavedChanges(false);
-        }
-        catch(err){
-            toast.error(err+"")
+        } catch (err) {
+            toast.error(err + "");
             resetChanges();
         }
     }, [listing, resetChanges]);
 
     const deleteListing = useCallback(async () => {
-        try{
-            await DeveloperListingAPI.delete(listing.id)
+        try {
+            await DeveloperListingAPI.delete(listing.id);
             onShouldClose?.();
-        } catch(err){
-            toast.error(err+"")
-        } 
+        } catch (err) {
+            toast.error(err + "");
+        }
     }, [listing.id, onShouldClose]);
 
     // ---------------- GitHub Setup ----------------
@@ -90,12 +82,13 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
         async function fetchSetup() {
             setLoadingSetup(true);
             try {
-                const setup = await DeveloperListingAPI.githubSetup.get(listing.id);
-                setSetup(setup);
-                setSetupDraft({ repoUrl: setup?.repoUrl ?? "", accessToken: setup?.accessToken ?? "" });
-            }
-            catch(err){
-                toast.error(err+"")
+                const setupData = await DeveloperListingAPI.githubSetup.get(listing.id);
+                if (!canceled) {
+                    setSetup(setupData);
+                    setSetupDraft({ repoUrl: setupData?.repositoryURL ?? "", accessToken: setupData?.accessToken ?? "" });
+                }
+            } catch (err) {
+                toast.error(err + "");
             }
             setLoadingSetup(false);
         }
@@ -106,25 +99,26 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
     const saveSetup = useCallback(async () => {
         setLoadingSetup(true);
         try {
-            setSetup(
-                await await DeveloperListingAPI.githubSetup.attachOrUpdate(listing.id, setupDraft.repoUrl, setupDraft.accessToken)
+            const updatedSetup = await DeveloperListingAPI.githubSetup.attachOrUpdate(
+                listing.id,
+                setupDraft.repoUrl,
+                setupDraft.accessToken
             );
-        }
-        catch(err){
-            toast.error(err+"")
+            setSetup(updatedSetup);
+        } catch (err) {
+            toast.error(err + "");
         }
         setLoadingSetup(false);
     }, [listing.id, setupDraft]);
 
     const removeSetup = useCallback(async () => {
         setLoadingSetup(true);
-        try{
+        try {
             await DeveloperListingAPI.githubSetup.remove(listing.id);
             setSetup(null);
             setSetupDraft({ repoUrl: "", accessToken: "" });
-        }
-        catch(err){
-            toast.error(err+"")
+        } catch (err) {
+            toast.error(err + "");
         }
         setLoadingSetup(false);
     }, [listing.id]);
@@ -142,12 +136,8 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
                     >
                         <span className="text-indigo-900 dark:text-indigo-100 font-semibold mr-10">You have unsaved changes</span>
                         <div className="flex gap-2">
-                            <button className="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600" onClick={saveChanges}>
-                                Save
-                            </button>
-                            <button className="px-3 py-1 bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded hover:bg-slate-400" onClick={resetChanges}>
-                                Cancel
-                            </button>
+                            <Button variant="primary" onClick={saveChanges}>Save</Button>
+                            <Button variant="secondary" onClick={resetChanges}>Cancel</Button>
                         </div>
                     </motion.div>
                 )}
@@ -155,20 +145,45 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
 
             <div className="w-full p-6 max-w-4xl">
                 <Section title="General" description="Basic information about your listing.">
-                    <EditableText text={listing.title ?? "No Title"} label="Title: " onChange={(t) => { dispatch({ type: "setTitle", title: t }); markChanged(); }} />
-                    <EditableText text={listing.description ?? "No Description"} label="Description: " onChange={(d) => { dispatch({ type: "setDescription", description: d }); markChanged(); }} />
+                    <EditableText
+                        text={listing.title ?? "No Title"}
+                        label="Title:"
+                        block
+                        onChange={(t) => { dispatch({ type: "setTitle", title: t }); markChanged(); }}
+                    />
+                    <EditableText
+                        text={listing.description ?? "No Description"}
+                        label="Description:"
+                        block
+                        onChange={(d) => { dispatch({ type: "setDescription", description: d }); markChanged(); }}
+                    />
                 </Section>
 
                 <Section title="Visibility" description="Control who can access this listing.">
-                    <VisibilitySettings accessMode={listing.accessMode ?? 0} onChange={(m) => { dispatch({ type: "setAccessMode", mode: m }); markChanged(); }} />
+                    <CustomSelect<number>
+                        value={listing.accessMode ?? 0}
+                        onChange={(m) => { dispatch({ type: "setAccessMode", mode: m as ListingAccessMode }); markChanged(); }}
+                        options={[
+                            { label: "Public", value: 0 },
+                            { label: "Private", value: 1 },
+                        ]}
+                        placeholder="Select access mode"
+                        block
+                    />
                 </Section>
 
                 <Section title="Pricing" description="Set the price and currency for this listing.">
-                    <PriceSettings price={listing.price} onChange={(p) => { dispatch({ type: "setPrice", currency: p }); markChanged(); }} />
+                    <PriceSettings
+                        price={listing.price}
+                        onChange={(p) => { dispatch({ type: "setPrice", currency: p }); markChanged(); }}
+                    />
                 </Section>
 
                 <Section title="Hardware" description="Configure hardware requirements.">
-                    <HardwareSettings initialSpec={listing.hardware ?? {}} onChange={(h) => { dispatch({ type: "setHardware", hardware: h }); markChanged(); }} />
+                    <HardwareSettings
+                        initialSpec={listing.hardware ?? {}}
+                        onChange={(h) => { dispatch({ type: "setHardware", hardware: h }); markChanged(); }}
+                    />
                 </Section>
 
                 <Section title="GitHub Setup" description="Attach a GitHub repository for automated setup.">
@@ -188,13 +203,13 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
                             onChange={(e) => setSetupDraft({ ...setupDraft, accessToken: e.target.value })}
                         />
                         <div className="flex gap-2">
-                            <button disabled={loadingSetup} className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600" onClick={saveSetup}>
+                            <Button disabled={loadingSetup} variant="success" onClick={saveSetup}>
                                 {setup ? "Update Setup" : "Attach Setup"}
-                            </button>
+                            </Button>
                             {setup && (
-                                <button disabled={loadingSetup} className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600" onClick={removeSetup}>
+                                <Button disabled={loadingSetup} variant="danger" onClick={removeSetup}>
                                     Remove Setup
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>

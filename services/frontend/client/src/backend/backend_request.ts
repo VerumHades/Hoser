@@ -1,4 +1,5 @@
 import backend_constants from "./constants";
+import { HttpError } from "./http_error";
 
 export async function backendRequest<T>(endpoint: string, method: string, body?: unknown): Promise<T> {
     const requestInit: RequestInit = {
@@ -9,10 +10,11 @@ export async function backendRequest<T>(endpoint: string, method: string, body?:
 
     if (body) requestInit.body = JSON.stringify(body);
 
-    try {
-        const response = await fetch(`${backend_constants.address}${endpoint}`, requestInit);
-        return await response.json();
-    } catch (err) {
-        throw err;
-    }
+    const response = await fetch(`${backend_constants.address}${endpoint}`, requestInit);
+    const json = await response.json();
+
+    if(response.status != 200) 
+        throw new HttpError(response.status, json.error);
+    
+    return json
 }

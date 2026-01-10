@@ -2,7 +2,9 @@ package instanceservice
 
 import (
 	"common/pkg/application/unitofwork"
+	"common/pkg/domain/entities/accounting"
 	"common/pkg/domain/entities/contract"
+	"common/pkg/domain/entities/events"
 	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"common/pkg/util"
@@ -12,11 +14,11 @@ import (
 )
 
 type ContractPaymentCreationService interface {
-	CreateContractPaymentLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) error
+	CreateContractPaymentLedgerTransaction(ctx context.Context, context *contract.InstanceRentalContract) (events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent], error)
 }
 
 type InstanceContractRenewer struct {
-	transactionProvider            unitofwork.TransactionProvider
+	transactionalPublisher         *unitofwork.TransactionalEventPublisher
 	contractPaymentCreationService ContractPaymentCreationService
 
 	contractQueryRepository   repositories.InstanceRentalContractQueryRepository
@@ -53,23 +55,25 @@ func (r *InstanceContractRenewer) tick(ctx context.Context) error {
 	}
 
 	for contract := range util.GenerateInBatches(ctx, 100, fetchNextBatch) {
-		if err := unitofwork.WithTransaction(ctx, r.transactionProvider, func(txContext context.Context) error {
+		if err := r.transactionalPublisher.PublishWithTransaction(ctx, func(txContext context.Context) ([]events.DomainEvent, error) {
 			contract.Cancel(time.Now())
 
 			if err := r.contractCommandRepository.Update(txContext, contract); err != nil {
-				return err
+				return []events.DomainEvent{}, err
 			}
 
 			newContract, err := contract.Renew(time.Now())
 			if err != nil {
-				return err
+				return []events.DomainEvent{}, err
 			}
 
 			if err := r.contractCommandRepository.Create(txContext, newContract); err != nil {
-				return err
+				return []events.DomainEvent{}, err
 			}
 
-			return r.contractPaymentCreationService.CreateContractPaymentLedgerTransaction(txContext, newContract)
+			event, err := r.contractPaymentCreationService.CreateContractPaymentLedgerTransaction(txContext, newContract)
+			return []events.DomainEvent{event}, err
+
 		}); err != nil {
 			return err
 		}

@@ -1,10 +1,13 @@
 import { useEffect, useState, type JSX } from "react";
 import { useParams, type NavigateFunction } from "react-router-dom";
 import { TitleAndDescription } from "../components/prefabs/TitleAndDescription";
-import { BookmarkPlus, BookmarkCheck } from "lucide-react";
+import { BookmarkPlus, BookmarkCheck, ShoppingCart, CheckCircle } from "lucide-react";
 import { ListingAPI, type Listing } from "../backend/repositories/listing";
 import { UserAPI } from "../backend/repositories/user";
 
+/**
+ * Navigates the user to the detailed view of a specific listing.
+ */
 export function gotoListing(
     navigate: NavigateFunction,
     listing: Listing | undefined
@@ -13,56 +16,101 @@ export function gotoListing(
     navigate("/listing/" + listing.id);
 }
 
+/**
+ * PublicListingView displays the details of a listing and allows users
+ * to save it to their library or purchase it.
+ */
 export function PublicListingView(): JSX.Element {
-    const { id } = useParams<{ id: string }>();
-    const listingID = id;
+    const { id: listingIdentifier } = useParams<{ id: string }>();
 
     const [listing, setListing] = useState<Listing | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [hasError, setHasError] = useState<boolean>(false);
-    const [isSaved, setIsSaved] = useState<boolean>(false);
-    const [isToggling, setIsToggling] = useState<boolean>(false);
+    
+    const [isSavedInLibrary, setIsSavedInLibrary] = useState<boolean>(false);
+    const [isOwnedByUser, setIsOwnedByUser] = useState<boolean>(false);
+    
+    const [isLibraryActionLoading, setIsLibraryActionLoading] = useState<boolean>(false);
+    const [isPurchaseActionLoading, setIsPurchaseActionLoading] = useState<boolean>(false);
 
     useEffect(() => {
-        async function loadListing() {
-            if (!listingID) {
+        /**
+         * Loads the listing details and checks the user's relationship with it.
+         */
+        async function initializeListingView() {
+            if (!listingIdentifier) {
                 setHasError(true);
                 setIsLoading(false);
                 return;
             }
 
             try {
-                const result = await ListingAPI.get(listingID);
-                setListing(result);
+                const [listingResult, libraryStatus, ownershipStatus] = await Promise.all([
+                    ListingAPI.get(listingIdentifier),
+                    UserAPI.library.check(listingIdentifier),
+                    UserAPI.isOwner(listingIdentifier)
+                ]);
 
-                const libraryResult = await UserAPI.library.check(listingID);
-                setIsSaved(libraryResult);
+                setListing(listingResult);
+                setIsSavedInLibrary(libraryStatus);
+                setIsOwnedByUser(ownershipStatus);
             }
-            catch (err){
-                setHasError(true)
+            catch (error) {
+                setHasError(true);
             }
-
-            setIsLoading(false);
+            finally {
+                setIsLoading(false);
+            }
         }
 
-        loadListing();
-    }, [listingID]);
+        initializeListingView();
+    }, [listingIdentifier]);
 
-    const toggleLibrary = async () => {
+    /**
+     * Toggles the presence of the listing in the user's personal library.
+     */
+    const handleToggleLibrary = async () => {
         if (!listing) return;
 
-        setIsToggling(true);
+        setIsLibraryActionLoading(true);
         try {
-            if (isSaved) {
+            if (isSavedInLibrary) {
                 await UserAPI.library.delete(listing.id);
-                setIsSaved(false);
+                setIsSavedInLibrary(false);
             } else {
                 await UserAPI.library.add(listing.id);
-                setIsSaved(true);
+                setIsSavedInLibrary(true);
             }
         } finally {
-            setIsToggling(false);
+            setIsLibraryActionLoading(false);
         }
+    };
+
+    /**
+     * Initiates the purchase flow for the current listing.
+     */
+    const handlePurchaseListing = async () => {
+        if (!listing || isOwnedByUser) return;
+
+        setIsPurchaseActionLoading(true);
+        try {
+            await UserAPI.purchaseListing(listing.id);
+            setIsOwnedByUser(true);
+        } catch (error) {
+            console.error("Purchase failed", error);
+        } finally {
+            setIsPurchaseActionLoading(false);
+        }
+    };
+
+    /**
+     * Formats the numeric price into a localized EUR currency string.
+     */
+    const formatCurrency = (amount: number): string => {
+        return new Intl.NumberFormat("de-DE", {
+            style: "currency",
+            currency: "EUR",
+        }).format(amount);
     };
 
     if (isLoading) {
@@ -92,31 +140,68 @@ export function PublicListingView(): JSX.Element {
                         descriptionClassname="max-w-3xl"
                     />
 
-                    <div className="flex flex-col items-start md:items-end gap-3 text-slate-600 dark:text-slate-400">
-                        <button
-                            onClick={toggleLibrary}
-                            disabled={isToggling}
-                            className={`
-                                flex items-center gap-2
-                                px-3 py-2
-                                rounded-lg
-                                border
-                                border-slate-300
-                                dark:border-slate-700
-                                hover:bg-slate-100
-                                dark:hover:bg-slate-800
-                                transition
-                                ${isSaved ? "bg-slate-100 dark:bg-slate-800" : ""}
-                                ${isToggling ? "opacity-50 cursor-not-allowed" : ""}
-                            `}
-                        >
-                            {isSaved ? (
-                                <BookmarkCheck className="w-4 h-4" />
-                            ) : (
-                                <BookmarkPlus className="w-4 h-4" />
-                            )}
-                            <span className="text-sm">{isSaved ? "Saved" : "Save"}</span>
-                        </button>
+                    <div className="flex flex-col items-start md:items-end gap-4">
+                        <div className="text-3xl font-bold text-slate-900 dark:text-white">
+                            {formatCurrency(listing.price)}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleToggleLibrary}
+                                disabled={isLibraryActionLoading}
+                                className={`
+                                    flex items-center gap-2
+                                    px-4 py-2.5
+                                    rounded-lg
+                                    border
+                                    border-slate-300
+                                    dark:border-slate-700
+                                    hover:bg-slate-100
+                                    dark:hover:bg-slate-800
+                                    transition
+                                    ${isSavedInLibrary ? "bg-slate-100 dark:bg-slate-800" : ""}
+                                    ${isLibraryActionLoading ? "opacity-50 cursor-not-allowed" : ""}
+                                `}
+                            >
+                                {isSavedInLibrary ? (
+                                    <BookmarkCheck className="w-4 h-4 text-blue-500" />
+                                ) : (
+                                    <BookmarkPlus className="w-4 h-4" />
+                                )}
+                                <span className="text-sm font-medium">
+                                    {isSavedInLibrary ? "Saved to Library" : "Save to Library"}
+                                </span>
+                            </button>
+
+                            <button
+                                onClick={handlePurchaseListing}
+                                disabled={isPurchaseActionLoading || isOwnedByUser}
+                                className={`
+                                    flex items-center gap-2
+                                    px-6 py-2.5
+                                    rounded-lg
+                                    font-semibold
+                                    transition
+                                    ${isOwnedByUser 
+                                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800" 
+                                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                                    }
+                                    ${(isPurchaseActionLoading || isOwnedByUser) ? "cursor-default" : "active:scale-95"}
+                                `}
+                            >
+                                {isOwnedByUser ? (
+                                    <>
+                                        <CheckCircle className="w-4 h-4" />
+                                        <span>Purchased</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ShoppingCart className="w-4 h-4" />
+                                        <span>{isPurchaseActionLoading ? "Processing..." : "Purchase Now"}</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>

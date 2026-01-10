@@ -129,7 +129,7 @@ func (api *UserLibraryAPI) AddListingHandler(userID shared.UserID, c echo.Contex
 
 	_, err := api.userLibraryCommandService.SaveListingToLibrary(ctx, userID, req.ListingID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save listing to library")
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save listing to library: "+err.Error())
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -146,7 +146,7 @@ func (api *UserLibraryAPI) RemoveListingHandler(userID shared.UserID, c echo.Con
 	}
 
 	if err := api.userLibraryCommandService.RemoveListingFromLibrary(ctx, userID, req.ItemID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove listing from library:"+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to remove listing from library: "+err.Error())
 	}
 
 	return c.NoContent(http.StatusNoContent)

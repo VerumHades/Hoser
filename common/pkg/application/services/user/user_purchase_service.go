@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"common/pkg/application/unitofwork"
 	"common/pkg/domain/entities/accounting"
+	"common/pkg/domain/entities/events"
 	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 )
@@ -19,13 +21,32 @@ type AccountQueryService interface {
 
 // UserPurchaseService handles all user listing purchase logic.
 type UserPurchaseService struct {
-	accountQueryService AccountQueryService
+	accountQueryService         AccountQueryService
+	transactionalEventPublisher *unitofwork.TransactionalEventPublisher
 
 	listingRepository repositories.ListingQueryRepository
 
 	transactionRepository      repositories.LedgerTransactionCommandRepository
 	transactionQueryRepository repositories.LedgerTransactionQueryRepository
 	settlementQueryRepository  repositories.SettlementQueryRepository
+}
+
+func NewUserPurchaseService(
+	accountQueryService AccountQueryService,
+	transactionalEventPublisher *unitofwork.TransactionalEventPublisher,
+	listingRepository repositories.ListingQueryRepository,
+	transactionRepository repositories.LedgerTransactionCommandRepository,
+	transactionQueryRepository repositories.LedgerTransactionQueryRepository,
+	settlementQueryRepository repositories.SettlementQueryRepository,
+) *UserPurchaseService {
+	return &UserPurchaseService{
+		accountQueryService:         accountQueryService,
+		transactionalEventPublisher: transactionalEventPublisher,
+		listingRepository:           listingRepository,
+		transactionRepository:       transactionRepository,
+		transactionQueryRepository:  transactionQueryRepository,
+		settlementQueryRepository:   settlementQueryRepository,
+	}
 }
 
 func (s *UserPurchaseService) GetLastestUserListingTransaction(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (*accounting.LedgerTransaction, error) {
@@ -114,14 +135,16 @@ func (s *UserPurchaseService) PurchaseListing(
 		return err
 	}
 
-	transaction, err := accounting.NewLedgerTransaction(accounting.ReferenceTypePurchase, string(listingID), entries)
-	if err != nil {
-		return err
-	}
-	err = s.transactionRepository.Create(ctx, transaction)
-	if err != nil {
-		return err
-	}
+	return s.transactionalEventPublisher.PublishWithTransaction(ctx, func(txContext context.Context) ([]events.DomainEvent, error) {
+		transaction, event, err := accounting.NewLedgerTransaction(accounting.ReferenceTypePurchase, string(listingID), entries)
+		if err != nil {
+			return []events.DomainEvent{}, err
+		}
+		err = s.transactionRepository.Create(ctx, transaction)
+		if err != nil {
+			return []events.DomainEvent{}, err
+		}
 
-	return nil
+		return []events.DomainEvent{event}, nil
+	})
 }

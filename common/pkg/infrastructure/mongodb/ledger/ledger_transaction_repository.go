@@ -95,13 +95,14 @@ func ledgerMapDocumentToEntity(doc *ledgerTransactionDocument) (*accounting.Ledg
 		entries[i] = entry
 	}
 
-	return accounting.NewLedgerTransactionWithID(
+	transaction, _, err := accounting.NewLedgerTransactionWithID(
 		doc.ID,
 		doc.ReferenceType,
 		doc.ReferenceID,
 		entries,
 		time.Unix(0, doc.CreatedAt),
 	)
+	return transaction, err
 }
 
 // -------------------- Command Repository --------------------

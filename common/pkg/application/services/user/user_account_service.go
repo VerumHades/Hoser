@@ -44,14 +44,13 @@ func (s *UserAccountService) CreateUserAccount(
 	ctx context.Context,
 	accountID shared.AccountID,
 	userID shared.UserID,
-	accountType accounting.AccountType,
 
 ) (*accounting.Account, error) {
 	if accountID == "" || userID == "" {
 		return nil, errors.New("accountID and userID cannot be empty")
 	}
 
-	account, err := accounting.NewAccount(accountID, accountType, accounting.AccountOwnerUser, string(userID))
+	account, err := accounting.NewAccount(accountID, accounting.AccountTypeUserLiability, accounting.AccountOwnerUser, string(userID))
 	if err != nil {
 		return nil, err
 	}

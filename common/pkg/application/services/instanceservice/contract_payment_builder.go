@@ -3,6 +3,7 @@ package instanceservice
 import (
 	"common/pkg/domain/entities/accounting"
 	"common/pkg/domain/entities/contract"
+	"common/pkg/domain/entities/events"
 	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"context"
@@ -57,19 +58,19 @@ func (builder *ContractPaymentBuilder) calculateContractHardwareCost(ctx context
 func (builder *ContractPaymentBuilder) CreateContractPaymentLedgerTransaction(
 	ctx context.Context,
 	contract *contract.InstanceRentalContract,
-) error {
+) (events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent], error) {
 	if !contract.IsActiveAt(time.Now()) {
-		return nil
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, nil
 	}
 
 	purchaseAmount, err := builder.calculateContractHardwareCost(ctx, contract)
 	paymentAccountID, err := builder.accountQueryService.GetPlatformHardwareRentAccountID(ctx)
 	if err != nil {
-		return err
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, err
 	}
 	userAccountID, err := builder.accountQueryService.GetUserAccountID(ctx, contract.OwnerID())
 	if err != nil {
-		return err
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, err
 	}
 
 	entries, err := accounting.NewLedgerEntries(
@@ -78,32 +79,33 @@ func (builder *ContractPaymentBuilder) CreateContractPaymentLedgerTransaction(
 	)
 
 	if err != nil {
-		return err
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, err
 	}
 
-	purchaseTransaction, err := accounting.NewLedgerTransaction(accounting.ReferenceTypePurchase, string(contract.ID()), entries)
+	purchaseTransaction, event, err := accounting.NewLedgerTransaction(accounting.ReferenceTypePurchase, string(contract.ID()), entries)
 	if err != nil {
-		return err
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, err
 	}
-	return builder.transactionCommandRepository.Create(ctx, purchaseTransaction)
+	err = builder.transactionCommandRepository.Create(ctx, purchaseTransaction)
+	return event, err
 }
 
 func (builder *ContractPaymentBuilder) CreateContractRefundLedgerTransaction(
 	ctx context.Context,
 	contract *contract.InstanceRentalContract,
-) error {
+) (events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent], error) {
 	if !contract.IsActiveAt(time.Now()) {
-		return nil
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, nil
 	}
 
 	remainingHardwareCost, err := builder.calculateContractHardwareCost(ctx, contract)
 	refundAccountID, err := builder.accountQueryService.GetPlatformHardwareRefundAccountID(ctx)
 	if err != nil {
-		return err
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, err
 	}
 	userAccountID, err := builder.accountQueryService.GetUserAccountID(ctx, contract.OwnerID())
 	if err != nil {
-		return err
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, err
 	}
 
 	entries, err := accounting.NewLedgerEntries(
@@ -112,12 +114,13 @@ func (builder *ContractPaymentBuilder) CreateContractRefundLedgerTransaction(
 	)
 
 	if err != nil {
-		return err
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, err
 	}
 
-	purchaseTransaction, err := accounting.NewLedgerTransaction(accounting.ReferenceTypePurchase, string(contract.ID()), entries)
+	purchaseTransaction, event, err := accounting.NewLedgerTransaction(accounting.ReferenceTypePurchase, string(contract.ID()), entries)
 	if err != nil {
-		return err
+		return events.DomainEventEnvelope[accounting.LedgerTransactionCreatedEvent]{}, err
 	}
-	return builder.transactionCommandRepository.Create(ctx, purchaseTransaction)
+	err = builder.transactionCommandRepository.Create(ctx, purchaseTransaction)
+	return event, err
 }
