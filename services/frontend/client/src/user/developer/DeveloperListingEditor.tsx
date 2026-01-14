@@ -7,11 +7,12 @@ import DeleteListingPrompt from "./DeleteListingPrompt";
 
 import { DeveloperListingAPI, type DeveloperListing, type ListingGithubSetup } from "../../backend/repositories/developer_listing";
 import type { HardwareSpecification, ListingAccessMode } from "../../backend/types";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import { Button } from "../../templates/components/Button";
 import Section from "../../templates/components/Section";
 import EditableText from "../../templates/components/EditableText";
 import CustomSelect from "../../templates/components/SelectBox";
+import { ListingAPI } from "../../backend/repositories/listing";
 
 interface DeveloperListingDisplayProps {
     listing: DeveloperListing;
@@ -25,7 +26,9 @@ type ListingAction =
     | { type: "setAccessMode"; mode: ListingAccessMode }
     | { type: "setHardware"; hardware: HardwareSpecification }
     | { type: "setPrice"; currency: number }
-    | { type: "reset"; backup: DeveloperListing };
+    | { type: "reset"; backup: DeveloperListing }
+    | { type: "addScreenshot"; id: string }
+    | { type: "removeScreenshot"; id: string };
 
 function listingReducer(state: DeveloperListing, action: ListingAction): DeveloperListing {
     switch (action.type) {
@@ -36,6 +39,10 @@ function listingReducer(state: DeveloperListing, action: ListingAction): Develop
         case "setPrice": return { ...state, price: action.currency };
         case "reset": return action.backup;
         case "set": return action.listing;
+        case "addScreenshot": 
+            return { ...state, screenshotIds: [...(state.screenshotIds || []), action.id] };
+        case "removeScreenshot":
+            return { ...state, screenshotIds: (state.screenshotIds || []).filter(id => id !== action.id) };
         default: return state;
     }
 }
@@ -122,9 +129,92 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
         }
         setLoadingSetup(false);
     }, [listing.id]);
+    // ... existing state ...
+    const [isUploading, setIsUploading] = useState(false);
+    const [screenshotUrls, setScreenshotUrls] = useState<Record<string, string>>({});
+
+    // ---------------- Screenshot Link Caching ----------------
+
+    const fetchScreenshotUrls = useCallback(async (ids: string[]) => {
+        const newUrls: Record<string, string> = {};
+        
+        await Promise.all(ids.map(async (id) => {
+            try {
+                // Use the new endpoint we created in the Go backend
+                const response = await ListingAPI.getScreenshotReadURL(listing.id, id);
+                newUrls[id] = response.readUrl;
+            } catch (err) {
+                console.error(`Failed to fetch URL for screenshot ${id}`, err);
+            }
+        }));
+
+        setScreenshotUrls(prev => ({ ...prev, ...newUrls }));
+    }, [listing.id]);
+
+    // Fetch URLs whenever the listing's screenshot ID list changes
+    useEffect(() => {
+        if (listing.screenshotIds && listing.screenshotIds.length > 0) {
+            const missingIds = listing.screenshotIds.filter(id => !screenshotUrls[id]);
+            if (missingIds.length > 0) {
+                fetchScreenshotUrls(missingIds);
+            }
+        }
+    }, [listing.screenshotIds, fetchScreenshotUrls, screenshotUrls]);
+
+    // ---------------- Modified Upload Logic ----------------
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        const toastId = toast.loading("Uploading screenshot...");
+
+        try {
+            // 1. Get signed PUT URL
+            const response = await DeveloperListingAPI.screenshots.createUploadUrl(listing.id);
+            
+            // 2. Upload to MinIO
+            const uploadResponse = await fetch(response.uploadUrl, {
+                method: "PUT",
+                body: file,
+                headers: { "Content-Type": file.type }
+            });
+
+            if (!uploadResponse.ok) throw new Error("Cloud storage upload failed");
+
+            // 3. Refresh Listing Data
+            const updated = await DeveloperListingAPI.get(listing.id);
+            dispatch({ type: "set", listing: updated });
+            
+            // 4. Specifically fetch the URL for the new screenshot immediately
+            if (updated.screenshotIds) {
+                await fetchScreenshotUrls(updated.screenshotIds);
+            }
+
+            toast.success("Screenshot uploaded", { id: toastId });
+        } catch (err) {
+            toast.error("Upload failed: " + err, { id: toastId });
+        } finally {
+            setIsUploading(false);
+            e.target.value = "";
+        }
+    };
+
+    const handleDeleteScreenshot = async (screenshotId: string) => {
+        try {
+            await DeveloperListingAPI.screenshots.delete(listing.id, screenshotId);
+            dispatch({ type: "removeScreenshot", id: screenshotId });
+            toast.success("Screenshot removed");
+        } catch (err) {
+            toast.error("Delete failed: " + err);
+        }
+    };
 
     return (
         <div className="relative flex flex-col w-full h-full items-center overflow-y-auto">
+            <Toaster position="top-right" />
+            
             <AnimatePresence mode="wait">
                 {hasUnsavedChanges && (
                     <motion.div
@@ -184,6 +274,67 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
                         initialSpec={listing.hardware ?? {}}
                         onChange={(h) => { dispatch({ type: "setHardware", hardware: h }); markChanged(); }}
                     />
+                </Section>
+
+                <Section title="Screenshots" description="Visuals for your listing (Max 5).">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                        {listing.screenshotIds?.map((id) => (
+                            <div key={id} className="relative group aspect-video bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden border dark:border-gray-600">
+                                {screenshotUrls[id] ? (
+                                    <motion.img 
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        src={screenshotUrls[id]} 
+                                        alt="Screenshot" 
+                                        className="object-cover w-full h-full"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <div className="animate-pulse bg-gray-300 dark:bg-gray-600 w-full h-full" />
+                                    </div>
+                                )}
+                                
+                                <button 
+                                    onClick={() => handleDeleteScreenshot(id)}
+                                    className="absolute top-2 right-2 bg-red-600/80 hover:bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ))}
+                        
+                         {(listing.screenshotIds?.length ?? 0) < 5 && (
+
+                            <label className="flex flex-col items-center justify-center aspect-video border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+
+                                    {isUploading ? (
+
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+
+                                    ) : (
+
+                                        <>
+
+                                            <svg className="w-8 h-8 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+
+                                            <p className="text-xs text-gray-500">Add Screenshot</p>
+
+                                        </>
+
+                                    )}
+
+                                </div>
+
+                                <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} accept="image/*" />
+
+                            </label>
+
+                        )}
+                    </div>
                 </Section>
 
                 <Section title="GitHub Setup" description="Attach a GitHub repository for automated setup.">

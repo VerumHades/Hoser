@@ -65,6 +65,12 @@ func (api *UserPurchaseAPI) RegisterRoutes(group *echo.Group) {
 
 	// Check if the current user owns a specific listing
 	group.GET(
+		"/listings/:id/processing",
+		authentification.WithAuthenticatedUser(api.IsPurchaseProcessingHandler),
+	)
+
+	// Check if the current user owns a specific listing
+	group.GET(
 		"/listings/:id/ownership",
 		authentification.WithAuthenticatedUser(api.CheckOwnershipHandler),
 	)

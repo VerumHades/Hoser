@@ -56,6 +56,7 @@ type listingDocument struct {
 	HardwareSpecification *shared.HardwareSpecification `bson:"hardware_spec"`
 	PriceInMinorUnits     int64                         `bson:"price_in_minor_units"`
 	CreatedAt             int64                         `bson:"created_at"` // nanoseconds
+	ScreenshotKeys        []shared.ListingScreenshotID  `bson:"screenshot_keys"`
 }
 
 func mapEntityToDocument(entity *listing.Listing) *listingDocument {
@@ -68,6 +69,7 @@ func mapEntityToDocument(entity *listing.Listing) *listingDocument {
 		HardwareSpecification: entity.HardwareSpecification(),
 		PriceInMinorUnits:     entity.PriceInMinorUnits(),
 		CreatedAt:             entity.CreatedAt().UnixNano(),
+		ScreenshotKeys:        entity.ScreenshotKeys(),
 	}
 }
 
@@ -81,6 +83,7 @@ func mapDocumentToEntity(doc *listingDocument) (*listing.Listing, error) {
 		doc.HardwareSpecification,
 		doc.PriceInMinorUnits,
 		time.Unix(0, doc.CreatedAt),
+		doc.ScreenshotKeys,
 	)
 	return listing, err
 }

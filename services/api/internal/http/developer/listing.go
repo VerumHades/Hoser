@@ -25,6 +25,9 @@ type APIDeveloperListingService interface {
 	) (listings []*listing.Listing, nextCursor repositories.ListingCursor, err error)
 
 	GetOwnedListing(ctx context.Context, listingID shared.ListingID, userID shared.UserID) (*listing.Listing, error)
+
+	CreateScreenshotUploadUrl(ctx context.Context, listingID shared.ListingID, userID shared.UserID) (string, error)
+	DeleteScreenshot(ctx context.Context, listingID shared.ListingID, userID shared.UserID, screenshotId shared.ListingScreenshotID) error
 }
 
 type APIDeveloperUserService interface {
@@ -58,6 +61,10 @@ func (api *DeveloperListingAPI) RegisterRoutes(group *echo.Group) {
 	group.POST("/listings", authentification.WithAuthenticatedUser(api.AddListingHandler))
 	group.PUT("/listings", authentification.WithAuthenticatedUser(api.UpdateListingHandler))
 	group.DELETE("/listings/:id", authentification.WithAuthenticatedUser(api.DeleteListingHandler))
+
+	// Screenshot Routes
+	group.POST("/listings/:id/screenshots", authentification.WithAuthenticatedUser(api.CreateScreenshotUploadHandler))
+	group.DELETE("/listings/:id/screenshots/:screenshotId", authentification.WithAuthenticatedUser(api.DeleteScreenshotHandler))
 }
 
 // --------------------
@@ -65,11 +72,12 @@ func (api *DeveloperListingAPI) RegisterRoutes(group *echo.Group) {
 // --------------------
 
 type ApiListingBase struct {
-	ID          shared.ListingID              `json:"id"`
-	Title       string                        `json:"title,omitempty"`
-	Description string                        `json:"description,omitempty"`
-	Price       int64                         `json:"price"`
-	Hardware    *shared.HardwareSpecification `json:"hardware,omitempty"`
+	ID            shared.ListingID              `json:"id"`
+	Title         string                        `json:"title,omitempty"`
+	Description   string                        `json:"description,omitempty"`
+	Price         int64                         `json:"price"`
+	Hardware      *shared.HardwareSpecification `json:"hardware,omitempty"`
+	ScreenshotIds []shared.ListingScreenshotID  `json:"screenshotIds"`
 }
 
 type ApiDeveloperListing struct {
@@ -103,11 +111,12 @@ func MakeApiDeveloperListing(l *listing.Listing) ApiDeveloperListing {
 	accessMode := int(l.AccessMode())
 	return ApiDeveloperListing{
 		ApiListingBase: ApiListingBase{
-			ID:          l.ID(),
-			Title:       l.Title(),
-			Description: l.Description(),
-			Price:       l.PriceInMinorUnits(),
-			Hardware:    l.HardwareSpecification(),
+			ID:            l.ID(),
+			Title:         l.Title(),
+			Description:   l.Description(),
+			Price:         l.PriceInMinorUnits(),
+			Hardware:      l.HardwareSpecification(),
+			ScreenshotIds: l.ScreenshotKeys(),
 		},
 		AccessMode: &accessMode,
 	}
@@ -164,7 +173,7 @@ func (api *DeveloperListingAPI) AddListingHandler(userID shared.UserID, c echo.C
 		Description:       req.Description,
 		AccessMode:        listing.Private,
 		Hardware:          &shared.HardwareSpecification{},
-		PriceInMinorUnits: 0,
+		PriceInMinorUnits: 1000,
 	})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create listing: "+err.Error())
@@ -215,6 +224,55 @@ func (api *DeveloperListingAPI) DeleteListingHandler(userID shared.UserID, c ech
 
 	if err := api.listingService.DeleteListing(ctx, shared.ListingID(listingID)); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Could not delete listing")
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+type CreateScreenshotResponse struct {
+	UploadUrl string `json:"uploadUrl"`
+}
+
+func (api *DeveloperListingAPI) CreateScreenshotUploadHandler(userID shared.UserID, c echo.Context) error {
+	ctx := c.Request().Context()
+	listingID := c.Param("id")
+	if listingID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
+	}
+
+	// Call service to validate ownership, check limits, and generate signed URL
+	uploadUrl, err := api.listingService.CreateScreenshotUploadUrl(ctx, shared.ListingID(listingID), userID)
+	if err != nil {
+		if err == shared.ErrLimitReached {
+			return echo.NewHTTPError(http.StatusConflict, "Maximum number of screenshots reached")
+		}
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to generate upload URL")
+	}
+
+	return c.JSON(http.StatusCreated, CreateScreenshotResponse{
+		UploadUrl: uploadUrl,
+	})
+}
+
+func (api *DeveloperListingAPI) DeleteScreenshotHandler(userID shared.UserID, c echo.Context) error {
+	ctx := c.Request().Context()
+	listingID := c.Param("id")
+	screenshotID := c.Param("screenshotId")
+
+	if listingID == "" || screenshotID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID and Screenshot ID are required")
+	}
+
+	err := api.listingService.DeleteScreenshot(
+		ctx,
+		shared.ListingID(listingID),
+		userID,
+		shared.ListingScreenshotID(screenshotID),
+	)
+
+	if err != nil {
+		// We assume 404/403 here since DeleteScreenshot verifies ownership
+		return echo.NewHTTPError(http.StatusInternalServerError, "Could not delete screenshot")
 	}
 
 	return c.NoContent(http.StatusNoContent)

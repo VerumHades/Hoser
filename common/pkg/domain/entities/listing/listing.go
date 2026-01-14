@@ -29,13 +29,14 @@ type Listing struct {
 	hardwareSpecification *shared.HardwareSpecification
 	priceInMinorUnits     int64
 	createdAt             time.Time
+	screenshotKeys        []shared.ListingScreenshotID
 }
 
 // --- Listing constructors with creation event ---
 
 func NewListing(authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price int64) (*Listing, events.DomainEvent, error) {
 	id := shared.ListingID(shared.GenerateUUID())
-	return NewListingWithID(id, authorID, title, description, accessMode, hardwareSpec, price, time.Now())
+	return NewListingWithID(id, authorID, title, description, accessMode, hardwareSpec, price, time.Now(), nil)
 }
 
 func NewListingWithID(
@@ -46,6 +47,7 @@ func NewListingWithID(
 	hardwareSpec *shared.HardwareSpecification,
 	price int64,
 	createdAt time.Time,
+	screenshotKeys []shared.ListingScreenshotID,
 ) (*Listing, events.DomainEventEnvelope[ListingCreatedEvent], error) {
 
 	listing := &Listing{
@@ -57,6 +59,7 @@ func NewListingWithID(
 		hardwareSpecification: hardwareSpec,
 		priceInMinorUnits:     price,
 		createdAt:             createdAt,
+		screenshotKeys:        screenshotKeys,
 	}
 
 	if err := listing.Validate(); err != nil {
@@ -71,6 +74,7 @@ func NewListingWithID(
 		AccessMode:            listing.accessMode,
 		HardwareSpecification: *listing.hardwareSpecification,
 		PriceInMinorUnits:     listing.priceInMinorUnits,
+		ScreenshotKeys:        screenshotKeys,
 	}
 
 	// Wrap in typed domain event envelope
@@ -88,8 +92,9 @@ func (l *Listing) AccessMode() ListingAccessMode { return l.accessMode }
 func (l *Listing) HardwareSpecification() *shared.HardwareSpecification {
 	return l.hardwareSpecification
 }
-func (l *Listing) PriceInMinorUnits() int64 { return l.priceInMinorUnits }
-func (l *Listing) CreatedAt() time.Time     { return l.createdAt }
+func (l *Listing) PriceInMinorUnits() int64                     { return l.priceInMinorUnits }
+func (l *Listing) CreatedAt() time.Time                         { return l.createdAt }
+func (l *Listing) ScreenshotKeys() []shared.ListingScreenshotID { return l.screenshotKeys }
 
 // --- Validation ---
 

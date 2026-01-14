@@ -25,6 +25,10 @@ export interface AttachOrUpdateGithubSetupRequest {
     accessToken: string;
 }
 
+export interface CreateScreenshotResponse {
+    uploadUrl: string;
+}
+
 export const DeveloperListingAPI = {
     /**
      * Fetch a developer listing by id
@@ -77,6 +81,29 @@ export const DeveloperListingAPI = {
             "DELETE",
             { id: listingId }
         );
+    },
+
+    screenshots: {
+        /**
+         * Requests a signed URL to upload a screenshot.
+         * The backend will return a MinIO/S3 URL that allows a direct PUT request.
+         */
+        async createUploadUrl(listingId: string): Promise<CreateScreenshotResponse> {
+            return backendRequest<CreateScreenshotResponse>(
+                `/developer/listings/${listingId}/screenshots`,
+                "POST"
+            );
+        },
+
+        /**
+         * Deletes a screenshot from both the database and object storage.
+         */
+        async delete(listingId: string, screenshotId: string): Promise<void> {
+            return backendRequest<void>(
+                `/developer/listings/${listingId}/screenshots/${screenshotId}`,
+                "DELETE"
+            );
+        }
     },
 
     githubSetup: {

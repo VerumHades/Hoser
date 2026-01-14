@@ -30,6 +30,7 @@ export default function DeveloperListingLoader({
         let isMounted = true
 
         const fetchListing = async () => {
+            
             setLoading(true)
             setError(null)
             try {

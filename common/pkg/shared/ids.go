@@ -16,3 +16,4 @@ type SettlementID string
 type InstanceRentalContractID string
 
 type OutboxEventID string
+type ListingScreenshotID string

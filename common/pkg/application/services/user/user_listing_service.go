@@ -7,10 +7,12 @@ import (
 	"common/pkg/shared"
 	"context"
 	"fmt"
+	"time"
 )
 
 // UserListingService provides operations for user interactions with listings.
 type UserListingService struct {
+	storageProvider          StorageProvider
 	listingCommandRepository repositories.ListingCommandRepository
 	listingQueryRepository   repositories.ListingQueryRepository
 	savedCommandRepository   repositories.SavedListingCommandRepository
@@ -18,8 +20,13 @@ type UserListingService struct {
 	listingSearchIndex       listing.ListingSearchIndex
 }
 
+type StorageProvider interface {
+	GetReadLink(ctx context.Context, key string, expires time.Duration) (string, error)
+}
+
 // NewUserListingService constructs a new UserListingService contract.
 func NewUserListingService(
+	storageProvider StorageProvider,
 	listingCommandRepository repositories.ListingCommandRepository,
 	listingQueryRepository repositories.ListingQueryRepository,
 	savedCommandRepository repositories.SavedListingCommandRepository,
@@ -27,6 +34,7 @@ func NewUserListingService(
 	listingSearchIndex listing.ListingSearchIndex,
 ) *UserListingService {
 	return &UserListingService{
+		storageProvider:          storageProvider,
 		listingCommandRepository: listingCommandRepository,
 		listingQueryRepository:   listingQueryRepository,
 		savedCommandRepository:   savedCommandRepository,
@@ -123,4 +131,18 @@ func (s *UserListingService) SearchNextListingsBatch(
 	batchRequest shared.BatchRequest[listing.ListingSearchCursor],
 ) ([]*listing.Listing, listing.ListingSearchCursor, error) {
 	return s.listingSearchIndex.SearchNextBatch(ctx, query, batchRequest)
+}
+
+func (s *UserListingService) GetListingScreenshotReadUrl(
+	ctx context.Context,
+	listingID shared.ListingID,
+	screenshotID shared.ListingScreenshotID,
+) (string, error) {
+	_, err := s.listingQueryRepository.GetByID(ctx, listingID)
+	if err != nil {
+		return "", err
+	}
+
+	fileKey := shared.GenerateFileKey(listingID, screenshotID)
+	return s.storageProvider.GetReadLink(ctx, fileKey, 1*time.Hour)
 }

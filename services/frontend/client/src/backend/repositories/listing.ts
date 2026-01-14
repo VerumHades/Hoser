@@ -9,6 +9,11 @@ export interface Listing {
     author: string;
     price: number;
     hardware?: HardwareSpecification;
+    screenshotIds?: string[]; // Add this
+}
+
+interface GetScreenshotResponse {
+    readUrl: string,
 }
 
 export const ListingAPI = {
@@ -17,5 +22,12 @@ export const ListingAPI = {
     async search(cursor?: string): Promise<CursorPaginatedResult<Listing>> {
         const params = cursor ? `?cursor=${cursor}` : "";
         return backendRequest<CursorPaginatedResult<Listing>>(`/search/listings${params}`, "GET");
+    },
+
+    async getScreenshotReadURL(listingID: string, screenshotID: string){
+        return backendRequest<GetScreenshotResponse>(
+            `/listings/${listingID}/screenshots/${screenshotID}`,
+            "GET"
+        )
     },
 };

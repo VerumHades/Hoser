@@ -133,12 +133,12 @@ func main() {
 		if i%2 == 0 {
 			accessMode = listing.Private
 		}
-		listing, _ := listing.NewListing(
+		listing, _, _ := listing.NewListing(
 			"30225718-7120-4353-999b-55a1ec8fcd4c",
 			fmt.Sprintf("Test Listing %d %d", i, time.Now().Unix()),
-			fmt.Sprintf("Test Description %d %d", i, time.Now().Unix()), accessMode, &shared.HardwareSpecification{}, int64(i))
+			fmt.Sprintf("Test Description %d %d", i, time.Now().Unix()), accessMode, &shared.HardwareSpecification{}, 100*int64(i))
 
-		listingRepo.Create(ctx, nil, listing)
+		listingRepo.Create(ctx, listing)
 	}*/
 
 	cuser, err := user.NewUser("alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
@@ -153,7 +153,7 @@ func main() {
 
 	for listing := range util.GenerateInBatches(
 		ctx,
-		50,
+		500,
 		func(ctx context.Context, request shared.BatchRequest[repositories.ListingCursor]) ([]*listing.Listing, repositories.ListingCursor, error) {
 			return listingRepo.FetchNextBatchAll(ctx, request)
 		}) {
@@ -167,14 +167,25 @@ func main() {
 		eventPublisher,
 	)
 
+	// main.go
+	storageAdapter, _ := adapters.NewMinioStorageAdapter(
+		"localhost:9000",
+		"localadmin",
+		"localpassword",
+		"listings",
+		false,
+	)
+
 	developerListingService := developer.NewDeveloperListingService(
 		*transactionalEventPublisher,
+		storageAdapter,
 		listingRepo,
 		listingRepo,
 		githubSetupRepo,
 	)
 
 	userListingService := userservices.NewUserListingService(
+		storageAdapter,
 		listingRepo,
 		listingRepo,
 		libraryRepo,
@@ -254,6 +265,12 @@ func main() {
 			func(ctx context.Context, payload accounting.LedgerTransactionCreatedEvent) error {
 				s, _ := PrettyPrintJSON(payload)
 				fmt.Println(s)
+
+				settlement, err := accounting.NewSettlement(payload.ID, shared.AccountID("a"), 100, "a")
+				fmt.Println(err)
+				settlement.MarkCompleted()
+				settlementRepo.Create(ctx, settlement)
+
 				return nil
 			},
 		)

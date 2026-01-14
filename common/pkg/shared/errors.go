@@ -22,3 +22,5 @@ var ErrUnauthorized = errors.New("unauthorized")
 
 // ErrCanceled indicates that the operation was canceled or rolled back.
 var ErrCanceled = errors.New("operation canceled")
+
+var ErrLimitReached = errors.New("limit reached")

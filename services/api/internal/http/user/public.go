@@ -29,6 +29,12 @@ type APIPublicUserListingQueryService interface {
 		query string,
 		request shared.BatchRequest[listing.ListingSearchCursor],
 	) ([]*listing.Listing, listing.ListingSearchCursor, error)
+
+	GetListingScreenshotReadUrl(
+		ctx context.Context,
+		listingID shared.ListingID,
+		screenshotID shared.ListingScreenshotID,
+	) (string, error)
 }
 
 type PublicUserAPI struct {
@@ -49,6 +55,7 @@ func NewPublicUserAPI(
 // --------------------
 func (api *PublicUserAPI) RegisterRoutes(group *echo.Group) {
 	group.GET("/listings/:listingId", api.GetListingHandler)
+	group.GET("/listings/:id/screenshots/:screenshotId", api.GetScreenshotReadLinkHandler)
 	//group.GET("/authors/:authorId/listings", api.ListAuthorListingsHandler)
 	group.GET("/search/listings", api.SearchListingsHandler)
 }
@@ -62,6 +69,7 @@ type ApiListing struct {
 	Description string `json:"description,omitempty"`
 	AuthorID    string `json:"author_id"`
 	CreatedAt   string `json:"created_at"`
+	Price       int64  `json:"price"`
 }
 
 // --------------------
@@ -73,6 +81,7 @@ func convertListingToApi(domainListing *listing.Listing) ApiListing {
 		Title:       domainListing.Title(),
 		Description: domainListing.Description(),
 		CreatedAt:   domainListing.CreatedAt().Format(time.RFC3339),
+		Price:       domainListing.PriceInMinorUnits(),
 	}
 }
 
@@ -131,4 +140,32 @@ func (api *PublicUserAPI) SearchListingsHandler(c echo.Context) error {
 			return util.MapList(elements, convertListingToApi)
 		},
 	)
+}
+
+type GetScreenshotResponse struct {
+	ReadUrl string `json:"readUrl"`
+}
+
+func (api *PublicUserAPI) GetScreenshotReadLinkHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	listingID := c.Param("id")
+	screenshotID := c.Param("screenshotId")
+
+	if listingID == "" || screenshotID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID and Screenshot ID are required")
+	}
+
+	readUrl, err := api.publicUserListingQueryService.GetListingScreenshotReadUrl(
+		ctx,
+		shared.ListingID(listingID),
+		shared.ListingScreenshotID(screenshotID),
+	)
+
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Screenshot not found or access denied")
+	}
+
+	return c.JSON(http.StatusOK, GetScreenshotResponse{
+		ReadUrl: readUrl,
+	})
 }

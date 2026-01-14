@@ -8,11 +8,13 @@ import (
 	"common/pkg/shared"
 	"common/pkg/util"
 	"context"
+	"time"
 )
 
 // DeveloperListingService exposes operations for managing listings and GitHub setups.
 type DeveloperListingService struct {
 	transactionalEventPublisher unitofwork.TransactionalEventPublisher
+	storageProvider             StorageProvider
 
 	listingRepository      repositories.ListingCommandRepository
 	listingQueryRepository repositories.ListingQueryRepository
@@ -22,12 +24,14 @@ type DeveloperListingService struct {
 // NewDeveloperListingService constructs a new DeveloperListingService.
 func NewDeveloperListingService(
 	transactionalEventPublisher unitofwork.TransactionalEventPublisher,
+	storageProvider StorageProvider,
 	listingRepository repositories.ListingCommandRepository,
 	listingQueryRepository repositories.ListingQueryRepository,
 	githubSetupRepository repositories.GitHubSetupCommandRepository,
 ) *DeveloperListingService {
 	return &DeveloperListingService{
 		transactionalEventPublisher: transactionalEventPublisher,
+		storageProvider:             storageProvider,
 		listingRepository:           listingRepository,
 		listingQueryRepository:      listingQueryRepository,
 		githubSetupRepository:       githubSetupRepository,
@@ -118,4 +122,88 @@ func (s *DeveloperListingService) FetchNextBatchByAuthor(
 	request shared.BatchRequest[repositories.ListingCursor],
 ) (listings []*listing.Listing, nextCursor repositories.ListingCursor, err error) {
 	return s.listingQueryRepository.FetchNextBatchByAuthor(ctx, authorID, request)
+}
+
+type StorageProvider interface {
+	GenerateUploadLink(ctx context.Context, key string, maxSize int64, expires time.Duration) (string, error)
+	DeleteObject(ctx context.Context, key string) error
+}
+
+func (s *DeveloperListingService) CreateScreenshotUploadUrl(
+	ctx context.Context,
+	listingID shared.ListingID,
+	userID shared.UserID,
+) (string, error) {
+	existingListing, err := s.listingQueryRepository.GetByIDAndAuthor(ctx, listingID, userID)
+	if err != nil {
+		return "", err
+	}
+
+	const MaxFileSize = 10 * 1024 * 1024
+	const LinkExpiry = 15 * time.Minute
+	const MaxScreenshots = 5
+
+	if len(existingListing.ScreenshotKeys()) >= MaxScreenshots {
+		return "", shared.ErrLimitReached
+	}
+
+	screenshotId := shared.ListingScreenshotID(shared.GenerateUUID())
+	fileKey := shared.GenerateFileKey(listingID, screenshotId)
+
+	uploadURL, err := s.storageProvider.GenerateUploadLink(ctx, fileKey, MaxFileSize, LinkExpiry)
+	if err != nil {
+		return "", err
+	}
+
+	keys := existingListing.ScreenshotKeys()
+	keys = append(keys, screenshotId)
+
+	existingListing.Mutate().SetScreenshotKeys(keys).Apply()
+	err = s.listingRepository.Update(ctx, existingListing)
+
+	return uploadURL, err
+}
+
+func (s *DeveloperListingService) DeleteScreenshot(
+	ctx context.Context,
+	listingID shared.ListingID,
+	userID shared.UserID,
+	screenshotId shared.ListingScreenshotID,
+) error {
+	// 1. Fetch the listing to ensure ownership and that the screenshot exists
+	existingListing, err := s.listingQueryRepository.GetByIDAndAuthor(ctx, listingID, userID)
+	if err != nil {
+		return err
+	}
+
+	fileKey := shared.GenerateFileKey(listingID, screenshotId)
+
+	err = s.transactionalEventPublisher.PublishWithTransaction(ctx, func(txCtx context.Context) ([]events.DomainEvent, error) {
+		mutator := existingListing.Mutate()
+
+		currentKeys := existingListing.ScreenshotKeys()
+		newKeys := make([]shared.ListingScreenshotID, 0, len(currentKeys))
+		for _, k := range currentKeys {
+			if k != screenshotId {
+				newKeys = append(newKeys, k)
+			}
+		}
+
+		event, err := mutator.SetScreenshotKeys(newKeys).Apply()
+		if err != nil {
+			return nil, err
+		}
+
+		if err := s.listingRepository.Update(txCtx, existingListing); err != nil {
+			return nil, err
+		}
+
+		return []events.DomainEvent{event}, nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return s.storageProvider.DeleteObject(ctx, fileKey)
 }

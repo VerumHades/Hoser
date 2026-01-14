@@ -32,7 +32,18 @@ export const UserAPI = {
             `/user/listings/${listingId}/ownership`, 
             "GET"
         );
-        return response.isOwner;
+        return response?.isOwner ?? false;
+    },
+
+    /**
+     * Checks the ledger and settlement status to determine if the user owns the listing.
+     */
+    async isPurchaseProcessingOwner(listingId: string): Promise<boolean> {
+        const response = await backendRequest<{ isProcessing: boolean }>(
+            `/user/listings/${listingId}/processing`, 
+            "GET"
+        );
+        return response?.isProcessing ?? false;
     },
 
     library: {
