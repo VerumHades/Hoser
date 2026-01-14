@@ -64,12 +64,13 @@ func (api *PublicUserAPI) RegisterRoutes(group *echo.Group) {
 // API DTOs
 // --------------------
 type ApiListing struct {
-	ID          string `json:"id"`
-	Title       string `json:"title,omitempty"`
-	Description string `json:"description,omitempty"`
-	AuthorID    string `json:"author_id"`
-	CreatedAt   string `json:"created_at"`
-	Price       int64  `json:"price"`
+	ID            string                       `json:"id"`
+	Title         string                       `json:"title,omitempty"`
+	Description   string                       `json:"description,omitempty"`
+	AuthorID      string                       `json:"author_id"`
+	CreatedAt     string                       `json:"created_at"`
+	Price         int64                        `json:"price"`
+	ScreenshotIDs []shared.ListingScreenshotID `json:"screenshotIds"`
 }
 
 // --------------------
@@ -77,11 +78,12 @@ type ApiListing struct {
 // --------------------
 func convertListingToApi(domainListing *listing.Listing) ApiListing {
 	return ApiListing{
-		ID:          string(domainListing.ID()),
-		Title:       domainListing.Title(),
-		Description: domainListing.Description(),
-		CreatedAt:   domainListing.CreatedAt().Format(time.RFC3339),
-		Price:       domainListing.PriceInMinorUnits(),
+		ID:            string(domainListing.ID()),
+		Title:         domainListing.Title(),
+		Description:   domainListing.Description(),
+		CreatedAt:     domainListing.CreatedAt().Format(time.RFC3339),
+		Price:         domainListing.PriceInMinorUnits(),
+		ScreenshotIDs: domainListing.ScreenshotKeys(),
 	}
 }
 

@@ -130,6 +130,7 @@ export function PublicListingView(): JSX.Element {
     if (isLoading) return <div className="flex items-center justify-center h-full text-slate-500 italic">Loading listing details...</div>;
     if (hasError || !listing) return <div className="flex items-center justify-center h-full text-slate-500">Listing not found</div>;
 
+    console.log(listing)
     return (
         <div className="w-full h-full flex flex-col gap-8 px-6 py-8 max-w-7xl mx-auto">
             <section className="flex flex-col gap-6 border-b border-slate-200 dark:border-slate-800 pb-6">
