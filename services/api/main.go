@@ -182,7 +182,13 @@ func main() {
 		listingIndexer,
 	)
 
-	accountAdapterConfig := adapters.PlatformAccountsConfig{}
+	accountAdapterConfig := adapters.PlatformAccountsConfig{
+		ProfitAccountID:         "profit",
+		HardwareRentAccountID:   "hardware_rent",
+		HardwareRefundAccountID: "hardware_refund",
+		PlatformCutPercentage:   10,
+	}
+
 	userAccountService := userservices.NewUserAccountService(accountRepo, accountRepo)
 	accountAdapter := adapters.NewAccountServiceAdapter(accountAdapterConfig, listingRepo, userAccountService)
 	hardwareCostCalculationService := billing.NewHardwareCostCalculationService(hardwareRateRepo)

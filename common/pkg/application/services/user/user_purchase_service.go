@@ -60,11 +60,10 @@ func (s *UserPurchaseService) GetLastestUserListingTransaction(ctx context.Conte
 // HasUserBoughtListing checks if a user already owns a listing.
 func (s *UserPurchaseService) DoesUserOwnListing(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (bool, error) {
 	latest, err := s.GetLastestUserListingTransaction(ctx, userID, listingID)
-	if err != nil {
-		return false, err
-	}
-	if latest == nil {
+	if err == shared.ErrNotFound {
 		return false, nil
+	} else if err != nil {
+		return false, err
 	}
 
 	if latest.ReferenceType() != accounting.ReferenceTypePurchase {
@@ -72,11 +71,38 @@ func (s *UserPurchaseService) DoesUserOwnListing(ctx context.Context, userID sha
 	}
 
 	settlement, err := s.settlementQueryRepository.GetLastByLedgerTransactionID(ctx, latest.ID())
+	if err == shared.ErrNotFound {
+		return false, nil
+	}
+
 	if err != nil {
 		return false, err
 	}
 
 	return settlement.Status() == accounting.SettlementStatusCompleted, nil
+}
+
+// HasUserBoughtListing checks if a user already owns a listing.
+func (s *UserPurchaseService) IsPurchaseProcessing(ctx context.Context, userID shared.UserID, listingID shared.ListingID) (bool, error) {
+	latest, err := s.GetLastestUserListingTransaction(ctx, userID, listingID)
+	if err == shared.ErrNotFound {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+
+	if latest.ReferenceType() != accounting.ReferenceTypePurchase {
+		return false, nil
+	}
+
+	settlement, err := s.settlementQueryRepository.GetLastByLedgerTransactionID(ctx, latest.ID())
+	if err == shared.ErrNotFound {
+		return true, nil
+	} else if err != nil {
+		return false, err
+	}
+
+	return settlement.Status() != accounting.SettlementStatusAbbandoned && settlement.Status() != accounting.SettlementStatusCompleted, nil
 }
 
 // PurchaseListing ensures a user owns a listing and executes the payment if necessary.
@@ -98,7 +124,7 @@ func (s *UserPurchaseService) PurchaseListing(
 		return fmt.Errorf("user has no ledger account")
 	}
 
-	if latest, err := s.transactionQueryRepository.GetLatestByReferenceAndAccount(ctx, accountID, string(listingID)); err != nil {
+	if latest, err := s.transactionQueryRepository.GetLatestByReferenceAndAccount(ctx, accountID, string(listingID)); err != nil && err != shared.ErrNotFound {
 		return err
 	} else if latest != nil && latest.ReferenceType() == accounting.ReferenceTypePurchase {
 		return fmt.Errorf("an existing identical purchase is already processing")

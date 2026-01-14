@@ -106,8 +106,8 @@ func (l *Listing) Validate() error {
 	if l.hardwareSpecification == nil {
 		return errors.New("hardware specification cannot be nil")
 	}
-	if l.priceInMinorUnits < 0 {
-		return errors.New("price cannot be negative")
+	if l.priceInMinorUnits < 100 {
+		return errors.New("price must be at least one whole unit (>= 100)")
 	}
 	if l.createdAt.IsZero() {
 		return errors.New("createdAt cannot be zero")

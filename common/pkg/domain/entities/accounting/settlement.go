@@ -11,9 +11,10 @@ import (
 type SettlementStatus string
 
 const (
-	SettlementStatusPending   SettlementStatus = "pending"
-	SettlementStatusCompleted SettlementStatus = "completed"
-	SettlementStatusFailed    SettlementStatus = "failed"
+	SettlementStatusPending    SettlementStatus = "pending"
+	SettlementStatusCompleted  SettlementStatus = "completed"
+	SettlementStatusFailed     SettlementStatus = "failed"
+	SettlementStatusAbbandoned SettlementStatus = "abbandoned" // No more attempts will be made to settle
 )
 
 // Settlement represents the state of an external payment or settlement associated

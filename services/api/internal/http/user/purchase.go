@@ -3,7 +3,6 @@ package userapi
 import (
 	"api/internal/http/authentification"
 	"context"
-	"fmt"
 	"net/http"
 
 	"common/pkg/shared"
@@ -25,6 +24,12 @@ type APIUserPurchaseService interface {
 	) error
 
 	DoesUserOwnListing(
+		ctx context.Context,
+		userID shared.UserID,
+		listingID shared.ListingID,
+	) (bool, error)
+
+	IsPurchaseProcessing(
 		ctx context.Context,
 		userID shared.UserID,
 		listingID shared.ListingID,
@@ -73,6 +78,10 @@ type OwnershipResponse struct {
 	IsOwner bool `json:"isOwner"`
 }
 
+type ProcessingResponse struct {
+	IsProcessing bool `json:"isProcessing"`
+}
+
 // Note: PurchaseListing currently uses the ID from the URL,
 // so a request DTO isn't strictly necessary unless you add options like payment methods.
 
@@ -114,12 +123,31 @@ func (api *UserPurchaseAPI) CheckOwnershipHandler(
 	}
 
 	isOwner, err := api.purchaseService.DoesUserOwnListing(ctx, userID, listingID)
-	fmt.Println(err)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, OwnershipResponse{
 		IsOwner: isOwner,
+	})
+}
+
+func (api *UserPurchaseAPI) IsPurchaseProcessingHandler(
+	userID shared.UserID,
+	c echo.Context,
+) error {
+	ctx := c.Request().Context()
+	listingID := shared.ListingID(c.Param("id"))
+	if listingID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Listing ID is required")
+	}
+
+	isProcessing, err := api.purchaseService.IsPurchaseProcessing(ctx, userID, listingID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, ProcessingResponse{
+		IsProcessing: isProcessing,
 	})
 }
