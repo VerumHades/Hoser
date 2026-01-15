@@ -8,8 +8,9 @@ export interface Listing {
     description?: string;
     author: string;
     price: number;
-    hardware?: HardwareSpecification;
+    recommended_hardware?: HardwareSpecification;
     screenshotIds?: string[]; // Add this
+    documentation_markdown: string;
 }
 
 interface GetScreenshotResponse {

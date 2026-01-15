@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ListingAPI } from "./backend/repositories/listing";
+import { ScreenshotCache } from "./backend/utils/screenshot_cache";
 
 interface ListingScreenshotProps {
     listingId: string;
@@ -12,13 +12,15 @@ export function ListingScreenshot({ listingId, screenshotId, className }: Listin
     const [url, setUrl] = useState<string | null>(null);
     const [hasError, setHasError] = useState(false);
 
+        // Inside ListingScreenshot.tsx
     useEffect(() => {
         let isMounted = true;
         
         async function fetchUrl() {
             try {
-                const response = await ListingAPI.getScreenshotReadURL(listingId, screenshotId);
-                if (isMounted) setUrl(response.readUrl);
+                // Now using the shared Cache instead of direct API call
+                const readUrl = await ScreenshotCache.getUrl(listingId, screenshotId);
+                if (isMounted) setUrl(readUrl);
             } catch (err) {
                 console.error("Failed to fetch screenshot URL", err);
                 if (isMounted) setHasError(true);

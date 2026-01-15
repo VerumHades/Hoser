@@ -29,14 +29,16 @@ type Listing struct {
 	hardwareSpecification *shared.HardwareSpecification
 	priceInMinorUnits     int64
 	createdAt             time.Time
+
 	screenshotKeys        []shared.ListingScreenshotID
+	documentationMarkdown string
 }
 
 // --- Listing constructors with creation event ---
 
-func NewListing(authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price int64) (*Listing, events.DomainEvent, error) {
+func NewListing(authorID shared.UserID, title, description string, accessMode ListingAccessMode, hardwareSpec *shared.HardwareSpecification, price int64, documentationMarkdown string) (*Listing, events.DomainEvent, error) {
 	id := shared.ListingID(shared.GenerateUUID())
-	return NewListingWithID(id, authorID, title, description, accessMode, hardwareSpec, price, time.Now(), nil)
+	return NewListingWithID(id, authorID, title, description, accessMode, hardwareSpec, price, time.Now(), nil, documentationMarkdown)
 }
 
 func NewListingWithID(
@@ -48,6 +50,7 @@ func NewListingWithID(
 	price int64,
 	createdAt time.Time,
 	screenshotKeys []shared.ListingScreenshotID,
+	documentationMarkdown string,
 ) (*Listing, events.DomainEventEnvelope[ListingCreatedEvent], error) {
 
 	listing := &Listing{
@@ -60,6 +63,7 @@ func NewListingWithID(
 		priceInMinorUnits:     price,
 		createdAt:             createdAt,
 		screenshotKeys:        screenshotKeys,
+		documentationMarkdown: documentationMarkdown,
 	}
 
 	if err := listing.Validate(); err != nil {
@@ -75,6 +79,7 @@ func NewListingWithID(
 		HardwareSpecification: *listing.hardwareSpecification,
 		PriceInMinorUnits:     listing.priceInMinorUnits,
 		ScreenshotKeys:        screenshotKeys,
+		DocumentationMarkdown: documentationMarkdown,
 	}
 
 	// Wrap in typed domain event envelope
@@ -95,6 +100,7 @@ func (l *Listing) HardwareSpecification() *shared.HardwareSpecification {
 func (l *Listing) PriceInMinorUnits() int64                     { return l.priceInMinorUnits }
 func (l *Listing) CreatedAt() time.Time                         { return l.createdAt }
 func (l *Listing) ScreenshotKeys() []shared.ListingScreenshotID { return l.screenshotKeys }
+func (l *Listing) DocumentationMarkdown() string                { return l.documentationMarkdown }
 
 // --- Validation ---
 

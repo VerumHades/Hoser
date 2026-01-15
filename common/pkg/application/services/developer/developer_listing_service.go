@@ -48,7 +48,7 @@ type CreateListingRequest struct {
 }
 
 func (s *DeveloperListingService) CreateListing(ctx context.Context, req CreateListingRequest) (l *listing.Listing, err error) {
-	listing, event, err := listing.NewListing(req.AuthorID, req.Title, req.Description, req.AccessMode, req.Hardware, req.PriceInMinorUnits)
+	listing, event, err := listing.NewListing(req.AuthorID, req.Title, req.Description, req.AccessMode, req.Hardware, req.PriceInMinorUnits, "")
 
 	return listing, s.transactionalEventPublisher.PublishWithTransaction(ctx, func(txCtx context.Context) ([]events.DomainEvent, error) {
 

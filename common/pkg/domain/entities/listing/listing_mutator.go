@@ -66,7 +66,15 @@ func (b *ListingMutationBuilder) SetAccessMode(mode ListingAccessMode) *ListingM
 
 // SetAccessMode schedules an access mode change
 func (b *ListingMutationBuilder) SetScreenshotKeys(keys []shared.ListingScreenshotID) *ListingMutationBuilder {
-	b.payload.ScreenshotKeys = keys
+	b.payload.ScreenshotKeys = &keys
+	b.hasChanges = true
+
+	return b
+}
+
+// SetAccessMode schedules an access mode change
+func (b *ListingMutationBuilder) SetDocumentationMarkdown(documentationMarkdown string) *ListingMutationBuilder {
+	b.payload.DocumentationMarkdown = &documentationMarkdown
 	b.hasChanges = true
 
 	return b
@@ -93,9 +101,14 @@ func (b *ListingMutationBuilder) Apply() (events.DomainEventEnvelope[ListingUpda
 	if b.payload.HardwareSpecification != nil {
 		b.listing.hardwareSpecification = b.payload.HardwareSpecification
 	}
+	if b.payload.ScreenshotKeys != nil {
+		b.listing.screenshotKeys = *b.payload.ScreenshotKeys
+	}
+	if b.payload.DocumentationMarkdown != nil {
+		b.listing.documentationMarkdown = *b.payload.DocumentationMarkdown
+	}
 
 	b.payload.ID = b.listing.id
-	b.listing.screenshotKeys = b.payload.ScreenshotKeys
 
 	envelope := events.NewDomainEventEnvelope(b.payload)
 	return envelope, nil

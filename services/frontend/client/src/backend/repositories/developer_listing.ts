@@ -14,6 +14,7 @@ export interface UpdateListingRequest {
     hardware?: HardwareSpecification;
     price?: number;
     accessMode?: ListingAccessMode;
+    documentation_markdown?: string;
 }
 
 export interface ListingGithubSetup {

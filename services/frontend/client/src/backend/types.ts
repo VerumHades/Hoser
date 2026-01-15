@@ -4,4 +4,4 @@ export type ListingAccessMode = (typeof ListingAccessModes)[keyof typeof Listing
 
 export interface Money { amount: number; code: string; }
 
-export interface HardwareSpecification { cpu?: number; ramBytes?: number; diskBytes?: number; }
+export interface HardwareSpecification { cpu: number; ramBytes: number; diskBytes: number; }

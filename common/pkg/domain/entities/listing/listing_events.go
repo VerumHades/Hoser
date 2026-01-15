@@ -13,6 +13,7 @@ type ListingCreatedEvent struct {
 	HardwareSpecification shared.HardwareSpecification
 	PriceInMinorUnits     int64
 	ScreenshotKeys        []shared.ListingScreenshotID
+	DocumentationMarkdown string
 }
 
 type ListingUpdateEvent struct {
@@ -22,7 +23,8 @@ type ListingUpdateEvent struct {
 	AccessMode            *ListingAccessMode
 	HardwareSpecification *shared.HardwareSpecification
 	PriceInMinorUnits     *int64
-	ScreenshotKeys        []shared.ListingScreenshotID
+	ScreenshotKeys        *[]shared.ListingScreenshotID
+	DocumentationMarkdown *string
 }
 
 type ListingDeleteEvent struct {

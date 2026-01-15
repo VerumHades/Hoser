@@ -64,13 +64,15 @@ func (api *PublicUserAPI) RegisterRoutes(group *echo.Group) {
 // API DTOs
 // --------------------
 type ApiListing struct {
-	ID            string                       `json:"id"`
-	Title         string                       `json:"title,omitempty"`
-	Description   string                       `json:"description,omitempty"`
-	AuthorID      string                       `json:"author_id"`
-	CreatedAt     string                       `json:"created_at"`
-	Price         int64                        `json:"price"`
-	ScreenshotIDs []shared.ListingScreenshotID `json:"screenshotIds"`
+	ID                    string                        `json:"id"`
+	Title                 string                        `json:"title,omitempty"`
+	Description           string                        `json:"description,omitempty"`
+	AuthorID              string                        `json:"author_id"`
+	CreatedAt             string                        `json:"created_at"`
+	Price                 int64                         `json:"price"`
+	ScreenshotIDs         []shared.ListingScreenshotID  `json:"screenshotIds"`
+	RecommendedHardware   *shared.HardwareSpecification `json:"recommended_hardware"`
+	DocumentationMarkdown string                        `json:"documentation_markdown"`
 }
 
 // --------------------
@@ -78,12 +80,14 @@ type ApiListing struct {
 // --------------------
 func convertListingToApi(domainListing *listing.Listing) ApiListing {
 	return ApiListing{
-		ID:            string(domainListing.ID()),
-		Title:         domainListing.Title(),
-		Description:   domainListing.Description(),
-		CreatedAt:     domainListing.CreatedAt().Format(time.RFC3339),
-		Price:         domainListing.PriceInMinorUnits(),
-		ScreenshotIDs: domainListing.ScreenshotKeys(),
+		ID:                    string(domainListing.ID()),
+		Title:                 domainListing.Title(),
+		Description:           domainListing.Description(),
+		CreatedAt:             domainListing.CreatedAt().Format(time.RFC3339),
+		Price:                 domainListing.PriceInMinorUnits(),
+		ScreenshotIDs:         domainListing.ScreenshotKeys(),
+		RecommendedHardware:   domainListing.HardwareSpecification(),
+		DocumentationMarkdown: domainListing.DocumentationMarkdown(),
 	}
 }
 

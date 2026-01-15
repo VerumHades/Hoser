@@ -72,12 +72,13 @@ func (api *DeveloperListingAPI) RegisterRoutes(group *echo.Group) {
 // --------------------
 
 type ApiListingBase struct {
-	ID            shared.ListingID              `json:"id"`
-	Title         string                        `json:"title,omitempty"`
-	Description   string                        `json:"description,omitempty"`
-	Price         int64                         `json:"price"`
-	Hardware      *shared.HardwareSpecification `json:"hardware,omitempty"`
-	ScreenshotIds []shared.ListingScreenshotID  `json:"screenshotIds"`
+	ID                    shared.ListingID              `json:"id"`
+	Title                 string                        `json:"title,omitempty"`
+	Description           string                        `json:"description,omitempty"`
+	Price                 int64                         `json:"price"`
+	Hardware              *shared.HardwareSpecification `json:"hardware,omitempty"`
+	ScreenshotIds         []shared.ListingScreenshotID  `json:"screenshotIds"`
+	DocumentationMarkdown string                        `json:"documentation_markdown"`
 }
 
 type ApiDeveloperListing struct {
@@ -95,12 +96,13 @@ type AddListingRequest struct {
 }
 
 type UpdateListingRequest struct {
-	ID          shared.ListingID              `json:"id"`
-	Title       *string                       `json:"title,omitempty"`
-	Description *string                       `json:"description,omitempty"`
-	Hardware    *shared.HardwareSpecification `json:"hardware,omitempty"`
-	Price       *int64                        `json:"price,omitempty"`
-	AccessMode  *listing.ListingAccessMode    `json:"accessMode,omitempty"`
+	ID                    shared.ListingID              `json:"id"`
+	Title                 *string                       `json:"title,omitempty"`
+	Description           *string                       `json:"description,omitempty"`
+	Hardware              *shared.HardwareSpecification `json:"hardware,omitempty"`
+	Price                 *int64                        `json:"price,omitempty"`
+	AccessMode            *listing.ListingAccessMode    `json:"accessMode,omitempty"`
+	DocumentationMarkdown *string                       `json:"documentation_markdown,omitempty"`
 }
 
 // --------------------
@@ -111,12 +113,13 @@ func MakeApiDeveloperListing(l *listing.Listing) ApiDeveloperListing {
 	accessMode := int(l.AccessMode())
 	return ApiDeveloperListing{
 		ApiListingBase: ApiListingBase{
-			ID:            l.ID(),
-			Title:         l.Title(),
-			Description:   l.Description(),
-			Price:         l.PriceInMinorUnits(),
-			Hardware:      l.HardwareSpecification(),
-			ScreenshotIds: l.ScreenshotKeys(),
+			ID:                    l.ID(),
+			Title:                 l.Title(),
+			Description:           l.Description(),
+			Price:                 l.PriceInMinorUnits(),
+			Hardware:              l.HardwareSpecification(),
+			ScreenshotIds:         l.ScreenshotKeys(),
+			DocumentationMarkdown: l.DocumentationMarkdown(),
 		},
 		AccessMode: &accessMode,
 	}
@@ -204,6 +207,9 @@ func (api *DeveloperListingAPI) UpdateListingHandler(userID shared.UserID, c ech
 		}
 		if req.AccessMode != nil {
 			mutator = mutator.SetAccessMode(*req.AccessMode)
+		}
+		if req.DocumentationMarkdown != nil {
+			mutator = mutator.SetDocumentationMarkdown(*req.DocumentationMarkdown)
 		}
 
 		return nil

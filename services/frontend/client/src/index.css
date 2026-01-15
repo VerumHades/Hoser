@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* 1. Add the Typography plugin import here */
+@plugin "@tailwindcss/typography";
 
 @layer theme {
   :root {
@@ -15,6 +17,29 @@
     }
   }
 }
+
+@layer components {
+    /* Target the editor preview using the class we defined in JS */
+    .custom-markdown-preview {
+        @apply prose prose-slate max-w-none p-8 bg-slate-50;
+    }
+
+    /* Clean up the EasyMDE interface to match your app's architecture */
+    .markdown-editor-wrapper .editor-toolbar {
+        @apply border-none border-b border-slate-200 opacity-100 p-2;
+    }
+
+    .markdown-editor-wrapper .CodeMirror {
+        @apply border-none text-base font-mono;
+        height: 400px;
+    }
+
+    .markdown-editor-wrapper .editor-preview-side {
+        @apply border-l border-slate-200;
+    }
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
     html, body {
