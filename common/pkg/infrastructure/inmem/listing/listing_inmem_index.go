@@ -64,7 +64,7 @@ func (idx *InMemoryListingSearchIndex) Remove(ctx context.Context, listingID sha
 // Currently, it performs a simple substring search on listing titles.
 func (idx *InMemoryListingSearchIndex) SearchNextBatch(
 	ctx context.Context,
-	query string,
+	query listing.SearchQuery,
 	request shared.BatchRequest[listing.ListingSearchCursor],
 ) (listings []*listing.Listing, nextCursor listing.ListingSearchCursor, err error) {
 	idx.mu.RLock()
@@ -72,7 +72,7 @@ func (idx *InMemoryListingSearchIndex) SearchNextBatch(
 
 	allListings := make([]*listing.Listing, 0, len(idx.listings))
 	for _, l := range idx.listings {
-		if query == "" || containsIgnoreCase(l.Title(), query) {
+		if query.Text == "" || containsIgnoreCase(l.Title(), query.Text) {
 			allListings = append(allListings, l)
 		}
 	}

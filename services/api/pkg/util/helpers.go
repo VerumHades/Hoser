@@ -34,6 +34,9 @@ func HandleBatchRequest[ElementType any, ElementViewType any, CursorType any](
 
 	items, nextCursor, err := batchFunction(ctx, batchRequest)
 	if err != nil {
+		if err == shared.ErrNoContentFound {
+			return echo.NewHTTPError(http.StatusNoContent, "No more content found")
+		}
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch library")
 	}
 

@@ -117,11 +117,11 @@ type EventListener interface {
 }
 
 type TypedEventListener[T any] struct {
-	handler func(ctx context.Context, payload T) error
+	handler func(ctx context.Context, payload T, occuredAt time.Time) error
 }
 
 func NewTypedEventListener[T any](
-	handler func(ctx context.Context, payload T) error,
+	handler func(ctx context.Context, payload T, occuredAt time.Time) error,
 ) *TypedEventListener[T] {
 	return &TypedEventListener[T]{
 		handler: handler,
@@ -138,12 +138,12 @@ func (listener *TypedEventListener[T]) Handle(
 		return err
 	}
 
-	return listener.handler(ctx, payload)
+	return listener.handler(ctx, payload, event.occurredAt)
 }
 
 func RegisterTypedListener[T any](
 	dispatcher *Dispatcher,
-	handler func(ctx context.Context, payload T) error,
+	handler func(ctx context.Context, payload T, occuredAt time.Time) error,
 ) {
 	eventType := EventTypeFromPayload[T]()
 

@@ -8,18 +8,23 @@ import (
 	platformapi "api/internal/http/platform"
 	userapi "api/internal/http/user"
 	"api/internal/infrastructure"
+
 	"common/pkg/application/outbox"
 	"common/pkg/application/services/auth"
 	"common/pkg/application/services/billing"
 	"common/pkg/application/services/developer"
 	"common/pkg/application/services/instanceservice"
+	"common/pkg/util"
+
 	userservices "common/pkg/application/services/user"
+
 	"common/pkg/application/unitofwork"
 	"common/pkg/domain/entities/accounting"
 	"common/pkg/domain/entities/listing"
 	"common/pkg/domain/entities/user"
 	"common/pkg/domain/repositories"
-	listingmem "common/pkg/infrastructure/inmem/listing"
+
+	"common/pkg/infrastructure/external"
 	mongodbinstance "common/pkg/infrastructure/mongodb/instance"
 	mongodbledger "common/pkg/infrastructure/mongodb/ledger"
 	mongodblisting "common/pkg/infrastructure/mongodb/listing"
@@ -27,9 +32,9 @@ import (
 	mongodbrates "common/pkg/infrastructure/mongodb/rates"
 	mongodbregistry "common/pkg/infrastructure/mongodb/registry"
 	mongodbuser "common/pkg/infrastructure/mongodb/user"
+
 	"common/pkg/infrastructure/plugs"
 	"common/pkg/shared"
-	"common/pkg/util"
 	"context"
 	"encoding/json"
 	"time"
@@ -149,17 +154,21 @@ func main() {
 
 	userAuthService := auth.NewAuthenticationService(userRepo)
 
-	listingIndexer := listingmem.NewInMemoryListingSearchIndex()
+	listingIndexer := external.NewMeiliListingSearchIndex(
+		runningConfiguration.MeilisearchHostname,
+		runningConfiguration.MeilisearchApiKey,
+	)
 
-	for listing := range util.GenerateInBatches(
-		ctx,
-		500,
-		func(ctx context.Context, request shared.BatchRequest[repositories.ListingCursor]) ([]*listing.Listing, repositories.ListingCursor, error) {
-			return listingRepo.FetchNextBatchAll(ctx, request)
-		}) {
-		listingIndexer.Index(ctx, listing)
+	{
+		for listing := range util.GenerateInBatches(
+			ctx,
+			500,
+			func(ctx context.Context, request shared.BatchRequest[repositories.ListingCursor]) ([]*listing.Listing, repositories.ListingCursor, error) {
+				return listingRepo.FetchNextBatchAll(ctx, request)
+			}) {
+			listingIndexer.Index(ctx, listing)
+		}
 	}
-
 	eventPublisher := outbox.NewOutboxEventPublisher(outboxRepo)
 
 	transactionalEventPublisher := unitofwork.NewTransactionalEventPublisher(
@@ -182,6 +191,7 @@ func main() {
 		listingRepo,
 		listingRepo,
 		githubSetupRepo,
+		listingIndexer,
 	)
 
 	userListingService := userservices.NewUserListingService(
@@ -262,7 +272,7 @@ func main() {
 
 		outbox.RegisterTypedListener(
 			dispatcher,
-			func(ctx context.Context, payload accounting.LedgerTransactionCreatedEvent) error {
+			func(ctx context.Context, payload accounting.LedgerTransactionCreatedEvent, occuredAt time.Time) error {
 				s, _ := PrettyPrintJSON(payload)
 				fmt.Println(s)
 
@@ -274,6 +284,23 @@ func main() {
 				return nil
 			},
 		)
+
+		outbox.RegisterTypedListener(
+			dispatcher,
+			func(ctx context.Context, payload listing.ListingCreatedEvent, occuredAt time.Time) error {
+				listingIndexer.Index(ctx, listing.ReconstituteListingFromEvent(payload, occuredAt))
+				return nil
+			},
+		)
+
+		outbox.RegisterTypedListener(
+			dispatcher,
+			func(ctx context.Context, payload listing.ListingUpdateEvent, occuredAt time.Time) error {
+				listingIndexer.Update(ctx, &payload)
+				return nil
+			},
+		)
+
 		go func() {
 			if err := dispatcher.Run(ctx); err != nil {
 				log.Fatal(err)

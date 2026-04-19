@@ -75,7 +75,7 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
                             <CustomSelect 
                                 value={listing.accessMode as number} 
                                 onChange={mode => { dispatch({ type: "setAccessMode", mode }); markChanged(); }} 
-                                options={[{ label: "Public", value: 0 }, { label: "Private", value: 1 }]} 
+                                options={[{ label: "Public", value: 1 }, { label: "Private", value: 0 }]} 
                                 block 
                             />
                         </Section>

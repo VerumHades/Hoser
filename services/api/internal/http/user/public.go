@@ -1,10 +1,12 @@
 package userapi
 
 import (
+	"api/internal/helpers"
 	"api/pkg/util"
 	"common/pkg/domain/entities/listing"
 	"common/pkg/domain/repositories"
 	"common/pkg/shared"
+
 	"context"
 	"net/http"
 	"time"
@@ -26,7 +28,7 @@ type APIPublicUserListingQueryService interface {
 
 	SearchNextListingsBatch(
 		ctx context.Context,
-		query string,
+		query listing.SearchQuery,
 		request shared.BatchRequest[listing.ListingSearchCursor],
 	) ([]*listing.Listing, listing.ListingSearchCursor, error)
 
@@ -131,16 +133,12 @@ func (api *PublicUserAPI) ListAuthorListingsHandler(c echo.Context) error {
 }
 
 func (api *PublicUserAPI) SearchListingsHandler(c echo.Context) error {
-	//ctx := c.Request().Context()
-	query := c.QueryParam("q")
-	//if query == "" {
-	//	return echo.NewHTTPError(http.StatusBadRequest, "Search query is required")
-	//}
+	searchQuery := helpers.ParseSearchQuery(c)
 
 	return util.HandleBatchRequest(
 		c,
 		func(ctx context.Context, request shared.BatchRequest[listing.ListingSearchCursor]) ([]*listing.Listing, listing.ListingSearchCursor, error) {
-			return api.publicUserListingQueryService.SearchNextListingsBatch(ctx, query, request)
+			return api.publicUserListingQueryService.SearchNextListingsBatch(ctx, searchQuery, request)
 		},
 		func(elements []*listing.Listing) (views []ApiListing) {
 			return util.MapList(elements, convertListingToApi)

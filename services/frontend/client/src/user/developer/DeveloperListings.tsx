@@ -6,12 +6,13 @@ import { DeveloperListingCard } from "./List/DeveloperListingCard";
 import { Button } from "../../templates/components/Button"; // Assuming this is your standard button
 import toast from "react-hot-toast";
 import { useState } from "react";
+import { SearchableCollection } from "../../components/view/SearchableCollection";
 
 export default function DeveloperListings() {
     const navigate = useNavigate();
     const [isCreating, setIsCreating] = useState(false);
 
-    const handleCreateNew = async () => {
+    const handleCreate = async () => {
         setIsCreating(true);
         const toastId = toast.loading("Creating your listing...");
         try {
@@ -30,50 +31,30 @@ export default function DeveloperListings() {
     };
 
     return (
-        <div className="flex-1 min-h-0 flex flex-col items-center">
-            {/* Header Section with Create Button */}
-            <div className="w-full max-w-4xl flex justify-between items-end mt-8 px-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Your Listings</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm">Manage and monitor your published software.</p>
-                </div>
-                
-                <Button 
-                    variant="primary" 
-                    onClick={handleCreateNew} 
-                    disabled={isCreating}
-                >
-                    {isCreating ? "Creating..." : "Create Listing"}
-                </Button>
-            </div>
+		<SearchableCollection<DeveloperListing, { q?: string }>
+			title="Your Listings"
+			description="Manage and monitor your published software."
+            
+			headerActions={
+				<Button onClick={handleCreate} disabled={isCreating}>
+					{isCreating ? "Creating..." : "Create Listing"}
+				</Button>
+			}
+			initialQuery={{}}
 
-            <div className="w-full max-w-4xl min-h-0 overflow-hidden mt-5 px-6">
-                <CursorPaginatedCollection<DeveloperListing>
-                    fetchPage={cursor => DeveloperListingAPI.list(cursor)}
-                    renderItemRow={listing => (
-                        <DeveloperListingRow
-                            key={listing.id}
-                            listing={listing}
-                            onSelect={() => navigate(`/dashboard/developer/listing/${listing.id}`)}
-                        />
-                    )}
-                    renderItemCard={listing => (
-                        <DeveloperListingCard
-                            key={listing.id}
-                            listing={listing}
-                            onSelect={() => navigate(`/dashboard/developer/listing/${listing.id}`)}
-                        />
-                    )}
-                    emptyState={
-                        <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-xl border-slate-200 dark:border-slate-800">
-                            <p className="text-sm text-slate-500 mb-4">No listings found</p>
-                            <Button variant="secondary" onClick={handleCreateNew}>
-                                Create your first listing
-                            </Button>
-                        </div>
-                    }
-                />
-            </div>
-        </div>
-    );
+			fetchPage={(q, cursor) => DeveloperListingAPI.search( {text: q as string}, cursor)}
+			parseParams={(p) => ({ q: p.get("q") || undefined })}
+			buildParams={(q) => new URLSearchParams(q.q ? { q: q.q } : {})}
+
+			renderRow={(l) => <DeveloperListingRow listing={l} onSelect={() => navigate(`/editor/${l.id}`)} />}
+			renderCard={(l) => <DeveloperListingCard listing={l} onSelect={() => navigate(`/editor/${l.id}`)} />}
+
+			emptyState={
+				<div className="text-center py-12 border-2 border-dashed rounded-xl">
+					<p className="text-sm text-slate-500 mb-4">No listings found</p>
+					<Button variant="secondary" onClick={handleCreate}>Create your first</Button>
+				</div>
+			}
+		/>
+	);
 }

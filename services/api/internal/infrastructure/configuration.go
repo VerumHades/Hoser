@@ -7,6 +7,9 @@ type Configuration struct {
 	JWTSecret         string   `env:"JWT_SECRET" default:"SECRET"`
 	InterserverSecret string   `env:"INTERSERVER_SECRET" default:"SECRET"`
 
+	MeilisearchHostname string `env:"MEILISEARCH_HOSTNAME" default:"http://localhost:7700"`
+	MeilisearchApiKey   string `env:"MEILISEARCH_API_KEY" default:"masterKey"`
+
 	MongoDatabaseName     string `env:"MONGO_DATABASE" default:"apiDatabase"`
 	MongoDatabaseUserName string `env:"MONGO_USER" default:"apiUser"`
 	MongoDatabasePassword string `env:"MONGO_PASSWORD" default:"apiUserPassword"`

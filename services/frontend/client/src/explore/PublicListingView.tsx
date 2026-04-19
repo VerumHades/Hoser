@@ -67,14 +67,66 @@ export function PublicListingView(): JSX.Element {
         } finally { setIsLibLoading(false); }
     };
 
+    /**
+     * Polling configuration for purchase verification.
+     */
+    const MAX_PURCHASE_POLL_ATTEMPTS = 5;
+    const PURCHASE_POLL_INTERVAL_MS = 3000;
+
+    /**
+     * Executes the purchase flow and initiates status polling.
+     */
     const handlePurchase = async () => {
-        if (!isAuthenticated) return handleLogin();
+        if (!isAuthenticated) {
+            return handleLogin();
+        }
+
         setIsPurLoading(true);
+
         try {
             await UserAPI.purchaseListing(listing!.id);
             setIsPurchaseProcessing(true);
-        } finally { setIsPurLoading(false); }
+            startPurchaseStatusPolling();
+        } finally {
+            setIsPurLoading(false);
+        }
     };
+
+    /**
+     * Initiates a recursive poll to verify if the purchase has been finalized.
+     */
+    async function startPurchaseStatusPolling(attemptCount: number = 0) {
+        if (attemptCount >= MAX_PURCHASE_POLL_ATTEMPTS) {
+            return;
+        }
+
+        const isStillProcessing = await UserAPI.isPurchaseProcessingOwner(listing!.id);
+
+        if (isStillProcessing) {
+            return scheduleNextPurchasePoll(attemptCount);
+        }
+
+        await finalizePurchaseState();
+    }
+
+    /**
+     * Schedules the next poll attempt after a set delay.
+     */
+    function scheduleNextPurchasePoll(currentAttempt: number) {
+        setTimeout(() => {
+            startPurchaseStatusPolling(currentAttempt + 1);
+        }, PURCHASE_POLL_INTERVAL_MS);
+    }
+
+    /**
+     * Updates the component state once the purchase is no longer processing.
+     */
+    async function finalizePurchaseState() {
+        const isNowOwned = await UserAPI.isOwner(listing!.id);
+
+        setIsPurchaseProcessing(false);
+        setIsOwnedByUser(isNowOwned);
+    }
 
     if (isLoading) return <div className="p-10 text-slate-500 italic">Loading...</div>;
     if (hasError || !listing) return <div className="p-10">Listing not found</div>;

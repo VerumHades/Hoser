@@ -1,11 +1,11 @@
 package developerapi
 
 import (
+	"api/internal/helpers"
 	"api/internal/http/authentification"
 	"api/pkg/util"
 	"common/pkg/application/services/developer"
 	"common/pkg/domain/entities/listing"
-	"common/pkg/domain/repositories"
 	"common/pkg/shared"
 	"context"
 	"net/http"
@@ -21,8 +21,9 @@ type APIDeveloperListingService interface {
 	FetchNextBatchByAuthor(
 		ctx context.Context,
 		authorID shared.UserID,
-		request shared.BatchRequest[repositories.ListingCursor],
-	) (listings []*listing.Listing, nextCursor repositories.ListingCursor, err error)
+		query listing.SearchQuery,
+		request shared.BatchRequest[listing.ListingSearchCursor],
+	) (listings []*listing.Listing, nextCursor listing.ListingSearchCursor, err error)
 
 	GetOwnedListing(ctx context.Context, listingID shared.ListingID, userID shared.UserID) (*listing.Listing, error)
 
@@ -134,13 +135,12 @@ func DeveloperToPublicListing(dev ApiDeveloperListing) ApiPublicListing {
 // --------------------
 
 func (api *DeveloperListingAPI) ListListingsHandler(userID shared.UserID, c echo.Context) error {
+	searchQuery := helpers.ParseSearchQuery(c)
+
 	return util.HandleBatchRequest(
 		c,
-		func(
-			ctx context.Context,
-			request shared.BatchRequest[repositories.ListingCursor],
-		) (items []*listing.Listing, nextCursor repositories.ListingCursor, err error) {
-			return api.listingService.FetchNextBatchByAuthor(ctx, userID, request)
+		func(ctx context.Context, request shared.BatchRequest[listing.ListingSearchCursor]) ([]*listing.Listing, listing.ListingSearchCursor, error) {
+			return api.listingService.FetchNextBatchByAuthor(ctx, userID, searchQuery, request)
 		},
 		func(elements []*listing.Listing) (views []ApiDeveloperListing) {
 			return util.MapList(elements, MakeApiDeveloperListing)

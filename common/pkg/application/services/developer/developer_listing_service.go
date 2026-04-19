@@ -19,6 +19,7 @@ type DeveloperListingService struct {
 	listingRepository      repositories.ListingCommandRepository
 	listingQueryRepository repositories.ListingQueryRepository
 	githubSetupRepository  repositories.GitHubSetupCommandRepository
+	listingSearchIndex     listing.ListingSearchIndex
 }
 
 // NewDeveloperListingService constructs a new DeveloperListingService.
@@ -28,6 +29,7 @@ func NewDeveloperListingService(
 	listingRepository repositories.ListingCommandRepository,
 	listingQueryRepository repositories.ListingQueryRepository,
 	githubSetupRepository repositories.GitHubSetupCommandRepository,
+	listingSearchIndex listing.ListingSearchIndex,
 ) *DeveloperListingService {
 	return &DeveloperListingService{
 		transactionalEventPublisher: transactionalEventPublisher,
@@ -35,6 +37,7 @@ func NewDeveloperListingService(
 		listingRepository:           listingRepository,
 		listingQueryRepository:      listingQueryRepository,
 		githubSetupRepository:       githubSetupRepository,
+		listingSearchIndex:          listingSearchIndex,
 	}
 }
 
@@ -119,9 +122,11 @@ func (s *DeveloperListingService) GetOwnedListing(ctx context.Context, listingID
 func (s *DeveloperListingService) FetchNextBatchByAuthor(
 	ctx context.Context,
 	authorID shared.UserID,
-	request shared.BatchRequest[repositories.ListingCursor],
-) (listings []*listing.Listing, nextCursor repositories.ListingCursor, err error) {
-	return s.listingQueryRepository.FetchNextBatchByAuthor(ctx, authorID, request)
+	query listing.SearchQuery,
+	request shared.BatchRequest[listing.ListingSearchCursor],
+) (listings []*listing.Listing, nextCursor listing.ListingSearchCursor, err error) {
+	query.AuthorID = &authorID
+	return s.listingSearchIndex.SearchNextBatch(ctx, query, request)
 }
 
 type StorageProvider interface {

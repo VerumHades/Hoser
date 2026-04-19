@@ -7,6 +7,7 @@ import (
 // ListingCreated is emitted when a new listing is created.
 type ListingCreatedEvent struct {
 	ID                    shared.ListingID
+	AuthorID              shared.UserID
 	Title                 string
 	Description           string
 	AccessMode            ListingAccessMode

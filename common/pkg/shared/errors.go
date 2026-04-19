@@ -24,3 +24,5 @@ var ErrUnauthorized = errors.New("unauthorized")
 var ErrCanceled = errors.New("operation canceled")
 
 var ErrLimitReached = errors.New("limit reached")
+
+var ErrNoContentFound = errors.New("no content")

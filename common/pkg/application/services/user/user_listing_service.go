@@ -127,9 +127,10 @@ func (s *UserListingService) FetchNextListingsByAuthor(
 // SearchNextListingsBatch retrieves listings matching a query in batches.
 func (s *UserListingService) SearchNextListingsBatch(
 	ctx context.Context,
-	query string,
+	query listing.SearchQuery,
 	batchRequest shared.BatchRequest[listing.ListingSearchCursor],
 ) ([]*listing.Listing, listing.ListingSearchCursor, error) {
+	query.AccessMode = shared.Ptr(listing.Public)
 	return s.listingSearchIndex.SearchNextBatch(ctx, query, batchRequest)
 }
 

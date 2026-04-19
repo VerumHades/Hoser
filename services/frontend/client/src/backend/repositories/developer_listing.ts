@@ -1,6 +1,7 @@
 import { backendRequest } from "../backend_request";
 import type { CursorPaginatedResult } from "../paginator";
 import type { HardwareSpecification, ListingAccessMode } from "../types";
+import { buildSearchParams, type ListingSearchQuery } from "../utils/query";
 import type { Listing } from "./listing";
 
 export interface DeveloperListing extends Listing {
@@ -73,6 +74,23 @@ export const DeveloperListingAPI = {
         const params = cursor ? `?cursor=${cursor}` : "";
         return backendRequest<CursorPaginatedResult<DeveloperListing>>(`/developer/listings${params}`, "GET");
     },
+
+    /**
+     * search executes a complex query against the listing index.
+     * @param query - The filter and text parameters.
+     * @param cursor - The pagination pointer.
+     */
+    async search(query: ListingSearchQuery, cursor?: string): Promise<CursorPaginatedResult<DeveloperListing> | null> {
+        const params = buildSearchParams(query, cursor);
+        try {
+            return backendRequest<CursorPaginatedResult<DeveloperListing>>(`/developer/listings${params}`, "GET");
+        }
+        catch(error){
+            return null
+        }
+        
+    },
+
     /**
      * Delete a developer listing
      */

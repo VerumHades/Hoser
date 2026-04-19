@@ -74,6 +74,7 @@ func NewListingWithID(
 	payload := ListingCreatedEvent{
 		ID:                    listing.id,
 		Title:                 listing.title,
+		AuthorID:              listing.authorID,
 		Description:           listing.description,
 		AccessMode:            listing.accessMode,
 		HardwareSpecification: *listing.hardwareSpecification,
@@ -85,6 +86,28 @@ func NewListingWithID(
 	// Wrap in typed domain event envelope
 	eventEnvelope := events.NewDomainEventEnvelope(payload)
 	return listing, eventEnvelope, nil
+}
+
+/**
+ * Reconstructs a Listing entity from a ListingCreatedEvent.
+ * This is typically used during event sourcing or state restoration.
+ */
+func ReconstituteListingFromEvent(
+	event ListingCreatedEvent,
+	createdAt time.Time,
+) *Listing {
+	return &Listing{
+		id:                    event.ID,
+		authorID:              event.AuthorID,
+		title:                 event.Title,
+		description:           event.Description,
+		accessMode:            event.AccessMode,
+		hardwareSpecification: &event.HardwareSpecification,
+		priceInMinorUnits:     event.PriceInMinorUnits,
+		createdAt:             createdAt,
+		screenshotKeys:        event.ScreenshotKeys,
+		documentationMarkdown: event.DocumentationMarkdown,
+	}
 }
 
 // --- Listing getters ---
