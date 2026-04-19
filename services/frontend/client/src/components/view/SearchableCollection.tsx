@@ -1,203 +1,269 @@
-import { useState, useMemo, useEffect, type ReactNode } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useMemo, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CursorPaginatedCollection } from "./CursorPaginatedCollection";
+import { DynamicFilterSidebar, type FilterField } from "../querying/FilterSidebar";
 
 interface SearchableCollectionProps<T, Q> {
-	title?: string;
-	description?: string;
-	headerActions?: ReactNode;
-	emptyState?: ReactNode;
-	initialQuery: Q;
-	fetchPage: (query: Q, cursor?: string) => Promise<any>;
-	renderRow: (item: T) => ReactNode;
-	renderCard: (item: T) => ReactNode;
-	parseParams: (params: URLSearchParams) => Q;
-	buildParams: (query: Q) => URLSearchParams;
-	FilterComponent?: React.ComponentType<{
-		query: Q;
-		onApply: (query: Q) => void;
-	}>;
+    filterFields?: FilterField<Q>[];
+    headerActions?: ReactNode;
+    useUrlParams?: boolean;
+    initialQuery?: Q;
+    fetchPage: (query: Q, cursor?: string) => Promise<any>;
+    renderRow: (item: T) => ReactNode;
+    renderCard: (item: T) => ReactNode;
+    title?: string;
+    description?: string;
+    emptyState?: ReactNode;
 }
 
 /**
  * A standardized high-level wrapper for paginated lists with search and filter capabilities.
  */
 export function SearchableCollection<T, Q>(props: SearchableCollectionProps<T, Q>) {
-	const [searchParams, setSearchParams] = useSearchParams();
-	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { filterFields = [], useUrlParams = true, initialQuery = {} as Q } = props;
+    const [searchParameters, setSearchParameters] = useSearchParams();
+    const [localQuery, setLocalQuery] = useState<Q>(initialQuery);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-	const activeQuery = useMemo(
-		() => props.parseParams(searchParams),
-		[searchParams, props.parseParams]
-	);
+    const activeQuery = useMemo(() => {
+        return useUrlParams ? parseUrlToQuery(searchParameters, filterFields) : localQuery;
+    }, [searchParameters, localQuery, filterFields, useUrlParams]);
 
-	const handleUpdate = (newFields: Partial<Q>) => {
-		const nextQuery = { ...activeQuery, ...newFields };
-		setSearchParams(props.buildParams(nextQuery));
-		setIsMobileMenuOpen(false);
-	};
+    const handleQueryUpdate = (nextQuery: Q) => {
+        const nextParameters = buildUrlFromQuery(nextQuery, filterFields);
+        if (useUrlParams) {
+            setSearchParameters(nextParameters);
+        } else {
+            setLocalQuery(nextQuery);
+        }
+        setIsMobileMenuOpen(false);
+    };
 
-	return (
-		<div className="flex flex-col h-full w-full bg-white overflow-hidden">
-			<CollectionHeader
-				title={props.title}
-				description={props.description}
-				actions={props.headerActions}
-				onOpenFilters={() => setIsMobileMenuOpen(true)}
-				hasFilters={!!props.FilterComponent}
-			/>
+    return (
+        <div className="flex flex-col h-full w-full bg-white overflow-hidden md:flex-row">
+            <MobileTopBar 
+                title={props.title} 
+                onOpenFilters={() => setIsMobileMenuOpen(true)} 
+            />
+            
+            <DesktopSidebar 
+                title={props.title}
+                description={props.description}
+                actions={props.headerActions}
+                query={activeQuery}
+                fields={filterFields}
+                onApply={handleQueryUpdate}
+            />
 
-			<div className="flex flex-1 overflow-hidden max-w-[1600px] mx-auto w-full">
-				<SidebarArea
-					query={activeQuery}
-					onApply={handleUpdate}
-					FilterComponent={props.FilterComponent}
-				/>
+            <MobileDrawerArea 
+                isOpen={isMobileMenuOpen} 
+                query={activeQuery} 
+                onApply={handleQueryUpdate} 
+                onClose={() => setIsMobileMenuOpen(false)} 
+                fields={filterFields} 
+            />
 
-				<MobileDrawerArea
-					isOpen={isMobileMenuOpen}
-					query={activeQuery}
-					onApply={handleUpdate}
-					onClose={() => setIsMobileMenuOpen(false)}
-					FilterComponent={props.FilterComponent}
-				/>
-
-				<MainContentArea
-					query={activeQuery}
-					searchParams={searchParams}
-					fetchPage={props.fetchPage}
-					renderRow={props.renderRow}
-					renderCard={props.renderCard}
-					emptyState={props.emptyState}
-				/>
-			</div>
-		</div>
-	);
+            <MainContentArea 
+                query={activeQuery} 
+                searchParamsKey={useUrlParams ? searchParameters.toString() : JSON.stringify(activeQuery)}
+                {...props} 
+            />
+        </div>
+    );
 }
 
 /**
- * Renders the top bar with titles and actions.
+ * Renders a sticky top bar visible only on mobile devices.
  */
-function CollectionHeader({
-	title,
-	description,
-	actions,
-	onOpenFilters,
-	hasFilters,
-}: {
-	title?: string;
-	description?: string;
-	actions?: ReactNode;
-	onOpenFilters: () => void;
-	hasFilters: boolean;
-}) {
-	if (!title && !actions) return null;
-
-	return (
-		<header className="flex-shrink-0 border-b border-slate-100 px-6 py-6 bg-white sticky top-0 z-30">
-			<div className="flex justify-between items-end max-w-[1600px] mx-auto w-full">
-				<div>
-					{title && <h1 className="text-2xl font-bold text-slate-900">{title}</h1>}
-					{description && <p className="text-slate-500 text-sm">{description}</p>}
-				</div>
-				<div className="flex gap-2">
-					{actions}
-					{hasFilters && (
-						<button
-							onClick={onOpenFilters}
-							className="md:hidden p-2 bg-slate-100 rounded-lg"
-						>
-							Filters
-						</button>
-					)}
-				</div>
-			</div>
-		</header>
-	);
+function MobileTopBar({ title, onOpenFilters }: { title?: string; onOpenFilters: () => void }) {
+    return (
+        <header className="md:hidden flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white sticky top-0 z-30">
+            <h1 className="font-bold text-lg truncate">{title}</h1>
+            <button 
+                type="button"
+                onClick={onOpenFilters} 
+                className="p-2 bg-slate-100 rounded-lg text-sm font-medium"
+            >
+                Filters
+            </button>
+        </header>
+    );
 }
 
 /**
- * Handles the desktop sidebar visibility logic.
+ * Renders the sidebar containing the header info and filters for desktop.
  */
-function SidebarArea<Q>({
-	query,
-	onApply,
-	FilterComponent,
+function DesktopSidebar<Q>({
+    title,
+    description,
+    actions,
+    query,
+    fields,
+    onApply
 }: {
-	query: Q;
-	onApply: (q: Q) => void;
-	FilterComponent?: React.ComponentType<{ query: Q; onApply: (q: Q) => void }>;
+    title?: string;
+    description?: string;
+    actions?: ReactNode;
+    query: Q;
+    fields: FilterField<Q>[];
+    onApply: (q: Q) => void;
 }) {
-	if (!FilterComponent) return null;
-
-	return (
-		<aside className="hidden md:block w-80 h-full border-r border-slate-100 overflow-y-auto bg-slate-50/30">
-			<FilterComponent query={query} onApply={onApply} />
-		</aside>
-	);
+    return (
+        <aside className="hidden md:flex flex-col w-80 h-full border-r border-slate-100 bg-slate-50/30 overflow-y-auto">
+            <SidebarHeader title={title} description={description} />
+            <SidebarActions actions={actions} />
+            <DynamicFilterSidebar query={query} onApply={onApply} fields={fields} />
+        </aside>
+    );
 }
 
 /**
- * Manages the mobile drawer overlay.
+ * Renders the title and description inside the sidebar.
  */
-function MobileDrawerArea<Q>({
-	isOpen,
-	query,
-	onApply,
-	onClose,
-	FilterComponent,
-}: {
-	isOpen: boolean;
-	query: Q;
-	onApply: (q: Q) => void;
-	onClose: () => void;
-	FilterComponent?: React.ComponentType<{ query: Q; onApply: (q: Q) => void }>;
-}) {
-	if (!isOpen || !FilterComponent) return null;
+function SidebarHeader({ title, description }: { title?: string; description?: string }) {
+    if (!title && !description) return null;
 
-	return (
-		<div className="fixed inset-0 z-50 md:hidden">
-			<div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-			<aside className="absolute right-0 top-0 h-full w-80 bg-white shadow-2xl flex flex-col overflow-y-auto">
-				<div className="p-6 border-b flex justify-between items-center">
-					<span className="font-black">Filters</span>
-					<button onClick={onClose}>✕</button>
-				</div>
-				<FilterComponent query={query} onApply={onApply} />
-			</aside>
-		</div>
-	);
+    return (
+        <div className="px-6 pt-8 pb-4">
+            {title && <h1 className="text-xl font-bold text-slate-900">{title}</h1>}
+            {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        </div>
+    );
+}
+
+/**
+ * Renders custom action buttons inside the sidebar.
+ */
+function SidebarActions({ actions }: { actions?: ReactNode }) {
+    if (!actions) return null;
+
+    return (
+        <div className="px-6 py-4 flex flex-wrap gap-2">
+            {actions}
+        </div>
+    );
 }
 
 /**
  * The scrolling area for the actual collection items.
  */
 function MainContentArea<T, Q>({
-	query,
-	searchParams,
-	fetchPage,
-	renderRow,
-	renderCard,
-	emptyState,
+    query,
+    searchParamsKey,
+    fetchPage,
+    renderRow,
+    renderCard,
+    emptyState,
 }: {
-	query: Q;
-	searchParams: URLSearchParams;
-	fetchPage: (q: Q, cursor?: string) => Promise<any>;
-	renderRow: (item: T) => ReactNode;
-	renderCard: (item: T) => ReactNode;
-	emptyState?: ReactNode;
+    query: Q;
+    searchParamsKey: string;
+    fetchPage: (q: Q, cursor?: string) => Promise<any>;
+    renderRow: (item: T) => ReactNode;
+    renderCard: (item: T) => ReactNode;
+    emptyState?: ReactNode;
 }) {
-	return (
-		<main className="flex-1 h-full overflow-y-auto scroll-smooth">
-			<div className="px-6 py-8 md:px-12">
-				<CursorPaginatedCollection<T>
-					key={searchParams.toString()}
-					fetchPage={(cursor) => fetchPage(query, cursor)}
-					renderItemRow={renderRow}
-					renderItemCard={renderCard}
-					emptyState={emptyState}
-				/>
-			</div>
-		</main>
-	);
+    return (
+        <main className="flex flex-1 h-full overflow-y-auto scroll-smooth">
+			<CursorPaginatedCollection<T>
+				key={searchParamsKey}
+				fetchPage={(cursor) => fetchPage(query, cursor)}
+				renderItemRow={renderRow}
+				renderItemCard={renderCard}
+				emptyState={emptyState}
+			/>
+        </main>
+    );
+}
+
+/**
+ * Manages the mobile drawer overlay.
+ */
+function MobileDrawerArea<Q>({
+    isOpen,
+    query,
+    onApply,
+    onClose,
+    fields
+}: {
+    isOpen: boolean;
+    query: Q;
+    onApply: (q: Q) => void;
+    onClose: () => void;
+    fields: FilterField<Q>[] 
+}) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 md:hidden">
+            <div 
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+                onClick={onClose} 
+            />
+            <aside className="absolute right-0 top-0 h-full w-80 bg-white shadow-2xl flex flex-col overflow-y-auto">
+                <DrawerHeader onClose={onClose} />
+                <DynamicFilterSidebar query={query} onApply={onApply} fields={fields} />
+            </aside>
+        </div>
+    );
+}
+
+/**
+ * Renders the header for the mobile drawer.
+ */
+function DrawerHeader({ onClose }: { onClose: () => void }) {
+    return (
+        <div className="p-6 border-b flex justify-between items-center">
+            <span className="font-black text-slate-900">Filters</span>
+            <button type="button" onClick={onClose} className="p-2 text-slate-500 hover:text-slate-900">✕</button>
+        </div>
+    );
+}
+
+/**
+ * Transforms URL parameters into a structured query object.
+ */
+function parseUrlToQuery<Q>(searchParameters: URLSearchParams, fields: FilterField<Q>[]): Q {
+    const query = {} as any;
+    fields.forEach((field) => {
+        if (field.type === "text") {
+            query[field.key] = searchParameters.get(field.urlKey) || undefined;
+        }
+        if (field.type === "range") {
+            const minimum = searchParameters.get(field.urlKeys.min);
+            const maximum = searchParameters.get(field.urlKeys.max);
+            query[field.key] = { 
+                min: minimum ? parseInt(minimum) : undefined, 
+                max: maximum ? parseInt(maximum) : undefined 
+            };
+        }
+        if (field.type === "date") {
+            query[field.key] = { 
+                from: searchParameters.get(field.urlKeys.from) || undefined, 
+                to: searchParameters.get(field.urlKeys.to) || undefined 
+            };
+        }
+    });
+    return query;
+}
+
+/**
+ * Transforms a query object into URL parameters.
+ */
+function buildUrlFromQuery<Q>(query: Q, fields: FilterField<Q>[]): URLSearchParams {
+    const params = new URLSearchParams();
+    fields.forEach((field) => {
+        const value = query[field.key] as any;
+        if (!value) return;
+
+        if (field.type === "text") params.set(field.urlKey, value);
+        if (field.type === "range") {
+            if (value.min !== undefined) params.set(field.urlKeys.min, String(value.min));
+            if (value.max !== undefined) params.set(field.urlKeys.max, String(value.max));
+        }
+        if (field.type === "date") {
+            if (value.from) params.set(field.urlKeys.from, value.from);
+            if (value.to) params.set(field.urlKeys.to, value.to);
+        }
+    });
+    return params;
 }

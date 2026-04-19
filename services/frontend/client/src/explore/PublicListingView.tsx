@@ -11,6 +11,7 @@ import { ListingGallery } from "./listing/ListingGallery";
 import { ListingSpecs } from "./listing/ListingSpecs";
 import HardwareSpecsDisplay from "../components/view/HardwareSpecDisplay";
 import MarkdownViewer from "../components/view/MarkdownViewer";
+import MainNavbar from "../components/navigation/MainNavbar";
 
 
 export function gotoListing(navigate: NavigateFunction, listing: Listing | undefined) {
@@ -132,32 +133,37 @@ export function PublicListingView(): JSX.Element {
     if (hasError || !listing) return <div className="p-10">Listing not found</div>;
     
     return (
-        <div className="w-full h-full flex flex-col gap-8 px-6 py-8 max-w-7xl mx-auto">
-            <ListingHeader 
-                listing={listing}
-                isAuthenticated={isAuthenticated}
-                isSaved={isSavedInLibrary}
-                isOwned={isOwnedByUser}
-                isProcessing={isPurchaseProcessing}
-                isActionLoading={{ library: isLibLoading, purchase: isPurLoading }}
-                onSave={handleSave}
-                onPurchase={handlePurchase}
-                onLogin={handleLogin}
-            />
+        <div>
+            <MainNavbar></MainNavbar>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-8">
-                    <ListingGallery listingId={listing.id} screenshotIds={listing.screenshotIds ?? []} />
+            <div className="w-full h-full flex flex-col gap-8 px-6 py-8 max-w-7xl mx-auto">
+                <ListingHeader 
+                    listing={listing}
+                    isAuthenticated={isAuthenticated}
+                    isSaved={isSavedInLibrary}
+                    isOwned={isOwnedByUser}
+                    isProcessing={isPurchaseProcessing}
+                    isActionLoading={{ library: isLibLoading, purchase: isPurLoading }}
+                    onSave={handleSave}
+                    onPurchase={handlePurchase}
+                    onLogin={handleLogin}
+                />
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-8">
+                        <ListingGallery listingId={listing.id} screenshotIds={listing.screenshotIds ?? []} />
+                    </div>
+                    <div className="lg:col-span-4">
+                        {/*<ListingSpecs /> <div className="h-10"></div>*/}
+                        
+                        {listing.recommended_hardware && <HardwareSpecsDisplay specification={listing.recommended_hardware}></HardwareSpecsDisplay> }
+                    </div>
                 </div>
-                <div className="lg:col-span-4">
-                    {/*<ListingSpecs /> <div className="h-10"></div>*/}
-                    
-                    {listing.recommended_hardware && <HardwareSpecsDisplay specification={listing.recommended_hardware}></HardwareSpecsDisplay> }
+                <div className="w-full bg-white p-8 rounded-3xl border border-slate-200">
+                    <MarkdownViewer content={listing.documentation_markdown} />
                 </div>
             </div>
-            <div className="w-full bg-white p-8 rounded-3xl border border-slate-200">
-                <MarkdownViewer content={listing.documentation_markdown} />
-            </div>
+
         </div>
     );
 }

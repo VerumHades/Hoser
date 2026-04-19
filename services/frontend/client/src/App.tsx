@@ -14,10 +14,10 @@ function App() {
                 <Router>
                     <Routes>
                         <Route path="/login" element={<LoginForm />} />
-                        <Route path="/search" element={<WithNavbar><PublicListingSearch /></WithNavbar>} />
-                        <Route path="/" element={<WithNavbar><PublicLandingPage/></WithNavbar>} />
+                        <Route path="/search" element={<PublicListingSearch />} />
+                        <Route path="/" element={<PublicLandingPage/>} />
                         <Route path="/dashboard/*" element={<AccountPage></AccountPage>} />
-                        <Route path="/listing/:id" element={<WithNavbar><PublicListingView></PublicListingView></WithNavbar>} />
+                        <Route path="/listing/:id" element={<PublicListingView></PublicListingView>} />
                     </Routes>
                 </Router>
             </div>

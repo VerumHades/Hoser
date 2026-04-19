@@ -83,7 +83,7 @@ export const DeveloperListingAPI = {
     async search(query: ListingSearchQuery, cursor?: string): Promise<CursorPaginatedResult<DeveloperListing> | null> {
         const params = buildSearchParams(query, cursor);
         try {
-            return backendRequest<CursorPaginatedResult<DeveloperListing>>(`/developer/listings${params}`, "GET");
+            return backendRequest<CursorPaginatedResult<DeveloperListing>>(`/developer/listings?${params}`, "GET");
         }
         catch(error){
             return null

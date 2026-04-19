@@ -7,6 +7,17 @@ import { Button } from "../../templates/components/Button"; // Assuming this is 
 import toast from "react-hot-toast";
 import { useState } from "react";
 import { SearchableCollection } from "../../components/view/SearchableCollection";
+import { DynamicFilterSidebar, type FilterField } from "../../components/querying/FilterSidebar";
+import type { ListingSearchQuery } from "../../backend/utils/query";
+
+const SIMPLE_SEARCH_FIELDS: FilterField<ListingSearchQuery>[] = [
+    { 
+        key: "text", 
+        label: "Keywords", 
+        type: "text", 
+        urlKey: "q" 
+    },
+];
 
 export default function DeveloperListings() {
     const navigate = useNavigate();
@@ -16,45 +27,57 @@ export default function DeveloperListings() {
         setIsCreating(true);
         const toastId = toast.loading("Creating your listing...");
         try {
-            // Default values handled by the Go service we wrote earlier
-            const newListing = await DeveloperListingAPI.create("New Listing", "A short description of your software");
-            
+            const newListing = await DeveloperListingAPI.create(
+                "New Listing", 
+                "A short description of your software"
+            );
             toast.success("Listing created!", { id: toastId });
-            
-            // Navigate to the editor route
             navigate(`/dashboard/developer/listing/${newListing.id}`);
         } catch (err) {
-            toast.error("Failed to create listing: " + err, { id: toastId });
+            toast.error(`Failed to create listing: ${err}`, { id: toastId });
         } finally {
             setIsCreating(false);
         }
     };
 
     return (
-		<SearchableCollection<DeveloperListing, { q?: string }>
-			title="Your Listings"
-			description="Manage and monitor your published software."
-            
-			headerActions={
-				<Button onClick={handleCreate} disabled={isCreating}>
-					{isCreating ? "Creating..." : "Create Listing"}
-				</Button>
-			}
-			initialQuery={{}}
+        <SearchableCollection<DeveloperListing, ListingSearchQuery>
+            filterFields={SIMPLE_SEARCH_FIELDS}
+            headerActions={
+                <Button onClick={handleCreate} disabled={isCreating}>
+                    {isCreating ? "Creating..." : "Create Listing"}
+                </Button>
+            }
+            fetchPage={(query, cursor) => DeveloperListingAPI.search(query, cursor)}
+            renderRow={(listing) => (
+                <DeveloperListingRow 
+                    listing={listing} 
+                    onSelect={() => navigate(`/dashboard/developer/listing/${listing.id}`)} 
+                />
+            )}
+            renderCard={(listing) => (
+                <DeveloperListingCard 
+                    listing={listing} 
+                    onSelect={() => navigate(`/dashboard/developer/listing/${listing.id}`)} 
+                />
+            )}
+            emptyState={
+                <DeveloperEmptyState onCreate={handleCreate} />
+            }
+        />
+    );
+}
 
-			fetchPage={(q, cursor) => DeveloperListingAPI.search( {text: q as string}, cursor)}
-			parseParams={(p) => ({ q: p.get("q") || undefined })}
-			buildParams={(q) => new URLSearchParams(q.q ? { q: q.q } : {})}
-
-			renderRow={(l) => <DeveloperListingRow listing={l} onSelect={() => navigate(`/editor/${l.id}`)} />}
-			renderCard={(l) => <DeveloperListingCard listing={l} onSelect={() => navigate(`/editor/${l.id}`)} />}
-
-			emptyState={
-				<div className="text-center py-12 border-2 border-dashed rounded-xl">
-					<p className="text-sm text-slate-500 mb-4">No listings found</p>
-					<Button variant="secondary" onClick={handleCreate}>Create your first</Button>
-				</div>
-			}
-		/>
-	);
+/**
+ * Clean UI fragment for the empty state
+ */
+function DeveloperEmptyState({ onCreate }: { onCreate: () => void }) {
+    return (
+        <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-xl border-slate-200">
+            <p className="text-sm text-slate-500 mb-4">No listings found</p>
+            <Button variant="secondary" onClick={onCreate}>
+                Create your first listing
+            </Button>
+        </div>
+    );
 }

@@ -1,16 +1,19 @@
 import { useState, useEffect, useMemo } from "react";
 import type { DateRange, NumericRange } from "../../backend/utils/query";
 
-export interface FilterFieldConfig<Q> {
-    key: keyof Q;
-    label: string;
-    type: "range" | "date" | "text";
-}
+export type FilterField<Q> = {
+	key: keyof Q;
+	label: string;
+} & (
+	| { type: "text"; urlKey: string }
+	| { type: "date"; urlKeys: { from: string; to: string } }
+	| { type: "range"; urlKeys: { min: string; max: string } }
+);
 
 interface DynamicFilterSidebarProps<Q> {
     query: Q;
     onApply: (query: Q) => void;
-    fields: FilterFieldConfig<Q>[];
+    fields: FilterField<Q>[];
 }
 
 /**
@@ -53,7 +56,7 @@ export function DynamicFilterSidebar<Q>({ query, onApply, fields }: DynamicFilte
  * Determines which input type to render based on configuration.
  */
 function FilterFieldSwitch({ config, value, onChange }: { 
-    config: FilterFieldConfig<any>; 
+    config: FilterField<any>; 
     value: any; 
     onChange: (val: any) => void 
 }) {

@@ -14,15 +14,12 @@ import (
 	"common/pkg/application/services/billing"
 	"common/pkg/application/services/developer"
 	"common/pkg/application/services/instanceservice"
-	"common/pkg/util"
 
 	userservices "common/pkg/application/services/user"
 
 	"common/pkg/application/unitofwork"
 	"common/pkg/domain/entities/accounting"
 	"common/pkg/domain/entities/listing"
-	"common/pkg/domain/entities/user"
-	"common/pkg/domain/repositories"
 
 	"common/pkg/infrastructure/external"
 	mongodbinstance "common/pkg/infrastructure/mongodb/instance"
@@ -145,13 +142,6 @@ func main() {
 
 		listingRepo.Create(ctx, listing)
 	}*/
-
-	cuser, err := user.NewUser("alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
-	_, err = userRepo.Create(ctx, cuser)
-	if err != nil {
-		fmt.Println(err)
-	}
-
 	userAuthService := auth.NewAuthenticationService(userRepo)
 
 	listingIndexer := external.NewMeiliListingSearchIndex(
@@ -159,7 +149,35 @@ func main() {
 		runningConfiguration.MeilisearchApiKey,
 	)
 
-	{
+	/*cuser, err := user.NewUserWithID("0", "alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
+
+	_, err = userRepo.Create(ctx, cuser)
+	if err != nil {
+		fmt.Println(err)
+
+	}
+
+	// Define your pool of image handles (e.g., Minio object keys)
+	imagePool := []string{
+		"samples/ai-model-thumb.png",
+		"samples/gpu-cluster.jpg",
+		"samples/neural-net.png",
+	}
+
+	// Initialize the seeder
+	listingSeeder := seeding.NewListingSeeder(
+		listingRepo,
+		listingIndexer,
+		imagePool,
+	)
+
+	// Execute the seeding process
+	err = listingSeeder.Seed(ctx, 50, string(cuser.ID())) // Generates 50 listings for Alice
+	if err != nil {
+		log.Printf("Seeding encountered an error: %v", err)
+	}*/
+
+	/*{
 		for listing := range util.GenerateInBatches(
 			ctx,
 			500,
@@ -168,7 +186,8 @@ func main() {
 			}) {
 			listingIndexer.Index(ctx, listing)
 		}
-	}
+	}*/
+
 	eventPublisher := outbox.NewOutboxEventPublisher(outboxRepo)
 
 	transactionalEventPublisher := unitofwork.NewTransactionalEventPublisher(
