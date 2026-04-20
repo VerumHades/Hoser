@@ -50,11 +50,21 @@ export function useListingEditor(sourceListing: DeveloperListing) {
 
     const saveChanges = async () => {
         try {
-            console.log(listing)
+            const a = new Set(backupListing.screenshotIds)
+            const b = new Set(listing.screenshotIds)
+
+            console.log(a,b,Array.from(a.difference(b)))
+            const toRemove = Array.from(a.difference(b));
+
+            for(const i in toRemove) {
+                await DeveloperListingAPI.screenshots.delete(listing.id, toRemove[i])
+            }
+
             const updated = await DeveloperListingAPI.update(listing);
             dispatch({ type: "set", listing: updated });
             setBackupListing(updated);
             setHasUnsavedChanges(false);
+            
             toast.success("Changes saved");
         } catch (err) {
             toast.error(err + "");

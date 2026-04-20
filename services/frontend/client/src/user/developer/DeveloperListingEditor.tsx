@@ -43,7 +43,6 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
         markChanged();
     };
 
-    console.log(listing)
     return (
         <div className="relative flex flex-col w-full h-full items-center overflow-y-auto p-6">
             <Toaster position="top-right" />
