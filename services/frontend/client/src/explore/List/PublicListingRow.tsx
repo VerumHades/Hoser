@@ -1,4 +1,3 @@
-import React from "react";
 import { type Listing } from "../../backend/repositories/listing";
 import { ListingScreenshot } from "../../ListingScreenshot";
 import { ChevronRight, Cpu, HardDrive } from "lucide-react";
@@ -28,8 +27,8 @@ export function PublicListingRow({ listing, onSelect, className }: PublicListing
             <RowThumbnail listingId={listing.id} screenshotId={listing.screenshotIds?.[0]} />
 
             <div className="flex flex-1 flex-col justify-center min-w-0 py-1">
-                <RowHeader title={listing.title} author={listing.author} />
-                <RowDescription description={listing.description} />
+                <RowHeader title={listing.title || ""} author={listing.author} />
+                <RowDescription description={listing.description || ""} />
                 <RowMetadata listing={listing} />
             </div>
 

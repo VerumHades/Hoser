@@ -1,5 +1,5 @@
 import React from "react";
-import { colors, typography, spacing, borders } from "../theme";
+import { colors, typography } from "../theme";
 
 interface SectionProps {
     title: string;

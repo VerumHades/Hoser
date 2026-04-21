@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DeveloperListingAPI, type DeveloperListing } from "../../../backend/repositories/developer_listing";
+import { DeveloperListingAPI, type CreateScreenshotResponse, type DeveloperListing } from "../../../backend/repositories/developer_listing";
 import toast from "react-hot-toast";
 import Section from "../../../templates/components/Section";
 import { ScreenshotCache } from "../../../backend/utils/screenshot_cache";
@@ -30,12 +30,12 @@ export function ScreenshotManager({ listingId, screenshotIds, onUpdate, onRemove
         setIsUploading(true);
         const tid = toast.loading("Uploading...");
         try {
-            const { uploadUrl } = await DeveloperListingAPI.screenshots.createUploadUrl(listingId);
+            const { uploadUrl } = await DeveloperListingAPI.screenshots.createUploadUrl(listingId) as CreateScreenshotResponse;
             await fetch(uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
             const updated = await DeveloperListingAPI.get(listingId);
-            onUpdate(updated);
+            onUpdate(updated as DeveloperListing);
             toast.success("Uploaded", { id: tid });
-        } catch (err) {
+        } catch {
             toast.error("Failed", { id: tid });
         } finally { setIsUploading(false); }
     };

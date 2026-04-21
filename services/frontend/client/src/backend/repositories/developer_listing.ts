@@ -35,7 +35,7 @@ export const DeveloperListingAPI = {
     /**
      * Fetch a developer listing by id
      */
-    async get(listingId: string): Promise<DeveloperListing> {
+    async get(listingId: string): Promise<DeveloperListing | null> {
         return backendRequest<DeveloperListing>(
             `/developer/listings/${listingId}`,
             "GET"
@@ -48,7 +48,7 @@ export const DeveloperListingAPI = {
     async create(
         title: string,
         description: string
-    ): Promise<DeveloperListing> {
+    ): Promise<DeveloperListing  | null> {
         return backendRequest<DeveloperListing>(
             "/developer/listings",
             "POST",
@@ -62,7 +62,7 @@ export const DeveloperListingAPI = {
      */
     async update(
         updateListingRequest: UpdateListingRequest
-    ): Promise<DeveloperListing> {
+    ): Promise<DeveloperListing  | null> {
         return backendRequest<DeveloperListing>(
             "/developer/listings",
             "PUT",
@@ -70,7 +70,7 @@ export const DeveloperListingAPI = {
         );
     },
 
-    async list(cursor?: string): Promise<CursorPaginatedResult<DeveloperListing>> {
+    async list(cursor?: string): Promise<CursorPaginatedResult<DeveloperListing> | null> {
         const params = cursor ? `?cursor=${cursor}` : "";
         return backendRequest<CursorPaginatedResult<DeveloperListing>>(`/developer/listings${params}`, "GET");
     },
@@ -85,7 +85,7 @@ export const DeveloperListingAPI = {
         try {
             return backendRequest<CursorPaginatedResult<DeveloperListing>>(`/developer/listings?${params}`, "GET");
         }
-        catch(error){
+        catch {
             return null
         }
         
@@ -94,7 +94,7 @@ export const DeveloperListingAPI = {
     /**
      * Delete a developer listing
      */
-    async delete(listingId: string): Promise<void> {
+    async delete(listingId: string): Promise<void | null> {
         return backendRequest<void>(
             "/developer/listings",
             "DELETE",
@@ -107,7 +107,7 @@ export const DeveloperListingAPI = {
          * Requests a signed URL to upload a screenshot.
          * The backend will return a MinIO/S3 URL that allows a direct PUT request.
          */
-        async createUploadUrl(listingId: string): Promise<CreateScreenshotResponse> {
+        async createUploadUrl(listingId: string): Promise<CreateScreenshotResponse | null> {
             return backendRequest<CreateScreenshotResponse>(
                 `/developer/listings/${listingId}/screenshots`,
                 "POST"
@@ -117,7 +117,7 @@ export const DeveloperListingAPI = {
         /**
          * Deletes a screenshot from both the database and object storage.
          */
-        async delete(listingId: string, screenshotId: string): Promise<void> {
+        async delete(listingId: string, screenshotId: string): Promise<void | null> {
             return backendRequest<void>(
                 `/developer/listings/${listingId}/screenshots/${screenshotId}`,
                 "DELETE"
@@ -129,7 +129,7 @@ export const DeveloperListingAPI = {
         /**
          * Get GitHub setup for a listing
          */
-        async get(listingId: string): Promise<ListingGithubSetup> {
+        async get(listingId: string): Promise<ListingGithubSetup | null> {
             return backendRequest<ListingGithubSetup>(
                 `/developer/listings/${listingId}/setup/github`,
                 "GET"
@@ -143,7 +143,7 @@ export const DeveloperListingAPI = {
             listingId: string,
             repositoryURL: string,
             accessToken: string
-        ): Promise<ListingGithubSetup> {
+        ): Promise<ListingGithubSetup | null> {
             const attachOrUpdateGithubSetupRequest: AttachOrUpdateGithubSetupRequest = {
                 repositoryURL,
                 accessToken
@@ -159,7 +159,7 @@ export const DeveloperListingAPI = {
         /**
          * Remove GitHub setup from a listing
          */
-        async remove(listingId: string): Promise<void> {
+        async remove(listingId: string): Promise<void | null> {
             return backendRequest<void>(
                 `/developer/listings/${listingId}/setup/github`,
                 "DELETE"

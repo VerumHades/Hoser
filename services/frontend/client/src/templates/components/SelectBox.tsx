@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
-import { colors, borders, spacing, typography } from "../theme";
+import { colors, borders, typography } from "../theme";
 
 interface SelectOption<T = string> {
     label: string;

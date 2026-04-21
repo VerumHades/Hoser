@@ -8,7 +8,6 @@ import { ListingAPI, type Listing } from "../backend/repositories/listing";
 import { UserAPI } from "../backend/repositories/user";
 import { ListingHeader } from "./listing/ListingHeader";
 import { ListingGallery } from "./listing/ListingGallery";
-import { ListingSpecs } from "./listing/ListingSpecs";
 import HardwareSpecsDisplay from "../components/view/HardwareSpecDisplay";
 import MarkdownViewer from "../components/view/MarkdownViewer";
 import MainNavbar from "../components/navigation/MainNavbar";
@@ -63,7 +62,11 @@ export function PublicListingView(): JSX.Element {
         if (!isAuthenticated) return handleLogin();
         setIsLibLoading(true);
         try {
-            isSavedInLibrary ? await UserAPI.library.delete(listing!.id) : await UserAPI.library.add(listing!.id);
+            if(isSavedInLibrary)
+                await UserAPI.library.delete(listing!.id);
+            else 
+                await UserAPI.library.add(listing!.id);
+            
             setIsSavedInLibrary(!isSavedInLibrary);
         } finally { setIsLibLoading(false); }
     };

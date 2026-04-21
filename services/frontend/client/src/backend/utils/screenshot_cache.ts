@@ -14,7 +14,7 @@ export const ScreenshotCache = {
         const fetchPromise = (async () => {
             try {
                 const response = await ListingAPI.getScreenshotReadURL(listingId, screenshotId);
-                return response.readUrl;
+                return response?.readUrl || "";
             } catch (err) {
                 urlCache.delete(cacheKey); // Don't cache failures
                 throw err;

@@ -1,7 +1,8 @@
 import { Cpu, MemoryStick, HardDrive } from "lucide-react";
 import HardwareSlider from "../../../components/input/HardwareSlider";
-import type { HardwareSpecification } from "../../../backend";
+
 import { useState } from "react";
+import type { HardwareSpecification } from "../../../backend/types";
 
 interface HardwareSettingsProps {
     /** Optional initial hardware specification */

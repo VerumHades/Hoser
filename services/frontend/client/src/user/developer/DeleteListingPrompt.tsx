@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import PromptButton from "../../components/input/PromptButton";
 import { Delete } from "lucide-react";
 

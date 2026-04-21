@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+
+import { useNavigate } from "react-router-dom";
 import { ListingAPI, type Listing } from "../backend/repositories/listing";
 import { PublicListingRow } from "./List/PublicListingRow";
 import { PublicListingCard } from "./List/PublicListingCard";
 import { SearchableCollection } from "../components/view/SearchableCollection";
-import type { DateRange, ListingSearchQuery, NumericRange } from "../backend/utils/query";
-import { DynamicFilterSidebar, type FilterField } from "../components/querying/FilterSidebar";
+import type { ListingSearchQuery } from "../backend/utils/query";
+import { type FilterField } from "../components/querying/FilterSidebar";
 import MainNavbar from "../components/navigation/MainNavbar";
 
 const PUBLIC_FILTER_FIELDS: FilterField<ListingSearchQuery>[] = [

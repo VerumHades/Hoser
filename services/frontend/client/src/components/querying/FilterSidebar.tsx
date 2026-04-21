@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import type { DateRange, NumericRange } from "../../backend/utils/query";
 
 export type FilterField<Q> = {
@@ -6,6 +6,7 @@ export type FilterField<Q> = {
 	label: string;
 } & (
 	| { type: "text"; urlKey: string }
+    | { type: "select"; urlKey: string }
 	| { type: "date"; urlKeys: { from: string; to: string } }
 	| { type: "range"; urlKeys: { min: string; max: string } }
 );
@@ -24,7 +25,7 @@ export function DynamicFilterSidebar<Q>({ query, onApply, fields }: DynamicFilte
 
     useEffect(() => setLocal(query), [query]);
 
-    const handleFieldChange = (key: keyof Q, value: any) => {
+    const handleFieldChange = (key: keyof Q, value: unknown) => {
         setLocal((prev) => ({ ...prev, [key]: value }));
     };
 

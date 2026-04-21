@@ -1,5 +1,6 @@
 import { Earth, EarthLock } from "lucide-react"
-import type { DeveloperListing } from "../../../backend"
+import type { DeveloperListing } from "../../../backend/repositories/developer_listing"
+
 
 type DeveloperListingItemProps = {
     listing: DeveloperListing

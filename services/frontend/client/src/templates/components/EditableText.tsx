@@ -1,6 +1,6 @@
 import React, { useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { Pencil, PenOff } from "lucide-react";
-import { colors, typography, spacing, borders } from "../theme";
+import { colors, typography} from "../theme";
 
 interface EditableTextProps {
     text: string;

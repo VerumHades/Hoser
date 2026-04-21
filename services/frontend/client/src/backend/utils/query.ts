@@ -1,3 +1,4 @@
+import type { ListingAccessMode } from "../types";
 
 export interface NumericRange {
     min?: number;
@@ -17,6 +18,7 @@ export interface ListingSearchQuery {
     price?: NumericRange;
     createdAt?: DateRange;
     authorId?: string;
+    accessMode?: ListingAccessMode;
 }
 
 /**

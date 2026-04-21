@@ -1,4 +1,3 @@
-import React from "react";
 import { ListingScreenshot } from "../../ListingScreenshot";
 import { Bookmark, ShoppingCart, Cpu } from "lucide-react";
 import type { Listing } from "../../backend/repositories/listing";
@@ -21,8 +20,8 @@ export function PublicListingCard({ listing, onSelect }: PublicListingCardProps)
             <CardThumbnail listingId={listing.id} screenshotId={listing.screenshotIds?.[0]} />
             
             <div className="flex flex-col gap-3 p-5">
-                <CardHeader title={listing.title} author={listing.author} />
-                <CardDescription description={listing.description} />
+                <CardHeader title={listing.title || "No title"} author={listing.author} />
+                <CardDescription description={listing.description || "No description"} />
                 
                 <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
                     <CardPrice priceInCents={listing.price} />
@@ -105,7 +104,7 @@ function CardActionIcons({ hasHardwareSpecs }: { hasHardwareSpecs: boolean }) {
     return (
         <div className="flex gap-2 text-slate-400">
             {hasHardwareSpecs && (
-                <Cpu className="h-4 w-4 transition-colors hover:text-slate-600" title="Specs included" />
+                <Cpu className="h-4 w-4 transition-colors hover:text-slate-600" />
             )}
             <Bookmark className="h-4 w-4 transition-colors hover:text-blue-500" />
             <ShoppingCart className="h-4 w-4 transition-colors hover:text-blue-500" />

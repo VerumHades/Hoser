@@ -1,5 +1,4 @@
 import { DeveloperListingAPI, type DeveloperListing } from "../../backend/repositories/developer_listing";
-import { CursorPaginatedCollection } from "../../components/view/CursorPaginatedCollection";
 import { useNavigate } from "react-router-dom";
 import { DeveloperListingRow } from "./List/DeveloperListingRow";
 import { DeveloperListingCard } from "./List/DeveloperListingCard";
@@ -7,7 +6,7 @@ import { Button } from "../../templates/components/Button"; // Assuming this is 
 import toast from "react-hot-toast";
 import { useState } from "react";
 import { SearchableCollection } from "../../components/view/SearchableCollection";
-import { DynamicFilterSidebar, type FilterField } from "../../components/querying/FilterSidebar";
+import { type FilterField } from "../../components/querying/FilterSidebar";
 import type { ListingSearchQuery } from "../../backend/utils/query";
 
 /**
@@ -16,13 +15,13 @@ import type { ListingSearchQuery } from "../../backend/utils/query";
  */
 const DEVELOPER_COMPLETE_FILTER_FIELDS: FilterField<ListingSearchQuery>[] = [
     { 
-        key: "title", 
-        label: "Listing Title", 
+        key: "text", 
+        label: "Text", 
         type: "text", 
         urlKey: "title" 
     },
     { 
-        key: "author", 
+        key: "authorId", 
         label: "Author Reference", 
         type: "text", 
         urlKey: "author" 
@@ -68,18 +67,6 @@ const DEVELOPER_COMPLETE_FILTER_FIELDS: FilterField<ListingSearchQuery>[] = [
             min: "disk_min", 
             max: "disk_max" 
         } 
-    },
-    { 
-        key: "description", 
-        label: "Description Content", 
-        type: "text", 
-        urlKey: "description" 
-    },
-    { 
-        key: "documentation_markdown", 
-        label: "Documentation Content", 
-        type: "text", 
-        urlKey: "docs" 
     }
 ];
 
@@ -96,7 +83,7 @@ export default function DeveloperListings() {
                 "A short description of your software"
             );
             toast.success("Listing created!", { id: toastId });
-            navigate(`/dashboard/developer/listing/${newListing.id}`);
+            navigate(`/dashboard/developer/listing/${newListing?.id}`);
         } catch (err) {
             toast.error(`Failed to create listing: ${err}`, { id: toastId });
         } finally {

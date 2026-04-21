@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { 
     LayoutGrid, 
     Table as TableIcon, 
@@ -171,12 +171,12 @@ export function CollectionViewContainer<ItemType>(props: CollectionViewContainer
     const [isContentScrollable, setIsContentScrollable] = useState(false);
 
     useEffect(() => {
-        scrollToTop(scrollContainerReference);
-        checkScrollability(scrollContainerReference, setIsContentScrollable);
+        scrollToTop(scrollContainerReference as RefObject<HTMLDivElement>);
+        checkScrollability(scrollContainerReference  as RefObject<HTMLDivElement>, setIsContentScrollable);
     }, [props.currentPage, props.items, props.viewMode]);
 
     useEffect(() => {
-        const observer = createResizeObserver(scrollContainerReference, setIsContentScrollable);
+        const observer = createResizeObserver(scrollContainerReference  as RefObject<HTMLDivElement>, setIsContentScrollable);
         return () => observer.disconnect();
     }, []);
 

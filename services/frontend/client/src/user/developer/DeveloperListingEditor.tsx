@@ -13,6 +13,7 @@ import { GithubSetupForm } from "./editor/GithubSetupForm";
 import { useListingEditor } from "./editor/useListingEditor";
 import { Toaster } from "react-hot-toast";
 import MarkdownEditor from "../../components/input/MarkdownEditor";
+import type { ListingAccessMode } from "../../backend/types";
 
 interface DeveloperListingDisplayProps {
     listing: DeveloperListing;
@@ -57,13 +58,13 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
                 <Section title="General">
                     <EditableText 
                         label="Title" 
-                        text={listing.title} 
+                        text={listing.title || ""} 
                         onChange={title => { dispatch({ type: "setTitle", title }); markChanged(); }} 
                         block 
                     />
                     <EditableText 
                         label="Description" 
-                        text={listing.description} 
+                        text={listing.description || ""} 
                         onChange={description => { dispatch({ type: "setDescription", description }); markChanged(); }} 
                         block 
                     />
@@ -73,7 +74,7 @@ export default function DeveloperListingEditor({ listing: sourceListing, onShoul
                         <Section title="Visibility">
                             <CustomSelect 
                                 value={listing.accessMode as number} 
-                                onChange={mode => { dispatch({ type: "setAccessMode", mode }); markChanged(); }} 
+                                onChange={mode => { dispatch({ type: "setAccessMode", mode: mode as ListingAccessMode }); markChanged(); }} 
                                 options={[{ label: "Public", value: 1 }, { label: "Private", value: 0 }]} 
                                 block 
                             />

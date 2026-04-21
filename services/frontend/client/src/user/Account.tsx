@@ -1,15 +1,12 @@
 import React, { useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { BarChart3, Images, Library, User as UserIcon, Wallet, Menu, AppWindow } from "lucide-react";
+import { BarChart3, Images, Library, User as UserIcon, Menu, AppWindow } from "lucide-react";
 import backend_constants from "../backend/constants";
 import RequireLogin from "../components/restriction/RequireLogin";
 import { useUserSession } from "../components/restriction/UserSession";
 
 import UserLibrary from "./library/Library";
 import DeveloperListings from "./developer/DeveloperListings";
-import Logo from "../components/prefabs/Logo";
-import CreateInstance from "./library/CreateInstance";
-import UserInstances from "./instances/UserInstances";
 import DeveloperListingLoader from "./developer/DeveloperListingPage";
 import MainNavbar from "../components/navigation/MainNavbar";
 
@@ -97,8 +94,6 @@ const AccountPage: React.FC = () => {
                         <Routes>
                             <Route path="info" element={<AccountInfo />} />
                             <Route path="library" element={<UserLibrary />} />
-                            <Route path="create-instance/:listingId" element={<CreateInstance />} />
-                            <Route path="instances" element={<UserInstances />} />
                             <Route path="developer/listing/:id" element={<DeveloperListingLoader />} />
                             {session.user?.isDeveloper && (
                                 <>

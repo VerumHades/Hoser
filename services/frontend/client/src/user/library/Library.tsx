@@ -1,18 +1,15 @@
-import { useState, useCallback } from "react"
+import { useCallback } from "react"
 import { useNavigate } from "react-router-dom"
-import { CollectionViewContainer } from "../../components/view/CollectionViewContainer"
 import { UserLibraryRow } from "./List/UserLibraryRow"
 import { UserLibraryCard } from "./List/UserLibraryCard"
 import { CursorPaginatedCollection } from "../../components/view/CursorPaginatedCollection"
 import type { Listing } from "../../backend/repositories/listing"
 import { UserAPI } from "../../backend/repositories/user"
 
-type LibraryViewMode = "cards" | "table"
 
 export default function UserLibrary() {
     const navigate = useNavigate()
 
-    const queryBuilder = useCallback((queryText: string) => ({ q: queryText }), [])
 
     const handleCreateInstance = useCallback((listingId: string) => {
         navigate(`/dashboard/create-instance/${listingId}`)

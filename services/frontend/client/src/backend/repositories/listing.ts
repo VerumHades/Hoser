@@ -1,7 +1,6 @@
 import { backendRequest } from "../backend_request";
 import type { HardwareSpecification } from "../types";
 import type { CursorPaginatedResult } from "../paginator";
-import { HttpError } from "../http_error";
 import { buildSearchParams, type ListingSearchQuery } from "../utils/query";
 
 export interface Listing {
@@ -34,7 +33,7 @@ export const ListingAPI = {
         try {
             return backendRequest<CursorPaginatedResult<Listing>>(`/search/listings?${params}`, "GET");
         }
-        catch(error){
+        catch{
             return null
         }
         

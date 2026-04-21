@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import LoginForm from "./user/LoginForm";
 import PublicListingSearch from "./explore/PublicListingSearch";
-import WithNavbar from "./components/navigation/WithNavbar";
 import { UserSession } from "./components/restriction/UserSession";
 import AccountPage from "./user/Account";
 import { PublicListingView } from "./explore/PublicListingView";

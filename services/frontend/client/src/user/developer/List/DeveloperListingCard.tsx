@@ -1,4 +1,5 @@
-import type { DeveloperListing } from "../../../backend"
+
+import type { DeveloperListing } from "../../../backend/repositories/developer_listing"
 import { DeveloperListingItem } from "./DeveloperListingItem"
 
 type DeveloperListingCardProps = {

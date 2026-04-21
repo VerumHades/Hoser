@@ -12,7 +12,7 @@ export function GithubSetupForm({ listingId }: { listingId: string }) {
     useEffect(() => {
         DeveloperListingAPI.githubSetup.get(listingId).then(data => {
             setSetup(data);
-            if (data) setDraft({ repoUrl: data.repositoryURL, accessToken: data.accessToken });
+            if (data) setDraft({ repoUrl: data.repositoryURL, accessToken: data.repositoryURL });
             setLoading(false);
         });
     }, [listingId]);

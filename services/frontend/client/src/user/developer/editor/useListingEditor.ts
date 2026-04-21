@@ -61,8 +61,8 @@ export function useListingEditor(sourceListing: DeveloperListing) {
             }
 
             const updated = await DeveloperListingAPI.update(listing);
-            dispatch({ type: "set", listing: updated });
-            setBackupListing(updated);
+            dispatch({ type: "set", listing: updated || {} as DeveloperListing });
+            setBackupListing(updated as DeveloperListing);
             setHasUnsavedChanges(false);
             
             toast.success("Changes saved");

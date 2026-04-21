@@ -13,14 +13,14 @@ export const UserAPI = {
     /**
      * Retrieves the profile and account data for the currently authenticated user.
      */
-    async getData(): Promise<User> {
+    async getData(): Promise<User | null> {
         return await backendRequest<User>("/user/data", "GET");
     },
 
     /**
      * Executes the purchase process for a listing, creating the necessary ledger transactions.
      */
-    async purchaseListing(listingId: string): Promise<void> {
+    async purchaseListing(listingId: string): Promise<void | null> {
         return await backendRequest(`/user/listings/${listingId}/purchase`, "POST");
     },
 
@@ -72,7 +72,7 @@ export const UserAPI = {
         /**
          * Returns a paginated list of all listings currently in the user's library.
          */
-        async listBatch(cursor?: string): Promise<CursorPaginatedResult<Listing>> {
+        async listBatch(cursor?: string): Promise<CursorPaginatedResult<Listing> | null> {
             const parameters = cursor ? `?cursor=${cursor}` : "";
             return backendRequest<CursorPaginatedResult<Listing>>(`/user/library${parameters}`, "GET");
         },

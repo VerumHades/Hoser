@@ -4,10 +4,8 @@ import {
     Rocket,
     ShieldCheck,
     Cpu,
-    Globe,
     Zap,
     ArrowRight,
-    Code2,
     Terminal
 } from "lucide-react";
 import MainNavbar from "../components/navigation/MainNavbar";
@@ -129,23 +127,6 @@ function FeatureCard({ icon, title, description }: { icon: React.ReactNode, titl
     );
 }
 
-function SocialProofSection() {
-    return (
-        <div className="w-full border-y border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/20 py-12">
-            <div className="max-w-7xl mx-auto px-6 flex flex-wrap justify-center gap-12 opacity-50 grayscale">
-                <BrandPlaceholder name="AWS" />
-                <BrandPlaceholder name="DigitalOcean" />
-                <BrandPlaceholder name="Terraform" />
-                <BrandPlaceholder name="Docker" />
-                <BrandPlaceholder name="Kubernetes" />
-            </div>
-        </div>
-    );
-}
-
-function BrandPlaceholder({ name }: { name: string }) {
-    return <span className="text-xl font-bold tracking-tighter">{name}</span>;
-}
 
 function FeaturedListingsSection() {
     return (

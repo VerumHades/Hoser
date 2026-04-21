@@ -22,13 +22,6 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
         minHeight: "400px",
         maxHeight: "600px",
         sideBySideFullscreen: false, 
-        toolbar: [
-            "bold", "italic", "heading", "|", 
-            "quote", "unordered-list", "ordered-list", "|", 
-            "link", "image", "|", 
-            "side-by-side", "|", 
-            "undo", "redo"
-        ],
         forceSync: true,
         // Use a single token here to avoid the InvalidCharacterError
         previewClass: "custom-markdown-preview",

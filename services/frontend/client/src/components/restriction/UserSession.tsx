@@ -23,9 +23,9 @@ export function UserSession({ children }: UserSessionProps) {
         async function fetchUser() {
             try{
                 const u = await UserAPI.getData();
-                setUser(u);
-            }catch{
-
+                if(u) setUser(u);
+            } catch {
+    
             }
         }
         fetchUser();
