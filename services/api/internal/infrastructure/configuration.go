@@ -15,4 +15,6 @@ type Configuration struct {
 	MongoDatabasePassword string `env:"MONGO_PASSWORD" default:"apiUserPassword"`
 	MongoDatabaseHost     string `env:"MONGO_HOST" default:"localhost"`
 	MongoDatabasePort     string `env:"MONGO_PORT" default:"27017"`
+
+	EnsureDefaultUser bool `env:"ENSURE_DEFAULT_USER" default:"false"`
 }

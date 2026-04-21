@@ -20,6 +20,7 @@ import (
 	"common/pkg/application/unitofwork"
 	"common/pkg/domain/entities/accounting"
 	"common/pkg/domain/entities/listing"
+	"common/pkg/domain/entities/user"
 
 	"common/pkg/infrastructure/external"
 	mongodbinstance "common/pkg/infrastructure/mongodb/instance"
@@ -149,33 +150,36 @@ func main() {
 		runningConfiguration.MeilisearchApiKey,
 	)
 
-	/*cuser, err := user.NewUserWithID("0", "alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
+	cuser, err := user.NewUserWithID("0", "alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
 
-	_, err = userRepo.Create(ctx, cuser)
-	if err != nil {
-		fmt.Println(err)
+	if runningConfiguration.EnsureDefaultUser {
 
-	}
+		_, err = userRepo.Create(ctx, cuser)
+		if err != nil {
+			fmt.Println(err)
 
-	// Define your pool of image handles (e.g., Minio object keys)
-	imagePool := []string{
-		"samples/ai-model-thumb.png",
-		"samples/gpu-cluster.jpg",
-		"samples/neural-net.png",
-	}
+		}
+	} /*
 
-	// Initialize the seeder
-	listingSeeder := seeding.NewListingSeeder(
-		listingRepo,
-		listingIndexer,
-		imagePool,
-	)
+		// Define your pool of image handles (e.g., Minio object keys)
+		imagePool := []string{
+			"samples/ai-model-thumb.png",
+			"samples/gpu-cluster.jpg",
+			"samples/neural-net.png",
+		}
 
-	// Execute the seeding process
-	err = listingSeeder.Seed(ctx, 50, string(cuser.ID())) // Generates 50 listings for Alice
-	if err != nil {
-		log.Printf("Seeding encountered an error: %v", err)
-	}*/
+		// Initialize the seeder
+		listingSeeder := seeding.NewListingSeeder(
+			listingRepo,
+			listingIndexer,
+			imagePool,
+		)
+
+		// Execute the seeding process
+		err = listingSeeder.Seed(ctx, 50, string(cuser.ID())) // Generates 50 listings for Alice
+		if err != nil {
+			log.Printf("Seeding encountered an error: %v", err)
+		}*/
 
 	/*{
 		for listing := range util.GenerateInBatches(
