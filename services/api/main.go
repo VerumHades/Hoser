@@ -8,6 +8,7 @@ import (
 	platformapi "api/internal/http/platform"
 	userapi "api/internal/http/user"
 	"api/internal/infrastructure"
+	"strings"
 
 	"common/pkg/application/outbox"
 	"common/pkg/application/services/auth"
@@ -152,7 +153,7 @@ func main() {
 
 	cuser, err := user.NewUserWithID("0", "alice", "$2y$10$lGdmMojygg80QG4DPE2xXeT9ByEJrJVa9JnEKRBDSAnxJzaDY9Hk2", true)
 
-	if runningConfiguration.EnsureDefaultUser {
+	if strings.EqualFold(runningConfiguration.EnsureDefaultUser, "true") {
 
 		_, err = userRepo.Create(ctx, cuser)
 		if err != nil {
