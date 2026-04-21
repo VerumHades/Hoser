@@ -10,13 +10,77 @@ import { SearchableCollection } from "../../components/view/SearchableCollection
 import { DynamicFilterSidebar, type FilterField } from "../../components/querying/FilterSidebar";
 import type { ListingSearchQuery } from "../../backend/utils/query";
 
-const SIMPLE_SEARCH_FIELDS: FilterField<ListingSearchQuery>[] = [
+/**
+ * A comprehensive collection of filter fields available for developer listings.
+ * Includes technical specifications, metadata, and internal identifiers.
+ */
+const DEVELOPER_COMPLETE_FILTER_FIELDS: FilterField<ListingSearchQuery>[] = [
     { 
-        key: "text", 
-        label: "Keywords", 
+        key: "title", 
+        label: "Listing Title", 
         type: "text", 
-        urlKey: "q" 
+        urlKey: "title" 
     },
+    { 
+        key: "author", 
+        label: "Author Reference", 
+        type: "text", 
+        urlKey: "author" 
+    },
+    { 
+        key: "accessMode", 
+        label: "System Access Mode", 
+        type: "select", 
+        urlKey: "access_mode" 
+    },
+    { 
+        key: "price", 
+        label: "Listing Price", 
+        type: "range", 
+        urlKeys: { 
+            min: "price_min", 
+            max: "price_max" 
+        } 
+    },
+    { 
+        key: "cpu", 
+        label: "Recommended CPU Cores", 
+        type: "range", 
+        urlKeys: { 
+            min: "cpu_min", 
+            max: "cpu_max" 
+        } 
+    },
+    { 
+        key: "ramBytes", 
+        label: "Recommended RAM Bytes", 
+        type: "range", 
+        urlKeys: { 
+            min: "ram_min", 
+            max: "ram_max" 
+        } 
+    },
+    { 
+        key: "diskBytes", 
+        label: "Recommended Disk Bytes", 
+        type: "range", 
+        urlKeys: { 
+            min: "disk_min", 
+            max: "disk_max" 
+        } 
+    },
+    { 
+        key: "description", 
+        label: "Description Content", 
+        type: "text", 
+        urlKey: "description" 
+    },
+    { 
+        key: "documentation_markdown", 
+        label: "Documentation Content", 
+        type: "text", 
+        urlKey: "docs" 
+    }
 ];
 
 export default function DeveloperListings() {
@@ -42,7 +106,7 @@ export default function DeveloperListings() {
 
     return (
         <SearchableCollection<DeveloperListing, ListingSearchQuery>
-            filterFields={SIMPLE_SEARCH_FIELDS}
+            filterFields={DEVELOPER_COMPLETE_FILTER_FIELDS}
             headerActions={
                 <Button onClick={handleCreate} disabled={isCreating}>
                     {isCreating ? "Creating..." : "Create Listing"}

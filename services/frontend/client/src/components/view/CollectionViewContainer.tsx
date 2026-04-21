@@ -1,9 +1,7 @@
-import React, { useEffect, useRef, type ReactNode } from "react";
+import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { 
     LayoutGrid, 
     Table as TableIcon, 
-    ChevronsLeft, 
-    ChevronsRight, 
     ChevronLeft, 
     ChevronRight 
 } from "lucide-react";
@@ -85,23 +83,15 @@ export function Pagination({
             />
 
             <div className="flex items-center gap-1.5 px-2">
-                {visiblePages.map((pageIndex) => {
-                    const isActive = pageIndex === currentPage;
-                    return (
-                        <button
-                            key={pageIndex}
-                            disabled={isLoading}
-                            onClick={() => onPageChange(pageIndex)}
-                            className={`flex h-9 min-w-[36px] items-center justify-center rounded-xl text-sm font-semibold transition-all
-                                ${isActive 
-                                    ? "bg-slate-900 text-white shadow-lg shadow-slate-200 dark:bg-white dark:text-slate-900 dark:shadow-none" 
-                                    : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-                                }`}
-                        >
-                            {pageIndex + 1}
-                        </button>
-                    );
-                })}
+                {visiblePages.map((pageIndex) => (
+                    <PageButton
+                        key={pageIndex}
+                        index={pageIndex}
+                        isActive={pageIndex === currentPage}
+                        isLoading={isLoading}
+                        onClick={onPageChange}
+                    />
+                ))}
             </div>
 
             <IconButton 
@@ -110,6 +100,34 @@ export function Pagination({
                 onClick={() => onPageChange(currentPage + 1)} 
             />
         </nav>
+    );
+}
+
+/**
+ * Individual page number button.
+ */
+function PageButton({ 
+    index, 
+    isActive, 
+    isLoading, 
+    onClick 
+}: { 
+    index: number; 
+    isActive: boolean; 
+    isLoading: boolean; 
+    onClick: (idx: number) => void 
+}) {
+    const activeStyles = "bg-slate-900 text-white shadow-lg shadow-slate-200 dark:bg-white dark:text-slate-900 dark:shadow-none";
+    const inactiveStyles = "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800";
+
+    return (
+        <button
+            disabled={isLoading}
+            onClick={() => onClick(index)}
+            className={`flex h-9 min-w-[36px] items-center justify-center rounded-xl text-sm font-semibold transition-all ${isActive ? activeStyles : inactiveStyles}`}
+        >
+            {index + 1}
+        </button>
     );
 }
 
@@ -123,20 +141,21 @@ function ViewModeToggle({
     viewMode: CollectionViewMode; 
     onViewModeChange: (mode: CollectionViewMode) => void 
 }) {
-    const isActive = (mode: CollectionViewMode) => viewMode === mode;
     const buttonBase = "relative flex h-8 w-10 items-center justify-center rounded-lg transition-all";
+    const activeStyles = "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white";
+    const inactiveStyles = "text-slate-500 hover:text-slate-700 dark:text-slate-400";
 
     return (
         <div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800/50">
             <button
                 onClick={() => onViewModeChange("table")}
-                className={`${buttonBase} ${isActive("table") ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"}`}
+                className={`${buttonBase} ${viewMode === "table" ? activeStyles : inactiveStyles}`}
             >
                 <TableIcon size={16} />
             </button>
             <button
                 onClick={() => onViewModeChange("cards")}
-                className={`${buttonBase} ${isActive("cards") ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"}`}
+                className={`${buttonBase} ${viewMode === "cards" ? activeStyles : inactiveStyles}`}
             >
                 <LayoutGrid size={16} />
             </button>
@@ -147,77 +166,90 @@ function ViewModeToggle({
 /**
  * Main container with a clean, focused UI.
  */
-export function CollectionViewContainer<ItemType>({
-    items,
-    viewMode,
-    onViewModeChange,
-    renderTableRow,
-    renderCard,
-    emptyState,
-    currentPage = 0,
-    totalPages = 1,
-    onPageChange,
-    isLoading,
-    header
-}: CollectionViewContainerProps<ItemType>) {
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const hasMultiplePages = totalPages > 1 && !!onPageChange;
+export function CollectionViewContainer<ItemType>(props: CollectionViewContainerProps<ItemType>) {
+    const scrollContainerReference = useRef<HTMLDivElement>(null);
+    const [isContentScrollable, setIsContentScrollable] = useState(false);
 
     useEffect(() => {
-        scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-    }, [currentPage]);
+        scrollToTop(scrollContainerReference);
+        checkScrollability(scrollContainerReference, setIsContentScrollable);
+    }, [props.currentPage, props.items, props.viewMode]);
+
+    useEffect(() => {
+        const observer = createResizeObserver(scrollContainerReference, setIsContentScrollable);
+        return () => observer.disconnect();
+    }, []);
+
+    const showPagination = (props.totalPages ?? 0) > 1 && !!props.onPageChange;
 
     return (
         <div className="flex h-full w-full flex-col bg-white dark:bg-slate-950">
             <header className="flex h-20 items-center justify-between border-b border-slate-100 px-8 dark:border-slate-900">
                 <div className="flex items-center gap-8">
                     <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-                        {header}
+                        {props.header}
                     </h2>
-                    
-                    {hasMultiplePages && (
-                        <div className="hidden md:block">
-                            <Pagination
-                                currentPage={currentPage}
-                                totalPages={totalPages}
-                                onPageChange={onPageChange}
-                                isLoading={isLoading ?? false}
-                            />
-                        </div>
-                    )}
+                    {showPagination && <div className="hidden md:block"><PaginationLayout {...props} /></div>}
                 </div>
-
-                <ViewModeToggle 
-                    viewMode={viewMode} 
-                    onViewModeChange={onViewModeChange} 
-                />
+                <ViewModeToggle viewMode={props.viewMode} onViewModeChange={props.onViewModeChange} />
             </header>
 
-            <main 
-                ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto scroll-smooth"
-            >
+            <main ref={scrollContainerReference} className="flex-1 overflow-y-auto scroll-smooth">
                 <div className="mx-auto max-w-7xl p-8">
-                    <CollectionView
-                        items={items}
-                        viewMode={viewMode}
-                        renderTableRow={renderTableRow}
-                        renderCard={renderCard}
-                        emptyState={emptyState}
-                    />
-                    
-                    {hasMultiplePages && (
+                    <CollectionView {...props} />
+                    {showPagination && isContentScrollable && (
                         <div className="mt-12 flex justify-center py-12">
-                            <Pagination
-                                currentPage={currentPage}
-                                totalPages={totalPages}
-                                onPageChange={onPageChange}
-                                isLoading={isLoading ?? false}
-                            />
+                            <PaginationLayout {...props} />
                         </div>
                     )}
                 </div>
             </main>
         </div>
+    );
+}
+
+/**
+ * Helper to check if the element has vertical overflow.
+ */
+function checkScrollability(
+    ref: React.RefObject<HTMLDivElement>, 
+    setScrollable: (val: boolean) => void
+) {
+    if (ref.current) {
+        const { scrollHeight, clientHeight } = ref.current;
+        setScrollable(scrollHeight > clientHeight);
+    }
+}
+
+/**
+ * Smooth scrolls container to the top.
+ */
+function scrollToTop(ref: React.RefObject<HTMLDivElement>) {
+    ref.current?.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/**
+ * Sets up a ResizeObserver to detect content height changes.
+ */
+function createResizeObserver(
+    ref: React.RefObject<HTMLDivElement>, 
+    setScrollable: (val: boolean) => void
+) {
+    const observer = new ResizeObserver(() => checkScrollability(ref, setScrollable));
+    if (ref.current) observer.observe(ref.current);
+    return observer;
+}
+
+/**
+ * Structural wrapper for the pagination component.
+ */
+function PaginationLayout<ItemType>(props: CollectionViewContainerProps<ItemType>) {
+    return (
+        <Pagination
+            currentPage={props.currentPage ?? 0}
+            totalPages={props.totalPages ?? 1}
+            onPageChange={props.onPageChange!}
+            isLoading={props.isLoading ?? false}
+        />
     );
 }
