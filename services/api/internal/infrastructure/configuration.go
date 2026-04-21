@@ -17,4 +17,6 @@ type Configuration struct {
 	MongoDatabasePort     string `env:"MONGO_PORT" default:"27017"`
 
 	EnsureDefaultUser string `env:"ENSURE_DEFAULT_USER" default:"false"`
+
+	MinioHost string `env:MINIO_HOST default:"localhost:9000"`
 }

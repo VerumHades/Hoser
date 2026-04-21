@@ -202,7 +202,7 @@ func main() {
 
 	// main.go
 	storageAdapter, _ := adapters.NewMinioStorageAdapter(
-		"localhost:9000",
+		runningConfiguration.MinioHost,
 		"localadmin",
 		"localpassword",
 		"listings",
